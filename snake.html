@@ -1,0 +1,1972 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>小蛇找水果 · 3岁思维小游戏</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  :root{
+    --sky1:#bfe9ff;
+    --sky2:#e9f7ff;
+    --grass:#8ed86a;
+    --grass-d:#6cc24a;
+    --ink:#3a3550;
+    --card:#ffffff;
+    --sun:#ffd24d;
+  }
+
+  html,body{
+    height:100%;
+    overflow:hidden;
+    font-family: "PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    background:var(--sky1);
+  }
+
+  body{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    user-select:none;
+    touch-action:none;
+    position:relative;
+    overflow:hidden;
+  }
+
+  /* 云朵装饰 */
+  .cloud{position:absolute;background:#fff;border-radius:999px;opacity:.75;filter:blur(.3px);animation:floatC 26s linear infinite;pointer-events:none;}
+  .cloud::before,.cloud::after{content:"";position:absolute;background:#fff;border-radius:50%;}
+  .cloud::before{width:60%;height:150%;left:10%;top:-70%;}
+  .cloud::after{width:45%;height:120%;right:8%;top:-50%;}
+  @keyframes floatC{from{transform:translateX(-30vw);}to{transform:translateX(130vw);}}
+
+  #stage{
+    width:100%;
+    max-width:520px;
+    height:100%;
+    max-height:900px;
+    display:flex;
+    flex-direction:column;
+    padding:8px 10px 10px;
+    gap:8px;
+    position:relative;
+    z-index:2;
+  }
+
+  /* ===== 顶部信息条 ===== */
+  .topbar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:rgba(255,255,255,.9);
+    border-radius:20px;
+    padding:7px 10px;
+    box-shadow:0 4px 0 rgba(0,0,0,.06);
+    backdrop-filter:blur(4px);
+    flex:0 0 auto;
+  }
+  .avatar{
+    width:36px;height:36px;border-radius:50%;
+    background:linear-gradient(180deg,#7fe06a,#46b84e);
+    display:flex;align-items:center;justify-content:center;
+    flex:0 0 auto;
+    box-shadow:inset 0 -3px 0 rgba(0,0,0,.12);
+    overflow:hidden;
+  }
+  .bubble{
+    flex:1;
+    font-size:clamp(12.5px,3.4vw,15px);
+    font-weight:700;
+    color:var(--ink);
+    line-height:1.3;
+    min-width:0;
+    max-height:2.6em;
+    overflow-y:auto;
+    scrollbar-width:none;
+  }
+  .bubble::-webkit-scrollbar{display:none;}
+  .bubble b{ display:inline; }
+  .bubble .hl{color:#e8593f;}
+  .bubble .hl2{color:#2e86d8;}
+
+  .stats{
+    flex:0 0 auto;
+    display:flex;flex-direction:column;align-items:flex-end;gap:4px;
+  }
+  /* 蛇身长度：一排小圆点，吃一个亮一个 */
+  .growth{
+    display:flex;align-items:center;gap:3px;
+    padding:3px 6px;border-radius:9px;
+    background:rgba(120,200,110,.14);
+  }
+  .growth i{
+    width:7px;height:7px;border-radius:50%;
+    background:#d5dcc8;
+    transition:background .25s, transform .25s;
+  }
+  .growth i.on{background:#5cc35e;transform:scale(1.15);}
+  .growth.maxed i.on{background:#f2a92b;}
+  .growth.maxed{background:rgba(255,215,120,.28);}
+
+  .stars{
+    flex:0 0 auto;
+    font-size:clamp(14px,3.9vw,17px);
+    font-weight:800;
+    color:#f2a92b;
+    background:#fff6d8;
+    border-radius:14px;
+    padding:6px 9px;
+    box-shadow:inset 0 -3px 0 rgba(0,0,0,.05);
+    white-space:nowrap;
+    display:flex;align-items:center;gap:4px;
+  }
+
+  /* ===== 画布 ===== */
+  .boardwrap{
+    position:relative;
+    flex:1;
+    min-height:0;
+    border-radius:26px;
+    overflow:hidden;
+    box-shadow:0 8px 0 rgba(0,0,0,.08), 0 0 0 6px #fff, 0 0 0 12px var(--grass);
+    background:
+      radial-gradient(circle at 20% 15%, #ffffff55, transparent 40%),
+      linear-gradient(180deg,#eefbe6,#dcf3cd);
+  }
+  canvas{display:block;width:100%;height:100%;}
+  /* 画布保持等比：格子永远是正圆/正方形，不会被拉扁 */
+
+  /* ===== 目标提示栏（棋盘外，独立一条） ===== */
+  .mission{
+    flex:0 0 auto;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    background:linear-gradient(180deg,#ffffff,#fffdf4);
+    border-radius:20px;
+    padding:9px 12px;
+    box-shadow:0 5px 0 rgba(0,0,0,.09), inset 0 0 0 3px #ffe9a8;
+    position:relative;
+    overflow:hidden;
+  }
+  /* 左侧色块：用颜色本身当"图例"，不识字也能看懂 */
+  .mission .swatch{
+    flex:0 0 auto;
+    width:42px;height:42px;border-radius:14px;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:inset 0 -3px 0 rgba(0,0,0,.14);
+    transition:background .3s;
+  }
+  .mission .swatch svg{width:26px;height:26px;}
+  .mission .txt{
+    flex:1;min-width:0;
+    font-size:clamp(15px,4.4vw,19px);
+    font-weight:800;
+    color:var(--ink);
+    line-height:1.3;
+  }
+  .mission .txt .key{
+    color:#e8593f;
+    font-size:1.08em;
+  }
+  .mission .speak{
+    flex:0 0 auto;
+    width:40px;height:40px;border-radius:50%;border:none;
+    background:linear-gradient(180deg,#8fd2ff,#4aa8ee);
+    box-shadow:0 4px 0 #2b86c8;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;transition:transform .06s;
+  }
+  .mission .speak:active{transform:translateY(3px);box-shadow:0 1px 0 #2b86c8;}
+  .mission.playing .speak{animation:pulse .7s ease-in-out infinite;}
+  @keyframes pulse{
+    0%,100%{transform:scale(1);}
+    50%{transform:scale(1.10);}
+  }
+
+  /* ===== 方向键 ===== */
+  .pad{
+    flex:0 0 auto;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    grid-template-rows:repeat(2,1fr);
+    gap:8px;
+    height:clamp(120px,20vh,168px);
+    max-width:420px;
+    margin:0 auto;
+    width:100%;
+  }
+  .btn{
+    border:none;
+    border-radius:22px;
+    background:linear-gradient(180deg,#ffffff,#f0f4ff);
+    box-shadow:0 6px 0 #c9d6ee, inset 0 2px 0 #fff;
+    font-size:clamp(28px,8vw,38px);
+    color:#4a6ad8;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    transition:transform .06s, box-shadow .06s;
+    font-weight:900;
+  }
+  .btn:active,.btn.press{
+    transform:translateY(5px);
+    box-shadow:0 1px 0 #c9d6ee, inset 0 2px 0 #fff;
+  }
+  .btn.empty{visibility:hidden;}
+  .b-up{grid-column:2;grid-row:1;}
+  .b-left{grid-column:1;grid-row:2;}
+  .b-down{grid-column:2;grid-row:2;}
+  .b-right{grid-column:3;grid-row:2;}
+
+  /* ===== 弹层 ===== */
+  .overlay{
+    position:absolute;inset:0;
+    background:rgba(58,53,80,.45);
+    backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;
+    z-index:20;
+    padding:16px;
+    opacity:0;pointer-events:none;transition:opacity .25s;
+  }
+  .overlay.show{opacity:1;pointer-events:auto;}
+  .panel{
+    background:#fff;
+    border-radius:30px;
+    padding:24px 20px 22px;
+    width:100%;max-width:370px;
+    text-align:center;
+    box-shadow:0 14px 0 rgba(0,0,0,.12);
+    transform:scale(.9);transition:transform .25s cubic-bezier(.34,1.56,.64,1);
+  }
+  .overlay.show .panel{transform:scale(1);}
+  .panel h1{font-size:clamp(22px,6vw,27px);color:var(--ink);margin-bottom:6px;}
+  .panel .sub{font-size:clamp(13px,3.8vw,15px);color:#8a85a3;line-height:1.6;margin-bottom:16px;}
+  .panel .emoji{font-size:56px;line-height:1;margin-bottom:8px;display:block;}
+  .bigbtn{
+    border:none;width:100%;
+    padding:15px;
+    border-radius:20px;
+    font-size:clamp(17px,4.8vw,20px);
+    font-weight:800;color:#fff;
+    background:linear-gradient(180deg,#7ee06a,#43bd4e);
+    box-shadow:0 6px 0 #2f9a3a;
+    cursor:pointer;font-family:inherit;
+    transition:transform .06s,box-shadow .06s;
+  }
+  .bigbtn:active{transform:translateY(4px);box-shadow:0 2px 0 #2f9a3a;}
+  .bigbtn.blue{background:linear-gradient(180deg,#6cc0ff,#2e86d8);box-shadow:0 6px 0 #1f66a8;}
+
+  .rules{text-align:left;font-size:clamp(13px,3.7vw,15px);color:#5d5878;line-height:1.9;margin:0 0 16px;padding-left:4px;}
+  .rules li{list-style:none;display:flex;gap:8px;}
+  .rules .n{color:#43bd4e;font-weight:900;}
+
+  /* 进度点 */
+  .qdots{display:flex;gap:5px;justify-content:center;flex-wrap:wrap;margin-bottom:14px;}
+  .qdots i{width:8px;height:8px;border-radius:50%;background:#e2e5f0;}
+  .qdots i.on{background:#43bd4e;transform:scale(1.25);}
+
+  /* 庆祝星星 */
+  .burst{position:absolute;font-size:26px;pointer-events:none;animation:burst .9s ease-out forwards;z-index:15;}
+  @keyframes burst{
+    0%{transform:translate(0,0) scale(.4);opacity:1;}
+    100%{transform:translate(var(--tx),var(--ty)) scale(1.1) rotate(var(--rot));opacity:0;}
+  }
+
+  /* 右下角工具按钮（重听 / 声音） */
+  .tools{
+    position:absolute;
+    top:10px;
+    right:9px;
+    z-index:30;
+    display:flex;
+    flex-direction:column;
+    gap:7px;
+  }
+  .toolbtn{
+    width:38px;height:38px;border-radius:50%;border:none;
+    background:rgba(255,255,255,.94);
+    box-shadow:0 3px 0 rgba(0,0,0,.1);
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:transform .06s;
+  }
+  .toolbtn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.1);}
+  .toolbtn .sp{
+    font-size:14px;font-weight:900;color:#4a6ad8;
+    font-family:inherit;line-height:1;
+  }
+  @media (orientation: landscape) and (max-height: 560px){
+    .tools{ top:8px; right:8px; gap:6px; }
+    .toolbtn{ width:30px; height:30px; }
+    .toolbtn svg{ width:16px; height:16px; }
+  }
+
+
+  /* ===== 横屏：棋盘在左，方向键在右 ===== */
+  @media (orientation: landscape) and (max-height: 560px){
+    #stage{
+      max-width: 100%;
+      max-height: 100%;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      justify-items: stretch;
+      align-items: stretch;
+      width: 100%;
+      align-content: center;
+      gap: 8px;
+      padding: 6px 8px;
+    }
+    .topbar{ grid-column: 1 / -1; grid-row: 1; padding: 3px 10px; }
+    .topbar .avatar{ display:none; }
+    .avatar{ width: 30px; height: 30px; }
+    .mission{ grid-column: 1; grid-row: 2; padding: 4px 10px; }
+    .mission .swatch{ width: 32px; height: 32px; border-radius: 11px; }
+    .mission .swatch svg{ width: 20px; height: 20px; }
+    .mission .txt{ font-size: 14px; }
+    .mission .speak{ width: 32px; height: 32px; }
+    .mission .speak svg{ width: 17px; height: 17px; }
+    .boardwrap{ grid-column: 1; grid-row: 3; width: 100%; height: 100%; }
+    .pad{
+      grid-column: 2; grid-row: 2 / 4;
+      width: 250px; height: 250px;
+      max-width: 250px; max-height: 250px;
+      margin: auto;
+      gap: 8px;
+      grid-template-columns: repeat(3,1fr);
+      grid-template-rows: repeat(3,1fr);
+      align-self: center;
+      justify-self: center;
+    }
+    .b-up   { grid-column: 2; grid-row: 1; }
+    .b-left { grid-column: 1; grid-row: 2; }
+    .b-down { grid-column: 2; grid-row: 2; }
+    .b-right{ grid-column: 3; grid-row: 2; }
+    .btn{ border-radius: 18px; }
+    .btn svg{ width: 26px; height: 26px; }
+    .tools{ top: 8px; right: 8px; }
+  }
+
+  @media (orientation: landscape) and (max-height: 420px){
+    #stage{ grid-template-columns: minmax(0,1fr) 210px; }
+    .pad{ max-width: 200px; max-height: 200px; }
+  }
+
+  /* 矮屏竖屏（小手机）压缩一点，横屏不受影响 */
+  @media (max-height:640px) and (orientation: portrait){
+    .pad{height:112px;}
+    .topbar{padding:5px 9px;}
+    .avatar{width:32px;height:32px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="cloud" style="width:120px;height:46px;top:6%;animation-delay:-4s;"></div>
+<div class="cloud" style="width:90px;height:34px;top:24%;animation-delay:-14s;opacity:.5;"></div>
+<div class="cloud" style="width:150px;height:54px;top:44%;animation-delay:-22s;opacity:.35;"></div>
+
+<div id="stage">
+  <div class="topbar">
+    <div class="avatar" id="avatar"></div>
+    <div class="bubble" id="bubble">我们一起玩吧！</div>
+    <div class="stats">
+      <div class="stars"><span class="starico">★</span><span id="stars">0</span></div>
+      <div class="growth" id="growth" title="蛇蛇有多长"></div>
+    </div>
+  </div>
+
+  <!-- 目标提示栏：在棋盘外面，一眼就能看到 & 点一下就朗读 -->
+  <div class="mission" id="mission">
+    <span class="swatch" id="goalDot"></span>
+    <span class="txt" id="goalTxt">只吃黄色的</span>
+    <button class="speak" id="replaybtn" title="再听一次" aria-label="再听一次"></button>
+  </div>
+
+  <div class="boardwrap" id="boardwrap">
+    <canvas id="cv"></canvas>
+    <div class="tools">
+      <button class="toolbtn" id="sndbtn" title="声音开关"></button>
+      <button class="toolbtn" id="speedbtn" title="语音快慢"><span id="speedLbl"></span></button>
+    </div>
+  </div>
+
+  <div class="pad">
+    <button class="btn b-up"    data-dir="up"    aria-label="上"></button>
+    <button class="btn b-left"  data-dir="left"  aria-label="左"></button>
+    <button class="btn b-down"  data-dir="down"  aria-label="下"></button>
+    <button class="btn b-right" data-dir="right" aria-label="右"></button>
+  </div>
+</div>
+
+<!-- 开始页 -->
+<div class="overlay show" id="startOv">
+  <div class="panel">
+    <div class="emoji" id="startArt"></div>
+    <h1>小蛇找水果</h1>
+    <p class="sub">点方向键，让小蛇去吃对它来说<br>「对的那一个」水果</p>
+    <ul class="rules">
+      <li><span class="n">1</span><span>点下面的 <b>方向键</b> 让小蛇走起来 <svg width="46" height="16" viewBox="0 0 46 16" style="vertical-align:-2px"><path d="M8 14l6-11 6 11z" fill="#5b7cf0"/><path d="M19 2l5.5 6-5.5 6z" fill="#8fb0ff" transform="translate(0,0)"/><path d="M25 2l5.5 6-5.5 6z" fill="#5b7cf0"/><path d="M32 2l5.5 6-5.5 6z" fill="#8fb0ff"/></svg></span></li>
+      <li><span class="n">2</span><span>小蛇会告诉你 <b>要吃哪一种</b></span></li>
+      <li><span class="n">3</span><span>吃对了得 ★，吃错也没关系~</span></li>
+    </ul>
+    <button class="bigbtn" id="startBtn">开始玩</button>
+  </div>
+</div>
+
+<!-- 关卡完成 / 结果页 -->
+<div class="overlay" id="endOv">
+  <div class="panel">
+    <div class="emoji" id="endEmoji"></div>
+    <h1 id="endTitle">真棒！</h1>
+    <p class="sub" id="endSub">你得到了 6 颗星星</p>
+    <div class="qdots" id="qdots"></div>
+    <button class="bigbtn" id="againBtn">再玩一次</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   小蛇找水果 —— 为 3 岁儿童设计的低难度贪吃蛇 + 认知启蒙
+   ---------------------------------------------------------
+   学习设计（融入"思维逻辑"引导，不额外增加操作负担）：
+   1. 颜色识别    —— 吃指定颜色的水果
+   2. 形状识别    —— 吃指定形状的水果
+   3. 数量比较    —— 数一数、吃"更多"的那一堆
+   4. 分类归纳    —— 吃"水果类"，不吃"蔬菜/杂物"
+   5. 空间方位    —— 小蛇在第几格
+   核心：先给目标 → 再动手 → 立刻反馈 → 一句话说清"为什么"
+   ========================================================= */
+
+/* ---------- 图形库：全部用 Canvas 手绘，任何设备都长得一样 ---------- */
+/* 每个形状函数在半径 r 内绘制，调用前已设置好 fillStyle */
+const SHAPES = {
+  apple(g, r){
+    g.beginPath();
+    g.moveTo(0,-r*0.55);
+    g.bezierCurveTo(r*0.75,-r*1.15, r*1.18, r*0.05, 0, r*0.95);
+    g.bezierCurveTo(-r*1.18, r*0.05, -r*0.75,-r*1.15, 0,-r*0.55);
+    g.fill();
+  },
+  banana(g, r){
+    g.beginPath();
+    g.moveTo(-r*0.95,-r*0.55);
+    g.quadraticCurveTo(-r*0.1, r*1.35, r*0.98, r*0.28);
+    g.quadraticCurveTo(r*0.75, r*0.85, -r*0.05, r*0.72);
+    g.quadraticCurveTo(-r*0.72, r*0.5, -r*0.95,-r*0.55);
+    g.fill();
+  },
+  carrot(g, r){
+    g.beginPath();
+    g.moveTo(-r*0.42,-r*0.5);
+    g.quadraticCurveTo(0,-r*0.78, r*0.42,-r*0.5);
+    g.quadraticCurveTo(r*0.3, r*0.35, 0, r*1.0);
+    g.quadraticCurveTo(-r*0.3, r*0.35, -r*0.42,-r*0.5);
+    g.fill();
+  },
+  grape(g, r){
+    const pts=[[0,-r*0.55],[-r*0.52,-r*0.18],[r*0.52,-r*0.18],[-r*0.26,r*0.34],[r*0.26,r*0.34],[0,r*0.86]];
+    pts.forEach(p=>{ g.beginPath(); g.arc(p[0],p[1],r*0.42,0,7); g.fill(); });
+  },
+  berry(g, r){   /* 蓝莓：圆 + 顶部小星形口 */
+    g.beginPath(); g.arc(0,0,r*0.92,0,7); g.fill();
+    g.save(); g.globalCompositeOperation='destination-out';
+    for(let i=0;i<5;i++){
+      const a=-Math.PI/2 + i*Math.PI*2/5;
+      g.beginPath();
+      g.ellipse(Math.cos(a)*r*0.3, Math.sin(a)*r*0.3, r*0.14, r*0.09, a, 0, 7);
+      g.fill();
+    }
+    g.restore();
+  },
+  orange(g, r){
+    g.beginPath(); g.arc(0,0,r*0.95,0,7); g.fill();
+  },
+  kiwi(g, r){
+    g.save(); g.scale(1,0.8);
+    g.beginPath(); g.arc(0,0,r*0.98,0,7); g.fill();
+    g.restore();
+  },
+  square(g, r){
+    const s=r*1.55, k=r*0.28;
+    g.beginPath();
+    g.moveTo(-s+k,-s); g.arcTo(s,-s,s,s,k); g.arcTo(s,s,-s,s,k);
+    g.arcTo(-s,s,-s,-s,k); g.arcTo(-s,-s,s,-s,k); g.closePath(); g.fill();
+  },
+  triangle(g, r){
+    g.beginPath(); g.moveTo(0,-r*1.15); g.lineTo(r*1.15, r*0.8); g.lineTo(-r*1.15, r*0.8);
+    g.closePath(); g.fill();
+  },
+  star(g, r){
+    g.beginPath();
+    for(let i=0;i<10;i++){
+      const rad = i%2 ? r*0.46 : r*1.12;
+      const a = -Math.PI/2 + i*Math.PI/5;
+      i ? g.lineTo(Math.cos(a)*rad, Math.sin(a)*rad) : g.moveTo(Math.cos(a)*rad, Math.sin(a)*rad);
+    }
+    g.closePath(); g.fill();
+  }
+};
+
+/* 每个"食物"的完整定义：名字、颜色、形状、轮廓色、装饰 */
+const FOODS = {
+  strawberry:{ name:'草莓', kind:'fruit', color:'#ef4444', colorName:'红色', shape:'圆形', draw(g,r){
+      g.fillStyle='#ef4444'; SHAPES.apple(g,r*1.02);
+      g.fillStyle='#3fae55';
+      g.beginPath(); g.moveTo(-r*0.55,-r*0.62); g.lineTo(0,-r*0.15); g.lineTo(r*0.55,-r*0.62);
+      g.quadraticCurveTo(0,-r*1.15,-r*0.55,-r*0.62); g.fill();
+      g.fillStyle='rgba(255,255,255,.85)';
+      [[-r*0.35,-r*0.05],[r*0.32,-r*0.1],[0,r*0.3],[r*0.12,r*0.62],[-r*0.3,r*0.5]]
+        .forEach(p=>{ g.beginPath(); g.ellipse(p[0],p[1],r*0.07,r*0.11,0,0,7); g.fill(); });
+    }},
+  apple:{ name:'苹果', kind:'fruit', color:'#f2542d', colorName:'红色', shape:'圆形', draw(g,r){
+      g.fillStyle='#f2542d'; SHAPES.apple(g,r);
+      g.strokeStyle='#8a5a2b'; g.lineWidth=r*0.14; g.lineCap='round';
+      g.beginPath(); g.moveTo(0,-r*0.55); g.quadraticCurveTo(r*0.12,-r*1.0,r*0.05,-r*1.2); g.stroke();
+      g.fillStyle='#4caf50';
+      g.beginPath(); g.ellipse(r*0.42,-r*0.92,r*0.32,r*0.16,-0.5,0,7); g.fill();
+      g.fillStyle='rgba(255,255,255,.4)';
+      g.beginPath(); g.ellipse(-r*0.4,-r*0.25,r*0.16,r*0.28,-0.4,0,7); g.fill();
+    }},
+  banana:{ name:'香蕉', kind:'fruit', color:'#f2c230', colorName:'黄色', shape:'弯弯的', draw(g,r){
+      g.strokeStyle='#f2c230'; g.lineWidth=r*0.85; g.lineCap='round';
+      g.beginPath(); g.moveTo(-r*0.82,-r*0.42); g.quadraticCurveTo(0,r*1.15,r*0.85,r*0.1); g.stroke();
+      g.strokeStyle='#ffe066'; g.lineWidth=r*0.4;
+      g.beginPath(); g.moveTo(-r*0.72,-r*0.45); g.quadraticCurveTo(0,r*0.92,r*0.78,r*0.02); g.stroke();
+    }},
+  lemon:{ name:'柠檬', kind:'fruit', color:'#f5dc3d', colorName:'黄色', shape:'椭圆', draw(g,r){
+      g.fillStyle='#f5dc3d';
+      g.save(); g.scale(1.18,0.84); g.beginPath(); g.arc(0,0,r*0.9,0,7); g.fill(); g.restore();
+      g.fillStyle='rgba(255,255,255,.45)';
+      g.beginPath(); g.ellipse(-r*0.32,-r*0.22,r*0.18,r*0.26,-0.4,0,7); g.fill();
+    }},
+  grapes:{ name:'葡萄', kind:'fruit', color:'#9b6ee8', colorName:'紫色', shape:'圆形', draw(g,r){
+      g.fillStyle='#9b6ee8'; SHAPES.grape(g,r*1.0);
+      g.strokeStyle='#4caf50'; g.lineWidth=r*0.13; g.lineCap='round';
+      g.beginPath(); g.moveTo(0,-r*0.9); g.lineTo(r*0.1,-r*1.3); g.stroke();
+    }},
+  orange:{ name:'橘子', kind:'fruit', color:'#ff9f1c', colorName:'橙色', shape:'圆形', draw(g,r){
+      g.fillStyle='#ff9f1c'; SHAPES.orange(g,r);
+      g.fillStyle='rgba(255,255,255,.5)';
+      g.beginPath(); g.ellipse(-r*0.3,-r*0.3,r*0.2,r*0.13,-0.6,0,7); g.fill();
+      g.fillStyle='#4caf50';
+      g.beginPath(); g.ellipse(0,-r*0.92,r*0.24,r*0.12,0,0,7); g.fill();
+    }},
+  blueberry:{ name:'蓝莓', kind:'fruit', color:'#5b6cf0', colorName:'蓝色', shape:'圆形', draw(g,r){
+      g.fillStyle='#5b6cf0'; SHAPES.berry(g,r);
+      g.fillStyle='rgba(255,255,255,.45)';
+      g.beginPath(); g.ellipse(-r*0.35,-r*0.38,r*0.16,r*0.1,-0.6,0,7); g.fill();
+    }},
+  kiwi:{ name:'猕猴桃', kind:'fruit', color:'#8ec63f', colorName:'绿色', shape:'椭圆', draw(g,r){
+      g.fillStyle='#8ec63f'; SHAPES.kiwi(g,r);
+      g.fillStyle='#e8f5c8';
+      g.beginPath(); g.ellipse(0,0,r*0.55,r*0.44,0,0,7); g.fill();
+      g.fillStyle='#2f2f2f';
+      for(let i=0;i<8;i++){
+        const a=i*Math.PI/4;
+        g.beginPath(); g.ellipse(Math.cos(a)*r*0.36, Math.sin(a)*r*0.29, r*0.05,r*0.05,0,0,7); g.fill();
+      }
+    }},
+  watermelon:{ name:'西瓜', kind:'fruit', color:'#ef4444', colorName:'红色', shape:'三角形', draw(g,r){
+      g.fillStyle='#3fae55'; SHAPES.triangle(g,r);
+      g.fillStyle='#ef4444'; SHAPES.triangle(g,r*0.78);
+      g.fillStyle='#2f2f2f';
+      [[00,-r*0.2],[ -r*0.3,r*0.28],[r*0.3,r*0.3],[-r*0.14,r*0.55],[r*0.12,r*0.6]]
+        .forEach(p=>{ g.beginPath(); g.ellipse(p[0],p[1],r*0.05,r*0.08,0,0,7); g.fill(); });
+    }},
+  carrot:{ name:'胡萝卜', kind:'veg', color:'#ff8a3d', colorName:'橙色', shape:'长长的', draw(g,r){
+      g.fillStyle='#ff8a3d'; SHAPES.carrot(g,r);
+      g.strokeStyle='rgba(255,255,255,.5)'; g.lineWidth=r*0.07;
+      [-r*0.1,r*0.25].forEach(y=>{ g.beginPath(); g.moveTo(-r*0.26,y); g.lineTo(r*0.26,y); g.stroke(); });
+      g.fillStyle='#4caf50';
+      [-0.4,0,0.4].forEach((x,i)=>{
+        g.beginPath(); g.ellipse(x*r, -r*0.85, r*0.14, r*0.34, x*1.2, 0, 7); g.fill();
+      });
+    }},
+  broccoli:{ name:'西兰花', kind:'veg', color:'#4caf50', colorName:'绿色', shape:'圆形', draw(g,r){
+      g.fillStyle='#4caf50';
+      [[-0.5,-0.25],[0.5,-0.25],[0,-0.62],[-0.22,0.02],[0.24,0.02]]
+        .forEach(p=>{ g.beginPath(); g.arc(p[0]*r, p[1]*r, r*0.42, 0, 7); g.fill(); });
+      g.fillStyle='#7cc47f';
+      g.fillRect(-r*0.22, r*0.1, r*0.44, r*0.85);
+    }},
+  corn:{ name:'玉米', kind:'veg', color:'#f7d046', colorName:'黄色', shape:'椭圆', draw(g,r){
+      g.fillStyle='#f7d046';
+      g.save(); g.scale(0.62,1.05); g.beginPath(); g.arc(0,0,r*0.88,0,7); g.fill(); g.restore();
+      g.fillStyle='rgba(255,255,255,.55)';
+      for(let y=-3;y<=3;y++) for(let x=-1;x<=1;x++){
+        g.beginPath(); g.arc(x*r*0.26, y*r*0.26, r*0.075,0,7); g.fill();
+      }
+      g.fillStyle='#63c46b';
+      g.beginPath(); g.ellipse(-r*0.5,r*0.6,r*0.22,r*0.5,0.4,0,7); g.fill();
+      g.beginPath(); g.ellipse(r*0.5,r*0.6,r*0.22,r*0.5,-0.4,0,7); g.fill();
+    }},
+  eggplant:{ name:'茄子', kind:'veg', color:'#7e57c2', colorName:'紫色', shape:'椭圆', draw(g,r){
+      g.fillStyle='#7e57c2';
+      g.save(); g.scale(0.85,1.0);
+      g.beginPath(); g.ellipse(0,r*0.15,r*0.72,r*0.82,0,0,7); g.fill(); g.restore();
+      g.fillStyle='#4caf50';
+      g.beginPath(); g.ellipse(0,-r*0.72,r*0.38,r*0.22,0,0,7); g.fill();
+      g.strokeStyle='#4caf50'; g.lineWidth=r*0.12; g.lineCap='round';
+      g.beginPath(); g.moveTo(0,-r*0.8); g.lineTo(r*0.1,-r*1.25); g.stroke();
+    }},
+  ball:{ name:'皮球', kind:'toy', color:'#ff6b9d', colorName:'粉色', shape:'圆形', draw(g,r){
+      g.fillStyle='#ff6b9d'; g.beginPath(); g.arc(0,0,r*0.98,0,7); g.fill();
+      g.fillStyle='#ffffff'; g.beginPath(); g.arc(0,0,r*0.44,0,7); g.fill();
+      g.fillStyle='#ffd93d'; g.beginPath(); g.arc(0,0,r*0.2,0,7); g.fill();
+      g.fillStyle='rgba(255,255,255,.45)';
+      g.beginPath(); g.ellipse(-r*0.45,-r*0.48,r*0.2,r*0.13,-0.6,0,7); g.fill();
+    }},
+  car:{ name:'小汽车', kind:'toy', color:'#3aa8f0', colorName:'蓝色', shape:'方形', draw(g,r){
+      g.fillStyle='#3aa8f0';
+      g.beginPath(); g.roundRect(-r*1.0,-r*0.3,r*2.0,r*0.85,r*0.24); g.fill();
+      g.beginPath(); g.roundRect(-r*0.58,-r*0.92,r*1.16,r*0.7,r*0.22); g.fill();
+      g.fillStyle='#cfeaff';
+      g.beginPath(); g.roundRect(-r*0.4,-r*0.78,r*0.36,r*0.44,r*0.1); g.fill();
+      g.beginPath(); g.roundRect(r*0.06,-r*0.78,r*0.36,r*0.44,r*0.1); g.fill();
+      g.fillStyle='#3a3550';
+      g.beginPath(); g.arc(-r*0.55,r*0.55,r*0.26,0,7); g.fill();
+      g.beginPath(); g.arc(r*0.55,r*0.55,r*0.26,0,7); g.fill();
+    }}
+};
+
+/* ---------- 关卡设计 ---------- */
+/* 每一关 = 一种思维训练，一句「这样说孩子才懂」的引导语 */
+/* =========================================================
+   关卡题库：21 关，6 种思维方式
+   ---------------------------------------------------------
+   每关只描述「吃什么」，摆放位置和干扰项由通用引擎统一安排，
+   所以加关卡只需要往下面数组里再追加一条。
+   字段说明：
+     kind   思维类型：color / shape / category / count / where / pattern
+     intro  屏幕上显示的引导（可带 <b> 高亮）
+     say    语音朗读的引导（口语化，不要标点符号过多）
+     want   目标物（FOODS 的 key 数组）
+     avoid  干扰物（FOODS 的 key 数组）
+   ========================================================= */
+const LEVELS = [
+  /* ---------- 一、认颜色（4 关） ---------- */
+  {
+    kind:'color', word:'黄色', color:'#f2c230',
+    intro:'小蛇要吃 <b class="hl2">黄色</b> 的水果，黄色！看清楚哦',
+    say:'小蛇要吃黄色的水果。看看哪一个才是黄色的呀？',
+    want:['banana'], avoid:['grapes']
+  },
+  {
+    kind:'color', word:'红色', color:'#ef4444',
+    intro:'这次吃 <b class="hl">红色</b> 的！红红的才吃哦',
+    say:'这次要吃红色的水果。红红的才吃哦。',
+    want:['strawberry'], avoid:['banana']
+  },
+  {
+    kind:'color', word:'绿色', color:'#4caf50',
+    intro:'找 <b class="hl2">绿色</b> 的水果，像小草一样的颜色',
+    say:'找绿色的水果。像小草一样的颜色。',
+    want:['kiwi'], avoid:['orange']
+  },
+  {
+    kind:'color', word:'紫色', color:'#8b5cf6',
+    intro:'这次要 <b class="hl">紫色</b> 的，紫色的才对',
+    say:'这次要紫色的。紫色的才对。',
+    want:['grapes'], avoid:['apple']
+  },
+
+  /* ---------- 二、认形状（3 关） ---------- */
+  {
+    kind:'shape', shape:'圆形', color:'#2e86d8',
+    intro:'这次不看颜色，看 <b class="hl2">形状</b>！要吃 <b class="hl2">圆形</b> 的',
+    say:'这次不看颜色，看形状。要吃圆圆的那个。',
+    want:['orange'], avoid:['watermelon']
+  },
+  {
+    kind:'shape', shape:'椭圆形', color:'#2e86d8',
+    intro:'找一个 <b class="hl2">椭圆</b> 的，长长的圆',
+    say:'找一个椭圆的。长长的圆。',
+    want:['lemon'], avoid:['strawberry']
+  },
+  {
+    kind:'shape', shape:'三角形', color:'#2e86d8',
+    intro:'这次找 <b class="hl2">三角形</b> 的，有三个角',
+    say:'这次找三角形的。它有三个角。',
+    want:['watermelon'], avoid:['grapes']
+  },
+
+  /* ---------- 三、会分类（3 关） ---------- */
+  {
+    kind:'category', color:'#43bd4e',
+    intro:'这些里面，<b class="hl">水果</b> 才可以吃，蔬菜不可以吃',
+    say:'水果才可以吃，蔬菜不可以吃。想想哪个是水果？',
+    want:['grapes'], avoid:['carrot']
+  },
+  {
+    kind:'category', color:'#43bd4e',
+    intro:'再分一次：只吃水果，不碰蔬菜',
+    say:'再分一次。只吃水果，蔬菜不能吃。',
+    want:['orange'], avoid:['corn']
+  },
+  {
+    kind:'category', color:'#43bd4e',
+    intro:'这次有个玩具混进来啦！只吃 <b class="hl">水果</b>',
+    say:'这次有个玩具混进来啦。只吃水果哦。',
+    want:['apple'], avoid:['car']
+  },
+
+  /* ---------- 四、比多少（4 关） ---------- */
+  {
+    kind:'count', more:5, color:'#ef4444',
+    intro:'数一数：哪一边的 <b class="hl">草莓更多</b>？去吃更多的那边',
+    say:'数一数，哪一边的草莓更多？去吃更多的那一边。',
+    count:{food:'strawberry', few:2, many:5}
+  },
+  {
+    kind:'count', more:4, color:'#ef4444',
+    intro:'比一比：哪一堆 <b class="hl">香蕉更多</b>？',
+    say:'比一比，哪一堆香蕉更多？',
+    count:{food:'banana', few:1, many:4}
+  },
+  {
+    kind:'count', more:6, color:'#ef4444',
+    intro:'再数一次，哪边 <b class="hl">葡萄更多</b>？',
+    say:'再数一次。哪一边的葡萄更多？',
+    count:{food:'grapes', few:3, many:6}
+  },
+  {
+    kind:'count', more:5, color:'#ef4444',
+    intro:'最后一关数数：哪边 <b class="hl">橘子更多</b>？',
+    say:'最后一关数数。哪一边的橘子更多？',
+    count:{food:'orange', few:2, many:5}
+  },
+
+  /* ---------- 五、认方位（4 关） ---------- */
+  {
+    kind:'where', side:'左', color:'#2e86d8',
+    intro:'小蛇要去找 <b class="hl2">左边</b> 的水果，左边在哪边呢？',
+    say:'小蛇要吃左边的那一个。左边是哪一边呢？',
+    where:{food:'blueberry'}
+  },
+  {
+    kind:'where', side:'右', color:'#2e86d8',
+    intro:'这次要 <b class="hl2">右边</b> 的，右边在另一边哦',
+    say:'这次要右边的那一个。右边在另一边哦。',
+    where:{food:'blueberry'}
+  },
+  {
+    kind:'where', side:'上', color:'#2e86d8',
+    intro:'找 <b class="hl2">上面</b> 的！上边，抬起头看',
+    say:'找上面的那一个。上边，抬起头看。',
+    where:{food:'apple'}
+  },
+  {
+    kind:'where', side:'下', color:'#2e86d8',
+    intro:'这次找 <b class="hl2">下面</b> 的，低下头看',
+    say:'这次找下面的那一个。低下头看。',
+    where:{food:'apple'}
+  },
+
+  /* ---------- 六、找规律（3 关，进阶） ---------- */
+  {
+    kind:'pattern', color:'#8b5cf6',
+    intro:'看上面的图案排排队，接着往下该轮到谁？吃 <b class="hl">草莓</b>',
+    say:'看规律。草莓，香蕉，草莓，香蕉。下一个该吃什么呢？',
+    pattern:{seq:['strawberry','banana','strawberry','banana'], next:'strawberry'}
+  },
+  {
+    kind:'pattern', color:'#8b5cf6',
+    intro:'看上面的图案：苹果、苹果、橘子……接着该吃 <b class="hl">橘子</b> 啦',
+    say:'这次是苹果，苹果，橘子，苹果，苹果。下一个吃什么呢？',
+    pattern:{seq:['apple','apple','orange','apple','apple'], next:'orange'}
+  },
+  {
+    kind:'pattern', color:'#8b5cf6',
+    intro:'看上面的颜色顺序，接着往下该是 <b class="hl">绿色</b> 的',
+    say:'颜色规律。红，黄，绿，红，黄。下一个是什么颜色？',
+    pattern:{seq:['strawberry','banana','kiwi','strawberry','banana'], next:'kiwi'}
+  }
+];
+
+
+/* 判断蛇头能否走到任一"正解"（不穿过自己身体）
+   并检查"迈出第一步之后"依然能到达，防止走进死胡同 */
+function reachableTarget(){
+  const key = (x,y)=> x+','+y;
+  const body = snake.slice(0, snake.length-1);
+  const blocked = new Set(body.map(s=>key(s.x,s.y)));
+  const goals = new Set(items.filter(i=>i.ok).map(i=>key(i.x,i.y)));
+  if(!goals.size) return false;
+
+  const bfs = (sx, sy, blk) => {
+    const seen = new Set([key(sx,sy)]);
+    const q = [[sx,sy]];
+    while(q.length){
+      const [x,y] = q.shift();
+      for(const [dx,dy] of [[0,-1],[0,1],[-1,0],[1,0]]){
+        const nx=x+dx, ny=y+dy;
+        if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+        const k = key(nx,ny);
+        if(blk.has(k) || seen.has(k)) continue;
+        seen.add(k); q.push([nx,ny]);
+      }
+    }
+    return seen;
+  };
+
+  const st = snake[0];
+  const reach = bfs(st.x, st.y, blocked);
+  const hit = [...goals].find(k => reach.has(k) && k !== key(st.x,st.y));
+  if(!hit) return false;
+
+  // 检查通往目标的每一步是否"还有退路"
+  const hitX = +hit.split(',')[0], hitY = +hit.split(',')[1];
+  for(const [dx,dy] of [[0,-1],[0,1],[-1,0],[1,0]]){
+    const nx=st.x+dx, ny=st.y+dy;
+    if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+    if(blocked.has(key(nx,ny))) continue;
+    // 走这一步后：新头 = (nx,ny)，旧尾消失（不吃东西时）
+    const nb = new Set(blocked);
+    body.forEach((s,i)=>{ if(i>0) nb.add(key(s.x,s.y)); });
+    nb.delete(key(body[body.length-1].x, body[body.length-1].y));
+    const r2 = bfs(nx, ny, nb);
+    if(r2.has(hit) || key(nx,ny) === hit) return true;
+  }
+  return false;
+}
+
+/* 屏幕旋转后把越界的蛇/物品拉回棋盘内 */
+function clampToGrid(){
+  const fix = p => {
+    p.x = Math.max(0, Math.min(COLS-1, p.x));
+    p.y = Math.max(0, Math.min(ROWS-1, p.y));
+  };
+  snake.forEach(fix);
+  items.forEach(fix);
+  if(!snake.length) return;
+  // 去重：避免两个身体挤在同一格
+  const seen = new Set();
+  snake = snake.filter(p=>{
+    const k = p.x+','+p.y;
+    if(seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+  if(snake.length < 2) snake = freshSnake();
+}
+
+/* ---------- 工具 ---------- */
+const rnd = n => Math.floor(Math.random()*n);
+const pick = arr => arr[rnd(arr.length)];
+const samePos = (a,b) => a.x===b.x && a.y===b.y;
+
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const wrap = document.getElementById('boardwrap');
+
+let cell = 40, padX = 0, padY = 0;
+let COLS = 8, ROWS = 8;   // 随屏幕方向自适应（竖屏 8×8，横屏 10×6）
+
+/* ---------- 画布尺寸 ---------- */
+function resize(){
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  if(!w || !h) return;
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+  cv.style.width = w+'px'; cv.style.height = h+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  // 竖屏：宽高共同约束（棋盘接近正方形）
+  // 横屏：优先用满宽度（宽屏时高度富余，格子按宽度算更大）
+  // 依据容器宽高比自动决定格阵：竖屏 8×8，横屏 10×6（更贴合宽屏，不留大片空白）
+  const isLandscape = w > h * 1.15;
+  const cols = isLandscape ? 10 : 8;
+  const rows = isLandscape ? 6  : 8;
+
+  cell = Math.floor(Math.min((w - 12) / cols, (h - 12) / rows));
+  padX = Math.round((w - cell*cols)/2);
+  padY = Math.round((h - cell*rows)/2);
+
+  // 格阵尺寸变了 → 同步全局，并把蛇和物品收进新边界内
+  if(cols !== COLS || rows !== ROWS){
+    COLS = cols; ROWS = rows;
+    clampToGrid();
+  }
+  draw();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', ()=>setTimeout(resize,150));
+
+/* ---------- 游戏状态 ---------- */
+const DIRS = { up:{x:0,y:-1}, down:{x:0,y:1}, left:{x:-1,y:0}, right:{x:1,y:0} };
+
+let snake=[], dir=DIRS.up, nextDir=DIRS.up, walkDir=DIRS.up;
+let items=[], goal=null, score=0, levelIndex=0;
+let running=false, ready=false, eatLock=false;
+let moveTimer=null, moveInterval=1200;
+let canGo=true, wrongCount=0;
+
+/* ---------- 长大机制 ----------
+   bodyLen：蛇的节数（含头）。每吃对一个 +1，最多 MAX_LEN。
+   关卡切换时按 bodyLen 重新铺开，所以"长大"是累积的。
+   上限 7 节：长度和格子数量平衡，孩子看得清、也不会动不动撞自己。 */
+const START_LEN = 3;
+const MAX_LEN   = 7;
+let bodyLen = START_LEN;
+let grownThisRound = false;
+
+/* 按目标长度重置蛇的位置（向下铺开，朝上准备出发） */
+function resetSnake(len){
+  const cx = Math.floor(COLS/2);
+  const by = ROWS-2;
+  const arr = [];
+  for(let i=0;i<len;i++){
+    arr.push({x:cx, y: Math.max(0, by - i)});
+  }
+  snake = arr;
+}
+function syncSnakeLen(){
+  if(snake.length > bodyLen) snake = snake.slice(0, bodyLen);
+}
+function grow(){
+  if(bodyLen >= MAX_LEN) return false;
+
+  // 沿尾巴方向"延伸一格"，并且必须落在一个空格子上
+  const tail = snake[snake.length-1];
+  const prev = snake[snake.length-2] || tail;
+  const dirs = [
+    {x: tail.x - prev.x, y: tail.y - prev.y},   // 顺着尾巴方向
+    {x: 0, y: 1}, {x: 0, y: -1}, {x: 1, y: 0}, {x: -1, y: 0}
+  ];
+  const occupied = new Set(snake.map(s=>s.x+','+s.y));
+  for(const d of dirs){
+    if(!d.x && !d.y) continue;
+    const nx = tail.x + d.x, ny = tail.y + d.y;
+    if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+    if(occupied.has(nx+','+ny)) continue;
+    snake.push({x:nx, y:ny});
+    bodyLen++;
+    grownThisRound = true;
+    return true;
+  }
+  // 四周都被占满（极罕见）：先记长度，下一关重新铺开时体现
+  bodyLen++;
+  grownThisRound = true;
+  return true;
+}
+
+/* DOM */
+const bubbleEl = document.getElementById('bubble');
+const starsEl  = document.getElementById('stars');
+const missionEl = document.getElementById('mission');
+const chipTxt  = document.getElementById('goalTxt');
+const chipDot  = document.getElementById('goalDot');
+const sndBtn   = document.getElementById('sndbtn');
+
+function say(html){ bubbleEl.innerHTML = html; }
+
+/* =========================================================
+   语音播报（浏览器自带 TTS，无需联网、无需音频文件）
+   · 自动挑选中文音色
+   · 语速放慢（0.82），适合幼儿听
+   · 支持"朗读队列"，避免多句话叠在一起
+   ========================================================= */
+const Voice = {
+  on: true,
+  ok: ('speechSynthesis' in window),
+  zh: null,
+  rate: 0.82,
+  speaking: false,
+  queue: [],
+
+  init(){
+    if(!this.ok) return;
+    const pickVoice = () => {
+      const vs = speechSynthesis.getVoices() || [];
+      const cn = vs.filter(v => /zh|Chinese|中文|普通话|国語/i.test(v.lang + ' ' + v.name));
+      // 优先本地音色（离线可用、响应快）
+      this.zh = cn.find(v=>v.localService && /Xiaoxiao|Yaoyao|Huihui|Kangkang|Tingting/i.test(v.name))
+             || cn.find(v=>v.localService)
+             || cn[0] || null;
+    };
+    pickVoice();
+    if(speechSynthesis.onvoiceschanged !== undefined){
+      speechSynthesis.onvoiceschanged = pickVoice;
+    }
+  },
+
+  say(text, opt={}){
+    if(!this.on || !this.ok || !text) return;
+    const clean = String(text)
+      .replace(/<[^>]+>/g,'')                       // 去标签
+      .replace(/[▲▼◀▶★⭐✨🎉🏆]/g,'')               // 去读不出来的符号
+      .replace(/\s+/g,' ').trim();
+    if(!clean || !/[\u4e00-\u9fa5]/.test(clean)) return;   // 没中文就不读
+
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang   = 'zh-CN';
+    u.rate   = opt.rate   != null ? opt.rate   : (this.rate || 0.82);  // 慢一点，孩子听得清
+    u.pitch  = opt.pitch  != null ? opt.pitch  : 1.15;  // 高一点，像幼儿园老师
+    u.volume = 1;
+    if(this.zh) u.voice = this.zh;
+
+    u.onstart = () => { this.speaking = true; setSpeaking(true); };
+    u.onend   = () => { this.speaking = false; setSpeaking(false); };
+    u.onerror = () => { this.speaking = false; setSpeaking(false); };
+
+    speechSynthesis.speak(u);
+  },
+
+  /* 打断上一句，立刻说新的（用于"开始/吃对了"这种要抢时机的） */
+  now(text, opt){
+    if(!this.ok) return;
+    try{ speechSynthesis.cancel(); }catch(e){}
+    setTimeout(()=>this.say(text, opt), 30);
+  },
+
+  stop(){
+    if(!this.ok) return;
+    try{ speechSynthesis.cancel(); }catch(e){}
+    setSpeaking(false);
+  }
+};
+
+function setSpeaking(on){
+  const m = document.getElementById('mission');
+  if(m) m.classList.toggle('playing', !!on);
+}
+
+Voice.init();
+
+/* 气泡说话 = 显示文字 + 朗读（统一入口，保证"看到什么就读什么"） */
+function talk(html, opt){
+  say(html);
+  Voice.now(html, opt);
+}
+
+function updateStars(){ starsEl.textContent = score; }
+
+/* 顶部"蛇有多长"指示器：用一排小圆点，孩子直接看得懂 */
+function updateGrowth(){
+  const el = document.getElementById('growth');
+  if(!el) return;
+  let dots = '';
+  for(let i=0;i<MAX_LEN;i++){
+    dots += `<i class="${i<bodyLen?'on':''}"></i>`;
+  }
+  el.innerHTML = dots;
+  el.classList.toggle('maxed', bodyLen >= MAX_LEN);
+}
+
+/* ---------- 音效 ---------- */
+const Snd = {
+  on:true, ac:null,
+  ready(){
+    if(!this.ac){
+      try{ this.ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+    }
+    if(this.ac && this.ac.state==='suspended') this.ac.resume();
+  },
+  tone(f,dur,type='sine',vol=.14,delay=0){
+    if(!this.on||!this.ac) return;
+    const t0=this.ac.currentTime+delay;
+    const o=this.ac.createOscillator(), g=this.ac.createGain();
+    o.type=type; o.frequency.setValueAtTime(f,t0);
+    g.gain.setValueAtTime(.0001,t0);
+    g.gain.exponentialRampToValueAtTime(vol,t0+.02);
+    g.gain.exponentialRampToValueAtTime(.0001,t0+dur);
+    o.connect(g); g.connect(this.ac.destination);
+    o.start(t0); o.stop(t0+dur+.05);
+  },
+  good(){ this.tone(659,.12,'sine',.16); this.tone(880,.16,'sine',.14,.1); this.tone(1175,.2,'sine',.11,.2); },
+  oops(){ this.tone(330,.16,'triangle',.11); this.tone(247,.22,'triangle',.09,.13); },
+  win(){ [523,659,784,1047].forEach((f,i)=>this.tone(f,.24,'sine',.14,i*.13)); }
+};
+
+/* ---------- 网格生成 ---------- */
+function freshSnake(){
+  // 竖着贴在底部中央往上长。长蛇时略微偏一侧，避免正好把左右两堆隔开
+  const n = Math.min(bodyLen, ROWS-1);
+  const cx = bodyLen >= 6 ? Math.floor(COLS/2) : Math.floor(COLS/2);
+  const by = ROWS-1;
+  const arr = [];
+  for(let i=0;i<n;i++) arr.push({x:cx, y: Math.max(0, by - i)});
+  return arr;
+}
+
+function randomCells(count, avoid, minDistFromHead){
+  const pool=[];
+  for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){
+    const p={x,y};
+    if(avoid.some(a=>samePos(a,p))) continue;
+    if(minDistFromHead && Math.abs(x-snake[0].x)+Math.abs(y-snake[0].y) < minDistFromHead) continue;
+    pool.push(p);
+  }
+  for(let i=pool.length-1;i>0;i--){ const j=rnd(i+1); [pool[i],pool[j]]=[pool[j],pool[i]]; }
+  return pool;
+}
+
+function buildLevel(i){
+  levelIndex = i;
+  const lv = LEVELS[i];
+
+  // 每关重置位置，但保留"长大"的成果
+  snake = freshSnake();
+  syncSnakeLen();
+  dir = nextDir = walkDir = DIRS.up;
+  items = [];
+  goal = buildGoal(lv);
+  ready = false;
+  canGo = true;
+  wrongCount = 0;
+
+  /* ---------- 摆放物品 ---------- */
+  if(lv.kind === 'count'){
+    placeGroups(lv);
+  } else if(lv.kind === 'pattern'){
+    placePattern(lv);
+  } else if(lv.kind === 'where'){
+    placeSides(lv);
+  } else {
+    placeScattered(lv);
+  }
+
+  // ---- 开局可达性校验：保证蛇一定能走到正解（避免"一开局就被自己困住"） ----
+  let tries = 0;
+  while(!reachableTarget() && tries < 12){
+    tries++;
+    items = [];
+    if(lv.kind === 'count')        placeGroups(lv);
+    else if(lv.kind === 'pattern') placePattern(lv);
+    else if(lv.kind === 'where')   placeSides(lv);
+    else                           placeScattered(lv);
+  }
+
+  ready = true;
+  updateGoalChip();          // 必须先算好提示栏文字
+  say(lv.intro);
+  updateStars();
+  updateGrowth();
+  draw();
+
+  // 朗读：目标在前、引导在后，让孩子先知道"吃什么"
+  Voice.now((missionEl.dataset.spoken || '') + '。' + (lv.say || ''));
+}
+
+/* ---------- 把关卡的"吃什么"翻译成内部 goal ---------- */
+function buildGoal(lv){
+  const g = { kind: lv.kind, color: lv.color };
+  if(lv.kind === 'color'){
+    g.colorName = lv.word; g.spokenColor = lv.word;
+  }
+  if(lv.kind === 'shape'){
+    g.shapeName = lv.shape;
+  }
+  if(lv.kind === 'count'){
+    g.more = lv.count.many;
+    g.foodName = FOODS[lv.count.food].name;
+  }
+  if(lv.kind === 'where'){
+    g.side = lv.side;
+    g.foodName = FOODS[lv.where.food].name;
+  }
+  if(lv.kind === 'pattern'){
+    g.nextName = FOODS[lv.pattern.next].name;
+  }
+  return g;
+}
+
+/* ---------- 摆放方式 1：散放（颜色/形状/分类） ---------- */
+function placeScattered(lv){
+  const wanted  = lv.want.map(k => FOODS[k]).filter(Boolean);
+  const decoys  = lv.avoid.map(k => FOODS[k]).filter(Boolean);
+
+  // 目标物随机取一个；干扰物全部放上去（3 岁能承受的选项 2~3 个）
+  const target  = pick(wanted);
+  const pool    = snake.slice();
+  const cells   = randomCells(80, pool, 3);
+
+  const put = (food, ok, idx) => {
+    const p = cells[(idx*7) % cells.length] || cells[idx] || {x:0,y:0};
+    items.push({x:p.x, y:p.y, food, ok, color:food.color});
+    cells.splice(cells.indexOf(p), 1);
+  };
+
+  put(target, true, 0);
+  decoys.slice(0,2).forEach((f,i)=> put(f, false, i+1));
+}
+
+/* ---------- 摆放方式 2：两堆比多少 ---------- */
+function placeGroups(lv){
+  const food = FOODS[lv.count.food];
+  const mid  = Math.floor(COLS/2);
+
+  // 离蛇身至少 2 格，避免一开场就贴脸
+  const cells = randomCells(80, snake, 2);
+  const leftCells  = cells.filter(p=>p.x <  mid);
+  const rightCells = cells.filter(p=>p.x >= mid);
+
+  // 随机决定多的一堆在哪边（避免孩子记位置而不是数数）
+  const manyOnLeft = Math.random() < 0.5;
+  const fewN  = lv.count.few;
+  const manyN = lv.count.many;
+
+  const cluster = (pool, n, ok, side) => {
+    if(!pool.length) return;
+    const cx = side === 'L' ? COLS*0.24 : COLS*0.76;
+    const cy = ROWS*0.42;
+    const seed = pool.slice().sort((a,b)=>
+      (Math.abs(a.x-cx)+Math.abs(a.y-cy)) - (Math.abs(b.x-cx)+Math.abs(b.y-cy)))[0];
+
+    const sorted = pool.slice().sort((a,b)=>
+      (Math.abs(a.x-seed.x)*1.25 + Math.abs(a.y-seed.y))
+      - (Math.abs(b.x-seed.x)*1.25 + Math.abs(b.y-seed.y)));
+
+    for(let k=0;k<n && k<sorted.length;k++){
+      items.push({x:sorted[k].x, y:sorted[k].y, food, ok, color:food.color});
+    }
+  };
+
+  cluster(leftCells,  manyOnLeft ? manyN : fewN,  manyOnLeft, 'L');
+  cluster(rightCells, manyOnLeft ? fewN  : manyN, !manyOnLeft, 'R');
+
+  goal.manyOnLeft = manyOnLeft;
+  goal.more = manyN;
+}
+
+/* ---------- 摆放方式 3：方位（左右 / 上下） ---------- */
+function placeSides(lv){
+  const food = FOODS[lv.where.food];
+  const side = lv.side;
+
+  const cells = randomCells(80, snake, 2);
+  const midX = Math.floor(COLS/2), midY = Math.floor(ROWS/2);
+
+  const filterSide = (wantSide) => {
+    return cells.filter(p=>{
+      if(wantSide === '左') return p.x <  midX;
+      if(wantSide === '右') return p.x >= midX;
+      if(wantSide === '上') return p.y <  midY;
+      if(wantSide === '下') return p.y >= midY;
+      return true;
+    });
+  };
+  const otherSide = { '左':'右', '右':'左', '上':'下', '下':'上' }[side];
+
+  const a = filterSide(side);
+  const b = filterSide(otherSide);
+
+  if(a.length) items.push({...a[0], food, ok:true,  color:food.color});
+  if(b.length) items.push({...b[0], food, ok:false, color:food.color});
+}
+
+/* ---------- 摆放方式 4：找规律（顶部展示序列） ---------- */
+function placePattern(lv){
+  const seq  = lv.pattern.seq;
+  const next = FOODS[lv.pattern.next];
+
+  // 干扰项：序列里出现过的另一种
+  const otherKey = seq.find(k => k !== lv.pattern.next) || 'banana';
+  const other = FOODS[otherKey];
+
+  // 顶部要留给"规律带"，所以物品只放在下半区
+  const cells = randomCells(80, snake, 3).filter(p=> p.y >= 2);
+  const put = (food, ok, idx) => {
+    const p = cells[(idx*5) % cells.length] || cells[idx];
+    if(!p) return;
+    items.push({x:p.x, y:p.y, food, ok, color:food.color});
+    cells.splice(cells.indexOf(p), 1);
+  };
+  put(next,  true,  0);
+  put(other, false, 1);
+
+  // 顶部展示的序列供画布绘制
+  patternSeq = seq.map(k => FOODS[k]).filter(Boolean);
+  patternNext = next;
+}
+
+let patternSeq = null, patternNext = null;
+
+function updateGoalChip(){
+  if(!goal){ missionEl.style.display='none'; return; }
+  missionEl.style.display='flex';
+
+  const key = w => `<span class="key">${w}</span>`;
+  let txt='', spoken='', swatchBg='#ffe9a8', swatchIcon='';
+
+  if(goal.kind==='color'){
+    txt    = `只吃 ${key(goal.spokenColor||goal.colorName)} 的`;
+    spoken = `只吃${goal.spokenColor||goal.colorName}的`;
+    swatchBg = goal.color;
+    swatchIcon = `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" fill="rgba(255,255,255,.85)"/></svg>`;
+  }
+  if(goal.kind==='shape'){
+    txt    = `只吃 ${key(goal.shapeName)} 的`;
+    spoken = `只吃${goal.shapeName}的`;
+    swatchBg = '#2e86d8';
+    swatchIcon = `<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8" fill="#fff"/></svg>`;
+  }
+  if(goal.kind==='category'){
+    txt    = `只吃 ${key('水果')}，不碰蔬菜`;
+    spoken = '只吃水果，蔬菜不能吃';
+    swatchBg = '#43bd4e';
+    swatchIcon = `<svg viewBox="0 0 24 24" fill="none"><path d="M12 8c-5-4-9 3-6 8 2 3 4 4 6 4s4-1 6-4c3-5-1-12-6-8z" fill="#fff"/></svg>`;
+  }
+  if(goal.kind==='count'){
+    txt    = `吃 ${key('更多')} 的那一堆`;
+    spoken = '数一数，去吃更多的那一堆';
+    swatchBg = '#ef4444';
+    swatchIcon = `<svg viewBox="0 0 24 24" fill="none"><circle cx="8" cy="9" r="3.4" fill="#fff"/><circle cx="16" cy="9" r="3.4" fill="#fff"/><circle cx="8" cy="16" r="3.4" fill="#fff"/><circle cx="16" cy="16" r="3.4" fill="#fff"/></svg>`;
+  }
+  if(goal.kind==='pattern'){
+    txt    = `吃 ${key(goal.nextName)}（接着往下）`;
+    spoken = `看规律，接着往下，吃${goal.nextName}`;
+    swatchBg = '#8b5cf6';
+    swatchIcon = `<svg viewBox="0 0 24 24" fill="none">
+      <circle cx="6" cy="12" r="2.6" fill="#fff"/>
+      <circle cx="12" cy="12" r="2.6" fill="#fff"/>
+      <circle cx="18" cy="12" r="2.6" fill="#fff" opacity=".45"/>
+    </svg>`;
+  }
+  if(goal.kind==='where'){
+    txt    = `吃 ${key(goal.side+'边')} 的水果`;
+    spoken = `吃${goal.side}边的水果`;
+    swatchBg = '#2e86d8';
+    const ARROW = {
+      '左': '<path d="M15 5l-7 7 7 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
+      '右': '<path d="M9 5l7 7-7 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
+      '上': '<path d="M5 15l7-7 7 7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>',
+      '下': '<path d="M5 9l7 7 7-7" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>'
+    };
+    swatchIcon = `<svg viewBox="0 0 24 24" fill="none">${ARROW[goal.side] || ARROW['左']}</svg>`;
+  }
+
+  chipTxt.innerHTML = txt;
+  chipDot.style.background = swatchBg;
+  chipDot.innerHTML = swatchIcon;
+  missionEl.dataset.spoken = spoken;
+}
+
+/* ---------- 绘制 ---------- */
+let t0 = performance.now();
+
+function draw(){
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  if(!w||!h) return;
+  const time = performance.now();
+
+  ctx.clearRect(0,0,w,h);
+
+  // 奶油底
+  const bg = ctx.createLinearGradient(0,0,0,h);
+  bg.addColorStop(0,'#f3fbe9'); bg.addColorStop(1,'#e2f4d3');
+  ctx.fillStyle = bg; ctx.fillRect(0,0,w,h);
+
+  // 淡格子（帮助理解"走一格"的空间感）
+  for(let y=0;y<ROWS;y++) for(let x=0;x<COLS;x++){
+    if((x+y)%2) continue;
+    ctx.fillStyle='rgba(120,190,110,.10)';
+    rr(padX+x*cell+2, padY+y*cell+2, cell-4, cell-4, cell*0.16);
+    ctx.fill();
+  }
+
+  // 目标提示：虚线框圈出"该吃哪种"的颜色（视觉强化）
+
+  // 找规律关：棋盘上方画一条"规律带"，用图不用字
+  if(goal && goal.kind==='pattern' && patternSeq && patternSeq.length){
+    drawPatternStrip(time);
+  }
+
+  // 数量对比关：给两堆各画一块淡色地垫，让孩子一眼看出是"两堆"
+  if(goal && goal.kind==='count'){
+    const mid = Math.floor(COLS/2);
+    [ {x0:0, x1:mid-1, c:'rgba(255,150,150,.16)'},
+      {x0:mid, x1:COLS-1, c:'rgba(120,190,255,.16)'} ].forEach(band=>{
+      const x = padX + band.x0*cell + 4;
+      const w = (band.x1-band.x0+1)*cell - 8;
+      ctx.fillStyle = band.c;
+      rr(x, padY+4, w, cell*ROWS-8, cell*0.4); ctx.fill();
+    });
+  }
+
+  // 物品
+  items.forEach(it=>{
+    const cx = padX + it.x*cell + cell/2;
+    const cy = padY + it.y*cell + cell/2;
+    const bob = Math.sin(time/420 + it.x*0.9 + it.y*0.6) * cell*0.045;
+
+    // 地面阴影
+    ctx.fillStyle='rgba(90,150,90,.13)';
+    ctx.beginPath(); ctx.ellipse(cx, cy+cell*0.30, cell*0.26, cell*0.09, 0,0,7); ctx.fill();
+
+    ctx.save();
+    ctx.translate(cx, cy + bob);
+    const s = cell*0.38;
+    ctx.scale(s,s);
+    it.food.draw(ctx, 1);
+    ctx.restore();
+  });
+
+  if(!snake.length) return;
+
+  // 蛇
+  for(let i=snake.length-1;i>=0;i--){
+    const seg = snake[i];
+    const cx = padX + seg.x*cell + cell/2;
+    const cy = padY + seg.y*cell + cell/2;
+    const isHead = i===0;
+    const r = cell*(isHead ? 0.40 : 0.34 - i*0.012);
+
+    ctx.fillStyle='rgba(60,120,60,.16)';
+    ctx.beginPath(); ctx.arc(cx, cy+2, r*0.98, 0, 7); ctx.fill();
+
+    const g = ctx.createLinearGradient(cx-r, cy-r, cx+r, cy+r);
+    if(isHead){ g.addColorStop(0,'#93e878'); g.addColorStop(1,'#3fb04a'); }
+    else { g.addColorStop(0,'#8fdd76'); g.addColorStop(1,'#54bd58'); }
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, 7); ctx.fill();
+
+    // 花纹
+    if(!isHead){
+      ctx.fillStyle='rgba(255,255,255,.30)';
+      ctx.beginPath(); ctx.arc(cx, cy, r*0.42, 0, 7); ctx.fill();
+    }
+
+    if(isHead) drawFace(cx, cy, r, time);
+  }
+}
+
+/* 蛇头表情：跟随方向看，眨眼 */
+function drawFace(cx, cy, r, time){
+  const d = walkDir;
+  const perp = {x:-d.y, y:d.x};
+  const fwd = {x:d.x*r*0.16, y:d.y*r*0.16};
+
+  const blink = (time % 3400) < 130;
+  const er = r*0.30;
+
+  [1,-1].forEach(sgn=>{
+    const ex = cx + fwd.x + perp.x*er*sgn;
+    const ey = cy + fwd.y + perp.y*er*sgn;
+
+    ctx.fillStyle='#ffffff';
+    ctx.beginPath(); ctx.arc(ex, ey, r*0.28, 0, 7); ctx.fill();
+
+    if(blink){
+      ctx.strokeStyle='#3a3550'; ctx.lineWidth=r*0.09; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(ex-r*0.2, ey); ctx.lineTo(ex+r*0.2, ey); ctx.stroke();
+    } else {
+      ctx.fillStyle='#3a3550';
+      ctx.beginPath();
+      ctx.arc(ex + d.x*r*0.1, ey + d.y*r*0.1, r*0.155, 0, 7);
+      ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(ex + d.x*r*0.1 - r*0.06, ey + d.y*r*0.1 - r*0.06, r*0.055, 0, 7); ctx.fill();
+    }
+  });
+
+  // 腮红
+  ctx.fillStyle='rgba(255,138,150,.45)';
+  [1,-1].forEach(sgn=>{
+    const bx = cx + perp.x*er*1.5*sgn - d.x*r*0.05;
+    const by = cy + perp.y*er*1.5*sgn - d.y*r*0.05;
+    ctx.beginPath(); ctx.ellipse(bx, by, r*0.16, r*0.11, 0,0,7); ctx.fill();
+  });
+
+  // 小舌头随移动前后伸缩
+  const tongue = (Math.sin(performance.now()/160)*0.5+0.5);
+  if(tongue > .55){
+    ctx.strokeStyle='#ff6b8a'; ctx.lineWidth=r*0.1; ctx.lineCap='round';
+    const sx = cx + d.x*r*0.62, sy = cy + d.y*r*0.62;
+    ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+d.x*r*0.3, sy+d.y*r*0.3); ctx.stroke();
+  }
+}
+
+/* 顶部规律带：小图标依次排列，末尾是闪烁的问号 */
+function drawPatternStrip(time){
+  const n = patternSeq.length;
+  const totalW = Math.min(padX*2 + cell*COLS, 6.0*cell);
+  const sw = Math.min(cell*0.74, (totalW - 8) / (n + 1) - 6);   // 每个图标宽度
+  const gap = 6;
+  const boxH = sw + 14;
+  const x0 = padX + (cell*COLS - (sw + gap) * (n + 1) + gap) / 2;
+  const y0 = padY - boxH - 6;
+
+  // 底板
+  ctx.save();
+  ctx.fillStyle = 'rgba(255,255,255,.72)';
+  rr(x0 - 8, y0 - 4, (sw+gap)*(n+1) + 8, boxH + 6, 14);
+  ctx.fill();
+
+  patternSeq.forEach((food, i)=>{
+    const cx = x0 + i*(sw+gap) + sw/2;
+    const cy = y0 + boxH/2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    const k = sw / (cell*0.76);
+    ctx.scale(k, k);
+    food.draw(ctx, cell*0.38);
+    ctx.restore();
+    // 间隔点
+    if(i < n-1){
+      // 不画
+    }
+  });
+
+  // 末尾问号格
+  const qx = x0 + n*(sw+gap);
+  ctx.save();
+  ctx.strokeStyle = 'rgba(139,92,246,.55)';
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([4,4]);
+  rr(qx, y0 + 3, sw, boxH - 6, 10);
+  ctx.stroke();
+  ctx.restore();
+
+  // 问号（呼吸闪烁）
+  const pulse = 0.55 + 0.45*Math.sin(time/300);
+  ctx.save();
+  ctx.globalAlpha = pulse;
+  ctx.fillStyle = '#8b5cf6';
+  ctx.font = `900 ${Math.round(sw*0.62)}px "PingFang SC","Microsoft YaHei",sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('?', qx + sw/2, y0 + boxH/2);
+  ctx.restore();
+}
+
+function rr(x,y,w,h,r){
+  r = Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+function loop(){ draw(); requestAnimationFrame(loop); }
+
+/* ---------- 移动 ---------- */
+function step(){
+  if(!running || !ready || eatLock) return false;
+
+  // 停下时（撞墙/吃错后）等待孩子给新方向，不自动乱走
+  if(!canGo) return false;
+
+  const head = snake[0];
+  const nd = nextDir;
+  const nx = head.x + nd.x;
+  const ny = head.y + nd.y;
+
+  if(nx<0 || nx>=COLS || ny<0 || ny>=ROWS){
+    // 撞墙不算失败，只是停住，提示换方向
+    Snd.oops();
+    canGo = false;
+    talk('哎呀，前面是墙墙。我们调个头，往回走吧');
+    return false;
+  }
+  if(snake.slice(0, snake.length-1).some(s=>s.x===nx && s.y===ny)){
+    return false;
+  }
+
+  dir = walkDir = nd;
+  const hit = items.find(it=>it.x===nx && it.y===ny);
+  snake.unshift({x:nx, y:ny});
+
+  if(hit){
+    if(hit.ok) correctEat(hit);
+    else wrongEat(hit);
+  } else {
+    snake.pop();
+  }
+  return true;
+}
+
+function correctEat(hit){
+  eatLock = true;
+  items = items.filter(it=>it!==hit);
+  score++; updateStars();
+  Snd.good();
+  burst(hit, '★');
+
+  // 吃掉 → 蛇变长（这是孩子最有成就感的反馈）
+  const didGrow = grow();
+  updateGrowth();
+
+  let msg = pick(['太棒了！','答对啦！','真厉害！','好聪明！']);
+  if(goal.kind==='color')    msg += ` 它是<b class="hl">${goal.colorName}</b>的，你找对颜色啦。`;
+  if(goal.kind==='shape')    msg += ` 它是<b class="hl2">${goal.shapeName}</b>的，形状找对了。`;
+  if(goal.kind==='category') msg += ` 它是水果，可以摘下来吃。`;
+  if(goal.kind==='count')    msg += ` 这一堆更多，你数得真准。`;
+  if(goal.kind==='where')    msg += ` 对，${goal.side}边就是这一边。`;
+  if(goal.kind==='pattern')  msg += ` 规律接上了，真会观察。`;
+  if(didGrow) msg += ' 蛇蛇变长啦！';
+  talk(msg);
+
+  setTimeout(()=>{
+    eatLock = false;
+    if(levelIndex + 1 < LEVELS.length){
+      buildLevel(levelIndex + 1);
+    } else {
+      finish();
+    }
+  }, 1150);
+}
+
+function wrongEat(hit){
+  eatLock = true;
+  wrongCount++;
+
+  // 把吃错的物品挪到附近空格，避免它被蛇身盖住看不清
+  const head = snake[0];
+  const near = [];
+  for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+    const nx = head.x+dx+dir.x, ny = head.y+dy+dir.y;
+    if(nx<0||nx>=COLS||ny<0||ny>=ROWS) continue;
+    if(nx===head.x && ny===head.y) continue;
+    if(snake.some(sg=>sg.x===nx&&sg.y===ny)) continue;
+    if(items.some(it=>it!==hit && it.x===nx && it.y===ny)) continue;
+    near.push({x:nx,y:ny,d:Math.abs(dx)+Math.abs(dy)});
+  }
+  near.sort((a,b)=>a.d-b.d);
+  if(near.length){ hit.x = near[0].x; hit.y = near[0].y; }
+
+  Snd.oops();
+  burst(hit, '·', 'rgba(120,140,200,.9)');
+
+  let why='';
+  if(goal.kind==='color')    why = `它是${hit.food.colorName||''}的，不是我们要的颜色。`;
+  if(goal.kind==='shape')    why = `它是${hit.food.shape}的，不圆呢。`;
+  if(goal.kind==='category') why = `这是${hit.food.name}，是蔬菜，不能吃哦。`;
+  if(goal.kind==='count')    why = '这一堆比较少，再去数数另一边。';
+  if(goal.kind==='where')    why = '它在另一边呢，再找找。';
+  if(goal.kind==='pattern')  why = '再看看前面的顺序，该轮到另一个了。';
+  talk('嗯，这个先不吃。' + why);
+
+  // 物品留在原地，蛇停在旁边（很长一段时间内会持续提示方位），
+  // 让孩子自己决定往哪个方向绕开，锻炼"绕过去"的空间思维
+  setTimeout(()=>{
+    eatLock = false;
+    canGo = false;
+    hint();
+  }, 420);
+}
+
+/* 「下一步该往哪走」提示：不直接指路，而是教孩子判断方位 */
+function hint(){
+  if(!running || !goal) return;
+  const targets = items.filter(it=>it.ok);
+  if(!targets.length) return;
+
+  const head = snake[0];
+  targets.sort((a,b)=> (Math.abs(a.x-head.x)+Math.abs(a.y-head.y)) - (Math.abs(b.x-head.x)+Math.abs(b.y-head.y)));
+  const tg = targets[0];
+
+  const dx = tg.x - head.x, dy = tg.y - head.y;
+  if(dx===0 && dy===0) return;
+
+  // 一次只提示一个方向（3 岁孩子同时处理两个轴向太难）
+  let p1 = '';
+  if(dy !== 0) p1 = dy < 0 ? '上 👆' : '下 👇';
+  else if(dx !== 0) p1 = dx < 0 ? '左 👈' : '右 👉';
+
+  if(!p1) return;
+  talk('看一看，对的那个在蛇蛇的' + p1.replace(/[^\u4e00-\u9fa5]/g,'') + '边，先走一步试试');
+}
+
+/* ---------- 星星特效 ---------- */
+function burst(gridItem, ch, color){
+  const cx = padX + gridItem.x*cell + cell/2;
+  const cy = padY + gridItem.y*cell + cell/2;
+  for(let i=0;i<7;i++){
+    const el = document.createElement('div');
+    el.className='burst';
+    el.textContent = ch;
+    el.style.left = cx+'px';
+    el.style.top  = cy+'px';
+    if(color) el.style.color = color;
+    const a = Math.random()*Math.PI*2, d = 30 + Math.random()*50;
+    el.style.setProperty('--tx', Math.cos(a)*d+'px');
+    el.style.setProperty('--ty', Math.sin(a)*d+'px');
+    el.style.setProperty('--rot', (Math.random()*180-90)+'deg');
+    wrap.appendChild(el);
+    setTimeout(()=>el.remove(), 950);
+  }
+}
+
+/* ---------- 结束 ---------- */
+function finish(){
+  running = false;
+  stopTimer();
+  Snd.win();
+  document.getElementById('endEmoji').innerHTML = drawTrophy();
+  document.getElementById('endTitle').textContent = '全部完成！';
+  document.getElementById('endSub').innerHTML =
+    `一共得到 <b style="color:#f2a92b">${score}</b> 颗星星<br>
+     蛇蛇长到了 <b style="color:#43bd4e">${bodyLen}</b> 节<br>
+     你练到了：颜色 · 形状 · 分类 · 数数 · 方位 · 规律`;
+  document.getElementById('qdots').innerHTML =
+    LEVELS.map((_,i)=>`<i class="${i<score?'on':''}"></i>`).join('');
+  document.getElementById('endOv').classList.add('show');
+  Voice.now(`太棒了，全部完成。你一共得到${score}颗星星，蛇蛇长到了${bodyLen}节`);
+}
+
+function drawTrophy(){
+  return `<svg width="72" height="72" viewBox="0 0 72 72">
+    <path d="M22 14h28v12a14 14 0 0 1-28 0z" fill="#ffcf4d"/>
+    <path d="M22 18h-8a10 10 0 0 0 10 10" fill="none" stroke="#ffb020" stroke-width="5" stroke-linecap="round"/>
+    <path d="M50 18h8a10 10 0 0 1-10 10" fill="none" stroke="#ffb020" stroke-width="5" stroke-linecap="round"/>
+    <rect x="32" y="40" width="8" height="12" rx="3" fill="#f0a800"/>
+    <rect x="22" y="52" width="28" height="9" rx="4.5" fill="#ffcf4d"/>
+    <circle cx="36" cy="24" r="6" fill="#fff3c4"/>
+  </svg>`;
+}
+
+/* ---------- 控制 ---------- */
+function setDir(name){
+  Snd.ready();
+  if(!running) return;
+  const nd = DIRS[name];
+  if(!nd) return;
+
+  if(!canGo){
+    // 撞墙 / 吃错后：任意方向都可以出发，不限制掉头
+    nextDir = nd;
+  } else {
+    if(nd.x === -walkDir.x && nd.y === -walkDir.y) return;
+    nextDir = nd;
+  }
+  Snd.tone(760,.05,'square',.05);
+  // 玩家一按方向键，蛇立即走一步（即时反馈），随后自动前进重新计时
+  if(!eatLock){
+    stepOnce();
+    if(canGo) startTimer();
+  }
+}
+
+/* 玩家按键 → 立即走一格（配合定时器自动前进） */
+function stepOnce(){
+  if(!running || !ready || eatLock) return;
+  dir = nextDir; walkDir = dir;
+  canGo = true;
+  const head = snake[0];
+  const nx = head.x + dir.x, ny = head.y + dir.y;
+
+  if(nx<0||nx>=COLS||ny<0||ny>=ROWS){
+    Snd.oops();
+    canGo = false;
+    talk('哎呀，前面是墙墙。我们调个头，往回走吧');
+    return;
+  }
+  if(snake.slice(0, snake.length-1).some(s=>s.x===nx&&s.y===ny)) return;
+
+  const hit = items.find(it=>it.x===nx&&it.y===ny);
+  snake.unshift({x:nx,y:ny});
+  if(hit){ hit.ok ? correctEat(hit) : wrongEat(hit); }
+  else snake.pop();
+}
+
+document.querySelectorAll('.btn[data-dir]').forEach(b=>{
+  const fn = e => { e.preventDefault(); setDir(b.dataset.dir); };
+  b.addEventListener('touchstart', fn, {passive:false});
+  b.addEventListener('mousedown', fn);
+});
+
+const keyMap = {ArrowUp:'up',ArrowDown:'down',ArrowLeft:'left',ArrowRight:'right',
+                w:'up',s:'down',a:'left',d:'right',W:'up',S:'down',A:'left',D:'right'};
+window.addEventListener('keydown', e=>{
+  if(keyMap[e.key]){ e.preventDefault(); setDir(keyMap[e.key]); }
+});
+
+/* 画布滑动 */
+let ts=null;
+cv.addEventListener('touchstart', e=>{ ts={x:e.touches[0].clientX,y:e.touches[0].clientY}; }, {passive:true});
+cv.addEventListener('touchend', e=>{
+  if(!ts) return;
+  const dx = e.changedTouches[0].clientX - ts.x;
+  const dy = e.changedTouches[0].clientY - ts.y;
+  if(Math.abs(dx)>22 || Math.abs(dy)>22){
+    if(Math.abs(dx)>Math.abs(dy)) setDir(dx>0?'right':'left');
+    else setDir(dy>0?'down':'up');
+  }
+  ts=null;
+}, {passive:true});
+
+/* 语速三档：更慢 / 慢 / 正常，默认"慢" */
+const RATES = [
+  {r:0.65, label:'很慢', tip:'语速：很慢'},
+  {r:0.82, label:'慢',   tip:'语速：慢'},
+  {r:1.00, label:'正常', tip:'语速：正常'}
+];
+let rateIdx = 1;
+const speedBtn  = document.getElementById('speedbtn');
+const speedLbl  = document.getElementById('speedLbl');
+
+function applyRate(){
+  Voice.rate = RATES[rateIdx].r;
+  speedLbl.textContent = RATES[rateIdx].label;
+  speedBtn.title = RATES[rateIdx].tip;
+}
+speedBtn.addEventListener('click', ()=>{
+  rateIdx = (rateIdx + 1) % RATES.length;
+  applyRate();
+  Snd.ready();
+  if(Snd.on) Voice.now('这是现在的说话速度');
+});
+applyRate();
+
+/* 点蓝色喇叭 = 朗读本关目标（孩子忘了随时能重听） */
+document.getElementById('replaybtn').innerHTML =
+  `<svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+     <path d="M4 9.5v5h3.6L13 19V5L7.6 9.5H4z" fill="#fff"/>
+     <path d="M16.2 8.6a5 5 0 0 1 0 6.8M18.9 6a8.6 8.6 0 0 1 0 12" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+   </svg>`;
+
+document.getElementById('replaybtn').addEventListener('click', ()=>{
+  if(!running) return;
+  Snd.ready();
+  speakMission();
+});
+
+/* 朗读目标：先说目标，再说怎么做 */
+function speakMission(){
+  if(!running || !goal) return;
+  const target = missionEl.dataset.spoken || '';
+  const how = LEVELS[levelIndex].spokenIntro || '';
+  Voice.now(target + '。' + how);
+}
+
+/* 声音开关（同时控制音效和语音） */
+sndBtn.addEventListener('click', ()=>{
+  Snd.on = !Snd.on;
+  Voice.on = Snd.on;
+  sndBtn.innerHTML = Snd.on ? iconSoundOn() : iconSoundOff();
+  if(Snd.on){ Snd.ready(); Snd.tone(700,.1); Voice.say('声音打开啦'); }
+  else Voice.stop();
+});
+
+function iconSoundOn(){
+  return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+    <path d="M4 9v6h4l5 4V5L8 9H4z" fill="#4a6ad8"/>
+    <path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" stroke="#4a6ad8" stroke-width="2" stroke-linecap="round"/>
+  </svg>`;
+}
+function iconSoundOff(){
+  return `<svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+    <path d="M4 9v6h4l5 4V5L8 9H4z" fill="#9aa0bb"/>
+    <path d="M17 9l5 6M22 9l-5 6" stroke="#9aa0bb" stroke-width="2" stroke-linecap="round"/>
+  </svg>`;
+}
+sndBtn.innerHTML = iconSoundOn();
+
+/* 头像 & 封面插画（纯 SVG，不依赖 emoji 字体） */
+function svgSnakeHead(size){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 40 40">
+    <circle cx="20" cy="20" r="17" fill="#49b954"/>
+    <circle cx="20" cy="17" r="13.5" fill="#6fd35f"/>
+    <ellipse cx="14.5" cy="22" rx="3.4" ry="2.4" fill="#ffa8b4" opacity=".75"/>
+    <ellipse cx="25.5" cy="22" rx="3.4" ry="2.4" fill="#ffa8b4" opacity=".75"/>
+    <circle cx="15" cy="16" r="4.6" fill="#fff"/>
+    <circle cx="25" cy="16" r="4.6" fill="#fff"/>
+    <circle cx="15.4" cy="16.6" r="2.4" fill="#3a3550"/>
+    <circle cx="25.4" cy="16.6" r="2.4" fill="#3a3550"/>
+    <circle cx="14.5" cy="15.7" r="0.9" fill="#fff"/>
+    <circle cx="24.5" cy="15.7" r="0.9" fill="#fff"/>
+    <path d="M20 22.5c0 2.2 1.6 3 2.6 2.2" stroke="#ff6b8a" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+  </svg>`;
+}
+
+function svgCover(){
+  return `<svg width="140" height="78" viewBox="0 0 140 78">
+    <!-- 小蛇（身体从左下延伸，头在右侧昂起来） -->
+    <circle cx="26" cy="62" r="9.5" fill="#54bd58"/>
+    <circle cx="43" cy="66" r="9.5" fill="#5cc35e"/>
+    <circle cx="60" cy="62" r="9.5" fill="#66cc64"/>
+    <g transform="translate(78,44)">
+      <circle r="15" fill="#49b954"/>
+      <circle cy="-2.5" r="12" fill="#6fd35f"/>
+      <ellipse cx="-6.5" cy="3.5" rx="3.4" ry="2.4" fill="#ffa8b4" opacity=".8"/>
+      <ellipse cx="6.5" cy="3.5" rx="3.4" ry="2.4" fill="#ffa8b4" opacity=".8"/>
+      <circle cx="-5" cy="-4" r="4.3" fill="#fff"/>
+      <circle cx="5" cy="-4" r="4.3" fill="#fff"/>
+      <circle cx="-4.5" cy="-3.3" r="2.2" fill="#3a3550"/>
+      <circle cx="5.5" cy="-3.3" r="2.2" fill="#3a3550"/>
+      <circle cx="-5.4" cy="-4.3" r="0.85" fill="#fff"/>
+      <circle cx="4.6" cy="-4.3" r="0.85" fill="#fff"/>
+      <path d="M0 4 q2.4 3.4 4.6 1.6" stroke="#ff6b8a" stroke-width="1.7" fill="none" stroke-linecap="round"/>
+    </g>
+    <!-- 苹果 -->
+    <g transform="translate(118,30)">
+      <path d="M0 -6 C8 -15 17 2 0 15 C-17 2 -8 -15 0 -6 Z" fill="#ef4444"/>
+      <path d="M0 -5 q2.6 -6 .6 -9" stroke="#8a5a2b" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+      <ellipse cx="6.2" cy="-10.5" rx="4.6" ry="2.4" fill="#4caf50" transform="rotate(-30 6.2 -10.5)"/>
+      <ellipse cx="-5" cy="2" rx="2.4" ry="3.6" fill="#fff" opacity=".45" transform="rotate(-25 -5 2)"/>
+    </g>
+    <!-- 星星 -->
+    <path d="M104 6 l2.2 4.8 5.2 .7 -3.8 3.6 1 5.2 -4.6 -2.5 -4.6 2.5 1 -5.2 -3.8 -3.6 5.2 -.7z" fill="#ffd24d"/>
+  </svg>`;
+}
+
+document.getElementById('avatar').innerHTML = svgSnakeHead(40);
+document.getElementById('startArt').innerHTML = svgCover();
+
+/* 方向键里的三角图标 */
+document.querySelectorAll('.btn[data-dir]').forEach(b=>{
+  const rot = {up:0, right:90, down:180, left:270}[b.dataset.dir];
+  b.innerHTML = `<svg width="34" height="34" viewBox="0 0 24 24" style="transform:rotate(${rot}deg)">
+      <path d="M12 4l8 14H4z" fill="#5b7cf0" stroke="#4560c9" stroke-width="1.4" stroke-linejoin="round"/>
+    </svg>`;
+});
+
+/* ---------- 计时器 ---------- */
+function startTimer(){
+  stopTimer();
+  const tick = () => {
+    if(!running) return;
+    let moved = false;
+    if(!eatLock && canGo) moved = step();
+    // 走成了 → 等满 1.2 秒再走下一格；没走成（被挡/锁定）→ 稍后再看
+    moveTimer = setTimeout(tick, moved ? moveInterval : 260);
+  };
+  moveTimer = setTimeout(tick, moveInterval);
+}
+function stopTimer(){
+  if(moveTimer){ clearTimeout(moveTimer); moveTimer = null; }
+}
+
+/* ---------- 启动 ---------- */
+function newGame(){
+  score = 0; updateStars();
+  bodyLen = START_LEN;
+  grownThisRound = false;
+  document.getElementById('endOv').classList.remove('show');
+  buildLevel(0);
+  running = true;
+  startTimer();
+}
+
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  Snd.ready();
+  document.getElementById('startOv').classList.remove('show');
+  newGame();
+  talk('点下面的方向键，让蛇蛇走起来。' + (missionEl.dataset.spoken || ''));
+});
+
+document.getElementById('againBtn').addEventListener('click', ()=>{
+  stopTimer();
+  newGame();
+  talk('再来一次！点方向键，让蛇蛇走起来');
+});
+
+/* 供调试/自动化检查使用 */
+Object.assign(window, { get items(){return items;}, get snake(){return snake;},
+  get goal(){return goal;}, get score(){return score;}, get levelIndex(){return levelIndex;} });
+
+/* 首次进入 */
+snake = freshSnake();
+items = [];
+resize();
+requestAnimationFrame(()=>{ resize(); });
+loop();
+
+</script>
+</body>
+</html>
