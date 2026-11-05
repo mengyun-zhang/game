@@ -1,0 +1,176 @@
+/* 澄澄的小镇 · 房间页样式 room.css */
+:root{
+  --bg:#dff0e4; --card:#fffdf8; --ink:#3f3a32; --muted:#7c8b80;
+  --line:#e7e0d2; --accent:#4f9e6b; --accent-soft:#e6f4e8; --gold:#f0a832; --err:#d4705f;
+  --shadow:0 6px 18px rgba(63,58,50,.10);
+  --wall:#f6e7d2;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--ink);overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- 房间舞台 ---------- */
+.room-wrap{position:fixed;inset:0;display:grid;place-items:center;padding:0}
+.stage{
+  position:relative;width:100%;height:100%;max-width:1100px;
+  background:
+    linear-gradient(180deg,var(--wall) 0%,var(--wall) 62%,#e4d2b8 62%,#d9c3a4 100%);
+  overflow:hidden;
+}
+/* 墙面细纹 */
+.stage:before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background-image:repeating-linear-gradient(90deg,rgba(180,150,110,.07) 0 2px,transparent 2px 26px);
+  opacity:.7;
+}
+/* 地板线 */
+.stage:after{
+  content:"";position:absolute;left:0;right:0;top:62%;height:2px;
+  background:rgba(150,120,80,.22);
+}
+
+/* ---------- 人物 ---------- */
+.peep{
+  position:absolute;transform:translate(-50%,-100%);
+  border:none;background:transparent;padding:0;cursor:pointer;
+  transition:transform .16s ease;z-index:5;
+  display:flex;flex-direction:column;align-items:center;
+}
+.peep svg{filter:drop-shadow(0 8px 10px rgba(70,60,45,.18))}
+.peep:hover{transform:translate(-50%,-102%)}
+.peep:active{transform:translate(-50%,-98%) scale(.97)}
+.peep.pop{animation:pop .34s ease}
+@keyframes pop{0%{transform:translate(-50%,-100%) scale(1)}45%{transform:translate(-50%,-104%) scale(1.07)}100%{transform:translate(-50%,-100%) scale(1)}}
+/* 有话说的小圆点 */
+.peep.fresh:after{
+  content:"";position:absolute;right:6px;top:6px;width:12px;height:12px;border-radius:50%;
+  background:var(--gold);box-shadow:0 0 0 3px #fffdf8;animation:blink 1.6s infinite;
+}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.35}}
+.peep .bubble{
+  position:absolute;top:-4px;right:-2px;min-width:22px;height:22px;border-radius:11px;
+  background:var(--accent);color:#fff;font-size:13px;line-height:22px;text-align:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.16);font-weight:700;
+}
+
+/* ---------- 可点物件 ---------- */
+.thing{
+  position:absolute;transform:translate(-50%,-100%);
+  border:none;background:transparent;padding:6px;cursor:pointer;
+  transition:transform .16s ease;z-index:4;border-radius:16px;
+}
+.thing:hover{transform:translate(-50%,-102%) scale(1.06)}
+.thing:active{transform:translate(-50%,-98%) scale(.96)}
+.thing.pop{animation:pop2 .34s ease}
+@keyframes pop2{0%{transform:translate(-50%,-100%) scale(1)}45%{transform:translate(-50%,-104%) scale(1.12)}100%{transform:translate(-50%,-100%) scale(1)}}
+.thing svg{filter:drop-shadow(0 6px 8px rgba(70,60,45,.16))}
+.thing.done{filter:saturate(.7) brightness(1.05)}
+/* 货架上的价签 */
+.thing .pricetag{
+  position:absolute;left:50%;top:-6px;transform:translateX(-50%);
+  min-width:22px;height:18px;border-radius:9px;
+  background:#f0a832;color:#fff;font-size:11px;font-weight:700;line-height:18px;
+  text-align:center;box-shadow:0 2px 5px rgba(160,110,30,.32);padding:0 3px;
+}
+.thing .pricetag:before{
+  content:"★";font-size:9px;margin-right:1px;
+}
+
+/* ---------- 顶部信息 ---------- */
+.hud{
+  position:fixed;left:0;right:0;top:0;z-index:30;padding:12px 14px;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:10px;pointer-events:none;
+}
+.hud>*{pointer-events:auto}
+.brand{
+  background:rgba(255,253,248,.96);border:1px solid var(--line);border-radius:16px;
+  padding:8px 14px;box-shadow:var(--shadow);
+}
+.brand h1{margin:0;font-size:16px;letter-spacing:1.5px}
+.brand p{margin:2px 0 0;font-size:11px;color:var(--muted)}
+.tools{display:flex;gap:8px}
+.tools button{
+  width:42px;height:42px;border-radius:14px;border:1px solid var(--line);
+  background:rgba(255,253,248,.96);display:grid;place-items:center;cursor:pointer;
+  box-shadow:var(--shadow);color:#5b5548;transition:.16s;
+}
+.tools button:hover{background:#fff}
+.tools button:active{transform:scale(.95)}
+
+/* ---------- 说话气泡 ---------- */
+.speech{
+  position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(10px);
+  z-index:40;max-width:min(640px,92vw);background:rgba(255,253,248,.98);
+  border:2px solid #f0e2c8;border-radius:18px;padding:12px 20px;
+  font-size:15px;line-height:1.6;color:#4a4438;text-align:center;
+  box-shadow:0 12px 28px rgba(63,58,50,.20);
+  opacity:0;pointer-events:none;transition:.28s;
+}
+.speech.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---------- 完成面板 ---------- */
+.room-done{
+  position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.92);
+  z-index:50;background:var(--card);border-radius:24px;padding:26px 30px 22px;
+  box-shadow:0 20px 44px rgba(63,58,50,.24);text-align:center;width:min(340px,88vw);
+  opacity:0;pointer-events:none;transition:.3s;
+}
+.room-done.show{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.room-done h2{margin:0 0 6px;font-size:19px;letter-spacing:1px}
+.room-done p{margin:0 0 18px;font-size:13px;color:var(--muted);line-height:1.65}
+.btn{
+  border:none;border-radius:999px;padding:13px 30px;font-size:15px;font-weight:700;
+  cursor:pointer;letter-spacing:1px;transition:.16s;font-family:inherit;
+}
+.btn.primary{background:var(--accent);color:#fff;box-shadow:0 8px 18px rgba(79,158,107,.32)}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn.primary:active{transform:scale(.97)}
+.btn.ghost{background:#fff;color:#6b6152;border:1px solid var(--line)}
+
+/* ---------- 开场封面 ---------- */
+.cover{
+  position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:20px;
+  background:radial-gradient(circle at 50% 30%,#fdf6e8,#f0e0c8 72%);
+  transition:.46s;text-align:center;
+}
+.cover.hide{opacity:0;pointer-events:none !important;visibility:hidden}
+.cover.gone{display:none !important}
+.cover .box{max-width:360px}
+.cover h1{font-size:26px;letter-spacing:3px;margin:10px 0 4px}
+.cover p{margin:0 0 18px;font-size:13.5px;color:#7a6b58;line-height:1.75}
+.cover .go{
+  border:none;background:var(--accent);color:#fff;font-size:17px;font-weight:700;
+  padding:15px 44px;border-radius:999px;letter-spacing:2px;cursor:pointer;
+  box-shadow:0 10px 22px rgba(79,158,107,.35);font-family:inherit;
+}
+.cover .go:active{transform:scale(.97)}
+.cover .small{margin-top:14px;font-size:11px;color:#a1937f}
+
+/* ---------- 手机 ---------- */
+@media (max-width:520px){
+  .brand{padding:6px 11px;border-radius:13px}
+  .brand h1{font-size:14px;letter-spacing:1px}
+  .brand p{display:none}
+  .tools button{width:38px;height:38px;border-radius:12px}
+  .peep svg{width:104px !important;height:104px !important}
+  .thing svg{width:64px !important;height:64px !important}
+  .speech{font-size:13px;padding:10px 15px;border-radius:15px;max-width:calc(100vw - 24px);bottom:calc(14px + env(safe-area-inset-bottom))}
+  .room-done{padding:22px 20px 18px}
+}
+
+/* ---------- 房间陈设背景 ---------- */
+.scene{
+  position:absolute;inset:0;width:100%;height:100%;display:block;
+  pointer-events:none;z-index:1;
+}
+/* 竖屏：舞台固定 1000:700 贴在上方（整间屋子一点不裁），
+   下面是一块「说话板」——深一点的地板色 + 木纹，对话就写在这上面 */
+@media (max-aspect-ratio: 1/1){
+  .room-wrap{align-items:stretch}
+  .stage{width:100%;height:100%;max-width:none;aspect-ratio:auto}
+}
+.props{position:absolute;inset:0;z-index:6}

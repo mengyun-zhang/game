@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>幼儿园 · 澄澄的小镇</title>
+<link rel="stylesheet" href="room.css">
+</head>
+<body>
+
+<div class="room-wrap">
+  <div class="stage" id="room"></div>
+</div>
+
+<div class="hud">
+  <div class="brand">
+    <h1>幼儿园</h1>
+    <p>点一点老师和小朋友</p>
+  </div>
+  <div class="tools">
+    <button id="btnBack" title="回小镇" aria-label="回小镇">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 11 L12 4 L20 11"/><path d="M6.5 10 L6.5 19 L17.5 19 L17.5 10"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div class="room-done" id="roomDone">
+  <h2>教室转完啦</h2>
+  <p>老师和小朋友都跟你说过话了，<br>积木和皮球也玩过了。回小镇吧。</p>
+  <button class="btn primary" onclick="location.href='index.html'">回小镇</button>
+</div>
+
+<div class="cover" id="cover">
+  <div class="box">
+    <div id="coverArt" style="display:flex;justify-content:center;align-items:flex-end;gap:6px"></div>
+    <h1>幼儿园</h1>
+    <p>李老师在小黑板前，<br>豆豆和朵朵在搭积木。</p>
+    <button class="go" id="goBtn">进教室</button>
+    <div class="small">点「进教室」后会有轻轻的背景音乐</div>
+  </div>
+</div>
+
+<script src="room.js"></script>
+<script>
+document.getElementById("coverArt").innerHTML =
+  Room.art("boy",116) + Room.art("teacher",150) + Room.art("girl2",116);
+
+document.getElementById("btnBack").onclick = function(){ location.href = "index.html"; };
+
+var room = Room.init({
+  id: "kg",
+  name: "幼儿园",
+  intro: "教室里有黑板、积木和皮球。李老师在那边，去跟老师打个招呼吧。",
+  scene: {
+    wall: "#fff4dc", floor: "#efdcbc", base: "#e0c69c",
+    items: [
+      /* 墙上小黑板 */
+      { t: "board", x: 22, y: 26, w: 26, h: 24, c2: "#c69a72" },
+      /* 右侧大窗 */
+      { t: "window", x: 76, y: 28, w: 20, h: 30, c1: "#a9d6e8" },
+      /* 顶灯 */
+      { t: "lamp", x: 54, y: 6, w: 11, h: 14 },
+      /* 玩具架 */
+      { t: "shelf", x: 12, y: 54, w: 14, h: 22, c1: "#f0b23f", c2: "#dda02c" },
+      /* 小桌子 */
+      { t: "table", x: 52, y: 73, w: 18, h: 14, c1: "#e8b96a", c2: "#c99a4f" },
+      /* 圆地毯 */
+      { t: "rug", x: 30, y: 91, w: 40, h: 13, c1: "#bfe0a8", c2: "#93c47d" },
+      /* 盆栽 */
+      { t: "plant", x: 92, y: 82, w: 9, h: 16, c1: "#a9c9a0", c2: "#b07a56" }
+    ]
+  },
+  people: [
+    {
+      id: "teacher", name: "李老师", art: "teacher", x: 34, y: 84,
+      talk: [
+        "澄澄来啦，今天想玩什么呀？",
+        "黑板上有三只小动物，你数一数，是不是三只？",
+        "积木要一块一块搭，搭高了才不会倒。",
+        "下午我们去院子里晒太阳，好不好？"
+      ]
+    },
+    {
+      id: "doudou", name: "豆豆", art: "boy", x: 62, y: 84,
+      talk: [
+        "我在搭一座很高的楼，你要不要一起搭？",
+        "哎呀，倒啦！没关系，我们再来一次。",
+        "你看，这块是三角的，那块是方的。"
+      ]
+    },
+    {
+      id: "duoduo", name: "朵朵", art: "girl2", x: 80, y: 84,
+      talk: [
+        "我画了一只小猫，给你看看。",
+        "红色的蜡笔画太阳最好看。",
+        "等会儿我们一起玩皮球吧。"
+      ]
+    }
+  ],
+  things: [
+    {
+      id: "blocks", name: "积木", art: "toy", x: 26, y: 89, size: 86, once: true,
+      doneLine: "积木已经搭好一座小塔啦。",
+      act: function(el, say){
+        el.innerHTML =
+          '<svg viewBox="-30 -46 60 56" width="96" height="92" style="display:block;overflow:visible">' +
+            '<rect x="-22" y="-2" width="44" height="14" rx="3" fill="#7fb6e0"/>' +
+            '<rect x="-14" y="-18" width="28" height="14" rx="3" fill="#f6b93b"/>' +
+            '<rect x="-7" y="-32" width="14" height="14" rx="3" fill="#f78fb3"/>' +
+            '<circle cx="0" cy="-40" r="6" fill="#8fc97e"/>' +
+          '</svg>';
+        say("你把积木一块一块叠起来，变成一座小塔。");
+      }
+    },
+    {
+      id: "ball", name: "皮球", art: "ball", x: 14, y: 93, size: 74, once: true,
+      doneLine: "皮球滚到那边去啦。",
+      act: function(el, say){
+        el.style.transition = "transform .8s cubic-bezier(.4,.1,.6,1)";
+        el.style.transform = "translate(-50%,-100%) translateX(120px) rotate(220deg)";
+        setTimeout(function(){
+          el.style.transform = "translate(-50%,-100%) translateX(-40px) rotate(-90deg)";
+        }, 900);
+        say("你拍了一下皮球，它骨碌碌滚出去，又滚回来了。");
+      }
+    },
+    {
+      id: "crayon", name: "蜡笔", art: "crayon", x: 52, y: 68, size: 72,
+      act: function(el, say){
+        say("红色的蜡笔，可以在纸上画一个大太阳。");
+      }
+    },
+    {
+      id: "board", name: "小黑板", art: "star", x: 22, y: 39, size: 62,
+      act: function(el, say){
+        say("黑板上有小猫、小狗和小鸭子，一共三只小动物。");
+      }
+    }
+  ]
+});
+
+var _go=document.getElementById("goBtn");
+if(_go) _go.addEventListener("click", function(){
+  room.Sound.start();
+}, { once: true });
+</script>
+</body>
+</html>

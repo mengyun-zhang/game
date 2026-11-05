@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>超市 · 澄澄的小镇</title>
+<link rel="stylesheet" href="room.css">
+</head>
+<body>
+
+<div class="room-wrap">
+  <div class="stage" id="room"></div>
+</div>
+
+<div class="hud">
+  <div class="brand">
+    <h1>超市</h1>
+    <p>点货架上的东西，用星星换</p>
+  </div>
+  <div class="tools">
+    <button id="btnWallet" title="我的星星" aria-label="我的星星" style="width:auto;padding:0 12px;display:flex;align-items:center;gap:5px">
+      <span id="walletNum" style="font-size:15px;font-weight:700;color:#e09a24">0</span>
+    </button>
+    <button id="btnBag" title="我的背包" aria-label="我的背包">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 8 L19 8 L18 20 L6 20 Z"/><path d="M9 8 C9 3 15 3 15 8"/>
+      </svg>
+    </button>
+    <button id="btnBack" title="回小镇" aria-label="回小镇">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 11 L12 4 L20 11"/><path d="M6.5 10 L6.5 19 L17.5 19 L17.5 10"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div class="room-done" id="roomDone">
+  <h2>买好啦</h2>
+  <p>东西都放进背包了。<br>走出超市，送给街上的人吧。</p>
+  <button class="btn primary" onclick="location.href='index.html'">回小镇</button>
+</div>
+
+<div class="cover" id="cover">
+  <div class="box">
+    <div id="coverArt" style="display:flex;justify-content:center;align-items:flex-end;gap:2px"></div>
+    <h1>小镇超市</h1>
+    <p>玩小游戏攒的星星，<br>在这里可以换成东西。</p>
+    <button class="go" id="goBtn">进去看看</button>
+    <div class="small">点「进去看看」后会有轻轻的背景音乐</div>
+  </div>
+</div>
+
+<script src="room.js"></script>
+<script>
+document.getElementById("coverArt").innerHTML =
+  Room.art("girl", 118) + Room.art("boy", 104);
+
+document.getElementById("btnBack").onclick = function(){ location.href = "index.html"; };
+
+/* ============ 商品（和 index.html 里 SHOP_ITEMS 保持一致） ============ */
+var ITEMS = [
+  { id:"apple",  name:"苹果", cost:2, line:"红红的苹果，脆脆的。" },
+  { id:"bread",  name:"面包", cost:2, line:"刚烤好的面包，香香的。" },
+  { id:"candy",  name:"糖果", cost:3, line:"甜甜的糖，一天只能吃一颗。" },
+  { id:"balloon",name:"气球", cost:3, line:"一个会飞的气球。" },
+  { id:"teddy",  name:"小熊", cost:5, line:"软软的小熊，可以抱着睡。" },
+  { id:"kite",   name:"风筝", cost:6, line:"有风的时候，风筝会飞很高。" }
+];
+
+/* 手机竖屏时画面被横向压缩，台面会挤在一起，所以窄屏用更宽的台面并摊开 */
+var SHELF_SPREAD = [15, 50, 85];
+var COUNTER_W = (window.innerWidth / Math.max(1, window.innerHeight)) < 1 ? 23 : 21;
+var NARROW = (window.innerWidth / Math.max(1, window.innerHeight)) < 1;
+
+var room = Room.init({
+  id: "mall",
+  name: "超市",
+  intro: "这里是超市。货架上的东西，用星星就能换回家。",
+  scene: {
+    wall: "#f5efe0", floor: "#ddd3c0", base: "#c8bda6",
+    items: [
+      /* 三张货架台（商品摆在台面上） */
+      { t: "counter", x: 18, y: 52, w: COUNTER_W, h: 20, c1: "#e8b96a", c2: "#c9903f" },
+      { t: "counter", x: 50, y: 52, w: COUNTER_W, h: 20, c1: "#e8b96a", c2: "#c9903f" },
+      { t: "counter", x: 82, y: 52, w: COUNTER_W, h: 20, c1: "#e8b96a", c2: "#c9903f" },
+      /* 收银台 */
+      { t: "desk", x: 50, y: 82, w: 22, h: 14, c1: "#d9a25c", c2: "#b3803f" },
+      /* 顶灯 */
+      { t: "lamp", x: 32, y: 7, w: 10, h: 12 },
+      { t: "lamp", x: 68, y: 7, w: 10, h: 12 },
+      /* 高处的窗户和一点装饰，让墙不那么空 */
+      { t: "window", x: 14, y: 15, w: 12, h: 18, c1: "#f4b9a6" },
+      { t: "window", x: 86, y: 15, w: 12, h: 18, c1: "#a9c8e8" },
+      { t: "frame", x: 38, y: 16, w: 11, h: 15, c1: "#f6b93b", c2: "#e3cfae", motif: "sun" },
+      { t: "frame", x: 62, y: 16, w: 11, h: 15, c1: "#8fc97e", c2: "#e3cfae", motif: "heart" },
+      { t: "plant", x: 4, y: 74, w: 10, h: 16 },
+      { t: "plant", x: 96, y: 74, w: 10, h: 16 },
+      /* 门口地垫 */
+      { t: "rug", x: 50, y: 94, w: 54, h: 9, c1: "#efe2c8", c2: "#d9c8a6" }
+    ]
+  },
+  people: [
+    {
+      id: "clerk", name: "理货员阿姨", art: "teacher", x: 50, y: 90, size: 116,
+      talk: [
+        "欢迎光临，慢慢看。",
+        "星星是你自己玩出来的，换什么都行。",
+        "面包是今天早上烤的，还热着呢。",
+        "挑好了就来这边，我帮你装起来。"
+      ]
+    }
+  ],
+  /* 货架上的东西都在这个数组里，点了就买 */
+  things: []
+});
+
+/* ============ 货架上的六样东西 ============ */
+/* y 是"商品脚底"落在哪，货架台上表面在 y≈58% 处 */
+var shelfPos = [
+  { x: 13, y: 56.5 }, { x: 23.5, y: 56.5 },
+  { x: 45, y: 56.5 }, { x: 55.5, y: 56.5 },
+  { x: 77, y: 56.5 }, { x: 87.5, y: 56.5 }
+];
+/* 手机竖屏时画面被横向压缩，三张台面挤在一起。
+   窄屏下把三张台面横着摊开，商品按新的台面位置重新摆（不是碰运气调像素）。 */
+function shelfSpot(i){
+  if (!NARROW) return shelfPos[i];
+  var sp = shelfPos[i];
+  var group = Math.floor(i / 2), within = i % 2;
+  var cx = SHELF_SPREAD[group];
+  return { x: cx + (within === 0 ? -4.3 : 4.3), y: 56.5 };
+}
+
+var bought = 0, shopFinished = false;
+
+function wallet(){
+  var n = document.getElementById("walletNum");
+  if (n) n.textContent = room.S.stars;
+}
+
+function buildShelf(){
+  var props = document.getElementById("props");
+  ITEMS.forEach(function(it, i){
+    var b = document.createElement("button");
+    b.className = "thing";
+    b.type = "button";
+    b.dataset.item = it.id;
+    var sp2 = shelfSpot(i);
+    b.style.left = sp2.x + "%";
+    b.style.top = sp2.y + "%";
+    b.innerHTML = '<span class="pricetag">' + it.cost + '</span>' + Room.art(it.id, 74);
+    b.addEventListener("click", function(){ buy(it, b); });
+    props.appendChild(b);
+  });
+  wallet();
+}
+
+function buy(it, el){
+  if (room.S.stars < it.cost){
+    room.Sound.blip("tap");
+    room.Say("还差 " + (it.cost - room.S.stars) + " 颗星星，去玩个小游戏再来吧。");
+    el.animate(
+      [{ transform:"translate(-50%,-100%) translateX(-5px)" },
+       { transform:"translate(-50%,-100%) translateX(5px)" },
+       { transform:"translate(-50%,-100%) translateX(0)" }],
+      { duration: 260, easing: "ease-in-out" }
+    );
+    return;
+  }
+  room.S.stars -= it.cost;
+  room.S.bag[it.id] = (room.S.bag[it.id] || 0) + 1;
+  room.Save();
+  wallet();
+  room.Sound.blip("good");
+  room.Say("换到一个" + it.name + "，" + it.line);
+  bought++;
+
+  /* 东西飞进右上角的背包 */
+  el.animate(
+    [{ transform:"translate(-50%,-100%) scale(1)", opacity: 1 },
+     { transform:"translate(-50%,-100%) translateY(-34px) scale(1.16)", opacity: 1 },
+     { transform:"translate(-50%,-100%) translateY(-76px) scale(.5)", opacity: 0 }],
+    { duration: 520, easing: "ease-out" }
+  );
+  el.style.opacity = ".45";
+  setTimeout(function(){ el.style.opacity = ""; }, 560);
+
+  if (bought >= 3 && !shopFinished){
+    shopFinished = true;
+    setTimeout(function(){
+      var panel = document.getElementById("roomDone");
+      if (panel) panel.classList.add("show");
+    }, 900);
+  }
+}
+
+document.getElementById("btnBag").onclick = function(){
+  var ids = Object.keys(room.S.bag || {});
+  var html = '<h2>背包</h2><p class="sub">' +
+    (ids.length ? "这些东西回小镇以后可以送人。" : "还是空的，用星星换点东西吧。") + '</p>';
+  if (ids.length){
+    html += '<div class="bag-grid">';
+    ids.forEach(function(id){
+      var it = ITEMS.filter(function(x){ return x.id === id; })[0];
+      if (!it) return;
+      html += '<div class="bag-cell"><div class="bg-ico">' + Room.art(id, 58) + '</div>' +
+              '<b>' + it.name + '</b><span>× ' + room.S.bag[id] + '</span></div>';
+    });
+    html += '</div>';
+  }
+  html += '<div class="row" style="margin-top:14px"><button class="btn primary" onclick="Room.CloseSheet&&Room.CloseSheet()" id="closeBag">收起来</button></div>';
+  var m = document.getElementById("mask");
+  if (!m){
+    m = document.createElement("div");
+    m.id = "mask"; m.className = "mask";
+    m.innerHTML = '<div class="sheet" id="sheet"></div>';
+    document.body.appendChild(m);
+  }
+  document.getElementById("sheet").innerHTML =
+    '<button class="close" id="bagClose">✕</button>' + html;
+  m.classList.add("show");
+  document.getElementById("closeBag").onclick = closeBag;
+  document.getElementById("bagClose").onclick = closeBag;
+  m.onclick = function(e){ if (e.target === m) closeBag(); };
+};
+function closeBag(){
+  var m = document.getElementById("mask");
+  if (m) m.classList.remove("show");
+}
+
+document.getElementById("btnWallet").onclick = function(){
+  room.Say("你现在有 " + room.S.stars + " 颗星星。");
+};
+
+var _go = document.getElementById("goBtn");
+if (_go) _go.addEventListener("click", function(){ room.Sound.start(); }, { once: true });
+
+/* 把货架摆出来 */
+buildShelf();
+</script>
+</body>
+</html>

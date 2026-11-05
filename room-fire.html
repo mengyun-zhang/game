@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>消防站 · 澄澄的小镇</title>
+<link rel="stylesheet" href="room.css">
+</head>
+<body>
+
+<div class="room-wrap">
+  <div class="stage" id="room"></div>
+</div>
+
+<div class="hud">
+  <div class="brand">
+    <h1>消防站</h1>
+    <p>点一点叔叔和小狗</p>
+  </div>
+  <div class="tools">
+    <button id="btnBack" title="回小镇" aria-label="回小镇">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 11 L12 4 L20 11"/><path d="M6.5 10 L6.5 19 L17.5 19 L17.5 10"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div class="room-done" id="roomDone">
+  <h2>消防站转完啦</h2>
+  <p>叔叔和小狗都跟你说过话了，<br>装备也认识过了。回小镇吧。</p>
+  <button class="btn primary" onclick="location.href='index.html'">回小镇</button>
+</div>
+
+<div class="cover" id="cover">
+  <div class="box">
+    <div id="coverArt" style="display:flex;justify-content:center;align-items:flex-end;gap:4px"></div>
+    <h1>消防站</h1>
+    <p>消防车停在车库里，<br>叔叔正在擦头盔。</p>
+    <button class="go" id="goBtn">进去看看</button>
+    <div class="small">点「进去看看」后会有轻轻的背景音乐</div>
+  </div>
+</div>
+
+<script src="room.js"></script>
+<script>
+document.getElementById("coverArt").innerHTML =
+  Room.art("fireman",150) + Room.art("dog",104);
+
+document.getElementById("btnBack").onclick = function(){ location.href = "index.html"; };
+
+/* 消防车车身：比通用道具大一号，更像真车 */
+function carBody(){
+  return '<rect x="-150" y="-30" width="300" height="96" rx="14" fill="#d9534f"/>' +
+         '<path d="M40,-30 L40,-92 L120,-92 L150,-16 Z" fill="#d9534f"/>' +
+         '<path d="M56,-40 L56,-80 L112,-80 L134,-40 Z" fill="#cde8f5"/>' +
+         '<rect x="-150" y="-4" width="300" height="18" fill="#fffdf8" opacity=".92"/>' +
+         '<rect x="-124" y="-56" width="66" height="22" rx="9" fill="#f6b93b"/>' +
+         '<rect x="-108" y="-72" width="86" height="12" rx="6" fill="#c9b79d"/>' +
+         '<circle cx="-88" cy="70" r="30" fill="#4a4438"/><circle cx="-88" cy="70" r="13" fill="#c9c2b6"/>' +
+         '<circle cx="86" cy="70" r="30" fill="#4a4438"/><circle cx="86" cy="70" r="13" fill="#c9c2b6"/>' +
+         '<rect x="-160" y="24" width="320" height="10" rx="5" fill="#b9463f"/>';
+}
+
+var room = Room.init({
+  id: "fire",
+  name: "消防站",
+  intro: "这里是消防站的车库，红色的消防车就停在卷帘门前面。小狗在等你呢。",
+  scene: {
+    wall: "#f3ece0", floor: "#d8d2c6", base: "#bdb6a8",
+    items: [
+      /* 大卷帘门：车库的入口 */
+      { t: "garage", x: 50, y: 31, w: 42, h: 44, c1: "#cfd6db", c2: "#b6c0c7" },
+      /* 左右装备柜 */
+      { t: "locker", x: 13, y: 38, w: 13, h: 28, c1: "#d9534f", c2: "#b9463f" },
+      { t: "locker", x: 87, y: 38, w: 13, h: 28, c1: "#d9534f", c2: "#b9463f" },
+      /* 顶灯 */
+      { t: "lamp", x: 32, y: 7, w: 10, h: 13 },
+      { t: "lamp", x: 68, y: 7, w: 10, h: 13 },
+      /* 地上黄线 */
+      { t: "rug", x: 50, y: 91, w: 54, h: 10, c1: "#f0d79a", c2: "#d9b96a" }
+    ]
+  },
+  people: [
+    {
+      id: "fireman", name: "消防员叔叔", art: "fireman", x: 12, y: 90,
+      talk: [
+        "小朋友你好，这里是消防站。",
+        "这顶头盔是红色的，戴上它就不怕火星了。",
+        "消防车上面有一架长长的梯子，可以伸得很高很高。",
+        "记住哦，遇到火要赶快找大人，不要自己靠近。",
+        "你想不想听一听警铃的声音？"
+      ]
+    },
+    {
+      id: "dog", name: "消防犬", art: "dog", x: 88, y: 90, size: 96,
+      talk: [
+        "汪！它叫阿福，是消防站的搜索犬。",
+        "阿福的鼻子很灵，能找到藏在里面的人。",
+        "摸摸它的头，它就会安静下来。"
+      ]
+    }
+  ],
+  things: [
+    {
+      id: "truck", name: "消防车", art: "car", x: 50, y: 86,
+      html: '<svg viewBox="-170 -110 340 200" width="340" height="200" style="display:block;overflow:visible">' + carBody() + '</svg>',
+      act: function(el, say){
+        room.Sound.blip("good");
+        el.style.transition = "transform .28s ease";
+        el.style.transform = "translate(-50%,-100%) translateX(-8px)";
+        setTimeout(function(){ el.style.transform = ""; }, 300);
+        say("这是一辆消防车，能装很多很多水，车顶还有一架梯子。");
+      }
+    },
+    {
+      id: "helmet", name: "头盔", art: "helmet", x: 13, y: 54, size: 96, once: true,
+      doneLine: "头盔已经放回柜子里了。",
+      act: function(el, say){
+        el.style.transition = "transform .4s ease";
+        el.style.transform = "translate(-50%,-100%) translateY(-30px) rotate(-10deg)";
+        setTimeout(function(){ el.style.transform = ""; }, 1100);
+        say("这顶红色的头盔很结实，也很轻，能护住头。");
+      }
+    },
+    {
+      id: "cone", name: "路锥", art: "cone", x: 26, y: 78, size: 88,
+      act: function(el, say){
+        say("橙色的路锥放在地上，是提醒别人这里要小心。");
+      }
+    },
+    {
+      id: "hose", name: "水带", art: "hose", x: 87, y: 54, size: 96,
+      act: function(el, say){
+        say("这条水带很长很长，能一直拉到火场那边。");
+      }
+    }
+  ]
+});
+
+var _go=document.getElementById("goBtn");
+if(_go) _go.addEventListener("click", function(){
+  room.Sound.start();
+}, { once: true });
+</script>
+</body>
+</html>

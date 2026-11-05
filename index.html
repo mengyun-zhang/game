@@ -1,0 +1,3356 @@
+<!DOCTYPE html>
+<!--
+  澄澄的小镇 · 3 岁向探索式益智游戏（v0.2）
+  ---------------------------------------------------------------
+  单文件、零依赖（无 CDN / 无框架 / 无外链图片 / 无外链音频）、原生 JS+CSS、localStorage 存进度、PC+移动自适应。
+  音乐与语音说明：
+    · 背景音乐由 Web Audio 实时合成（五声音阶柔和琶音），不加载任何音频文件，因此断网也能响。
+    · 引导语用浏览器内置的 speechSynthesis 中文语音朗读，无需联网下载语音包（是否可用取决于系统语音）。
+  扩展示例：往 BUILDINGS 里加一条建筑数据 → 在 BUILDING_ART 里加一个造型 → 在 MINI 里加一个玩法函数。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#dff0e4">
+<title>澄澄的小镇</title>
+<style>
+  :root{
+    --bg:#dff0e4; --card:#fffdf8; --ink:#3f3a32; --muted:#7c8b80;
+    --line:#e7e0d2; --accent:#4f9e6b; --accent-soft:#e6f4e8; --gold:#f0a832; --err:#d4705f;
+    --shadow:0 6px 18px rgba(63,58,50,.10);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);overflow:hidden;
+  }
+  button{font-family:inherit;cursor:pointer}
+
+  /* ================= 地图舞台 ================= */
+  .stage{
+    position:fixed;inset:0;overflow:hidden;touch-action:none;
+    background:linear-gradient(180deg,#cfeacb,#bfe2b7);
+  }
+  .world{position:absolute;left:0;top:0;width:1440px;height:900px;transform-origin:0 0;will-change:transform}
+  .world svg.map{display:block;position:absolute;inset:0;width:100%;height:100%}
+
+  /* 建筑 */
+  .b{
+    position:absolute;z-index:6;border:none;background:transparent;padding:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+    transition:transform .18s ease;
+  }
+  .b svg{position:static;width:100%;height:auto;overflow:visible;filter:drop-shadow(0 6px 7px rgba(70,90,60,.15))}
+  .b[data-active="1"]{transform:translateY(-5px) scale(1.04)}
+  .b[data-active="1"] svg{filter:drop-shadow(0 0 9px rgba(255,214,120,.95)) drop-shadow(0 8px 9px rgba(70,90,60,.2))}
+  .b .tag{
+    position:absolute;left:50%;bottom:-16px;transform:translateX(-50%);
+    background:#fffdf8;border:2px solid #ece3d2;border-radius:999px;
+    font-size:15px;line-height:1;padding:8px 13px;white-space:nowrap;color:#4a4438;
+    box-shadow:0 3px 8px rgba(63,58,50,.12);letter-spacing:.5px;font-weight:600;
+    z-index:3;
+  }
+  .b .badge{
+    position:absolute;top:-14px;right:-8px;width:26px;height:26px;border-radius:13px;
+    background:var(--gold);color:#fff;font-size:14px;line-height:22px;text-align:center;
+    border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.18);display:grid;place-items:center;
+  }
+
+  #hero{position:absolute;z-index:9;pointer-events:none;width:64px;height:110px}
+  #hero svg{width:100%;height:100%;overflow:visible}
+  #hero .shadow{position:absolute;left:50%;bottom:1px;transform:translateX(-50%)}
+
+  /* ================= 小镇居民 ================= */
+  .folk{
+    position:absolute;z-index:9;pointer-events:auto;cursor:pointer;
+    width:48px;height:84px;padding:0;border:none;background:transparent;
+    transition:transform .12s ease;
+  }
+  .folk svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 4px 6px rgba(60,80,55,.16))}
+  .folk:active{filter:brightness(1.06)}
+  /* 尺寸按性别微调：小狗矮一点，小孩高一点 */
+  .folk.gen2{width:52px;height:84px}
+  .folk.gen3{width:54px;height:92px}
+  .folk.pop{animation:folkPop .5s cubic-bezier(.2,1.4,.5,1)}
+  @keyframes folkPop{0%{opacity:0}60%{opacity:1}100%{opacity:1}}
+  /* 手里牵着的气球 / 风筝 */
+  .carry{position:absolute;pointer-events:none;z-index:11;width:30px;
+    animation:carrySway 2.6s ease-in-out infinite}
+  .carry svg{width:100%;height:auto;display:block;overflow:visible}
+  .carry:after{
+    content:"";position:absolute;left:50%;top:88%;width:1.4px;height:26px;
+    background:linear-gradient(#c9bda4,#e0d6c0);transform:translateX(-50%);
+  }
+  @keyframes carrySway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+  .folk .fbubble{
+    position:absolute;left:50%;top:-26px;transform:translateX(-50%);
+    background:#fffdf8;border:1.6px solid #ece3d2;border-radius:12px;
+    padding:4px 9px;font-size:11.5px;line-height:1.35;color:#4a4438;white-space:nowrap;
+    box-shadow:0 4px 12px rgba(60,80,55,.14);z-index:3;
+  }
+  .folk .fbubble:after{
+    content:"";position:absolute;left:50%;bottom:-5px;transform:translateX(-50%) rotate(45deg);
+    width:8px;height:8px;background:#fffdf8;border-right:1.6px solid #ece3d2;border-bottom:1.6px solid #ece3d2;
+  }
+  .folk .fmood{
+    position:absolute;left:50%;top:-14px;transform:translateX(-50%);
+    font-size:12px;line-height:1;padding:2px 4px;border-radius:8px;
+    background:#fffdf8;box-shadow:0 2px 6px rgba(60,80,55,.14);
+    animation:bob 1.5s ease-in-out infinite;
+  }
+  .folk .fmood.sleepy{animation:none;opacity:.8}
+  @keyframes bob{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-3px)}}
+  .fheart{position:absolute;z-index:14;pointer-events:none;animation:floatUp 1.2s ease-out forwards}
+  .fheart svg{width:22px;height:22px;display:block}
+  @keyframes floatUp{
+    0%{opacity:0;transform:translateY(0) scale(.6)}
+    25%{opacity:1}
+    100%{opacity:0;transform:translateY(-46px) scale(1.1)}
+  }
+
+  /* 送礼小窗 */
+  .gift-box{
+    position:fixed;inset:0;z-index:65;display:grid;place-items:center;
+    background:rgba(45,52,45,.3);opacity:0;pointer-events:none;transition:.24s;
+  }
+  .gift-box.show{opacity:1;pointer-events:auto}
+  .gb-in{
+    background:#fffdf8;border-radius:22px;padding:20px 24px 14px;text-align:center;
+    width:min(280px,84vw);box-shadow:0 18px 40px rgba(30,40,32,.24);
+  }
+  .gb-ico{display:flex;justify-content:center;margin-bottom:6px}
+  .gb-in p{margin:0 0 14px;font-size:14px;color:#6b6152}
+  .gb-yes{
+    display:block;width:100%;border:none;border-radius:999px;padding:12px 0;
+    background:#4f9e6b;color:#fff;font-size:15px;font-weight:700;letter-spacing:2px;
+    cursor:pointer;font-family:inherit;
+  }
+  .gb-no{
+    display:block;width:100%;margin-top:6px;border:none;background:transparent;
+    color:#9aa89d;font-size:12.5px;padding:7px 0;cursor:pointer;font-family:inherit;
+  }
+
+  /* 商店 / 背包 */
+  .shop-wallet{
+    display:flex;align-items:center;gap:6px;justify-content:center;
+    background:#fff8e6;border:1px solid #f0e2c8;border-radius:14px;padding:9px 12px;
+    font-size:13px;color:#8a7a5c;margin-bottom:12px;
+  }
+  .shop-wallet b{font-size:17px;color:#e09a24}
+  .shop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .shop-cell{
+    background:#fffdf8;border:1.5px solid #efe6d4;border-radius:16px;
+    padding:9px 6px 8px;text-align:center;transition:.18s;
+  }
+  .shop-cell.poor{opacity:.5}
+  .sc-ico{display:flex;justify-content:center;height:60px;align-items:center}
+  .shop-cell b{display:block;font-size:12.5px;margin-top:2px}
+  .sc-cost{display:flex;align-items:center;justify-content:center;gap:2px;font-size:12px;color:#a89170;margin:2px 0 6px}
+  .sc-buy{
+    width:100%;border:none;border-radius:999px;padding:6px 0;font-size:13px;font-weight:700;
+    background:#4f9e6b;color:#fff;cursor:pointer;font-family:inherit;letter-spacing:1px;
+  }
+  .sc-buy:disabled{background:#ddd5c6;cursor:default}
+  /* ================= 做新朋友 ================= */
+  .maker{display:flex;gap:14px;align-items:flex-start}
+  .mk-left{flex:0 0 116px;display:flex;flex-direction:column;gap:6px}
+  .mk-preview{
+    width:100%;height:140px;border-radius:20px;border:2px dashed #e2d8c2;background:#fbf7ee;
+    display:grid;place-items:end center;padding-bottom:8px;overflow:hidden;position:relative;
+  }
+  .mk-preview svg{width:92px;height:auto;display:block;overflow:visible}
+  .mk-preview .tag{
+    position:absolute;left:0;right:0;top:7px;text-align:center;font-size:11px;color:#a89a80;letter-spacing:1px;
+  }
+  .mk-dice{
+    border:1.6px solid #e6dcc8;background:#fff;border-radius:13px;padding:8px 6px;font-size:13px;
+    font-family:inherit;color:#6f7d74;white-space:nowrap;
+  }
+  .mk-dice:active{transform:scale(.97)}
+  .mk-form{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:9px}
+  #mkChoices{display:flex;flex-direction:column;gap:7px}
+  .mk-lab{font-size:12px;color:#8a958c;letter-spacing:.5px;margin:2px 0 -3px}
+  .mk-name{
+    width:100%;box-sizing:border-box;border:1.6px solid #e6dcc8;border-radius:14px;background:#fff;
+    padding:11px 13px;font-size:16px;font-family:inherit;color:var(--ink);letter-spacing:1px;
+  }
+  .mk-name:focus{outline:none;border-color:#9ed3a8;box-shadow:0 0 0 3px rgba(158,211,168,.22)}
+  .mk-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  .mk-dot{width:27px;height:27px;border-radius:50%;border:2px solid transparent;padding:0;
+    box-shadow:0 2px 6px rgba(80,70,50,.14)}
+  .mk-dot.on{border-color:#4f9e6b;transform:scale(1.1)}
+  .mk-pick{border:1.6px solid #e6dcc8;background:#fff;border-radius:12px;padding:6px 9px;
+    font-size:12.5px;font-family:inherit;color:var(--ink);display:inline-flex;align-items:center;gap:4px;
+    white-space:nowrap}
+  .mk-pick.on{background:#eaf6e6;border-color:#8ecb9a;color:#3f6b4c;font-weight:600}
+  .mk-tip{font-size:12px;color:#a09580;line-height:1.6;margin-top:2px}
+
+  .bag-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .bag-cell{
+    background:#fffdf8;border:1.5px solid #efe6d4;border-radius:16px;
+    padding:10px 6px;text-align:center;
+  }
+  .bg-ico{display:flex;justify-content:center;height:58px;align-items:center}
+  .bag-cell b{display:block;font-size:12.5px;margin-top:2px}
+  .bag-cell span{font-size:11.5px;color:#a89170}
+
+  /* ================= HUD ================= */
+  .hud{position:fixed;left:0;right:0;top:0;z-index:20;pointer-events:none;padding:14px 16px;
+    display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
+  .hud > *{pointer-events:auto}
+  .brand{background:rgba(255,253,248,.94);border:1px solid #ece3d2;border-radius:16px;
+    padding:8px 14px;box-shadow:var(--shadow);flex:0 0 auto}
+  .brand h1{margin:0;font-size:17px;letter-spacing:2px;white-space:nowrap}
+  .brand p{margin:2px 0 0;font-size:11px;color:var(--muted);letter-spacing:.5px;white-space:nowrap}
+  .hud-right{display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:1 1 auto;min-width:0}
+  .pills{display:flex;gap:6px}
+  .tools{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .pill span{background:rgba(255,253,248,.94);border:1px solid #ece3d2;border-radius:999px;
+    padding:8px 12px;font-size:13px;box-shadow:var(--shadow);white-space:nowrap;
+    display:flex;align-items:center;gap:4px}
+  .tools button{width:42px;height:42px;border-radius:14px;border:1px solid #ece3d2;background:rgba(255,253,248,.95);
+    box-shadow:var(--shadow);display:grid;place-items:center;padding:0;position:relative}
+  .tools button:active{transform:scale(.94)}
+  .tools button.off{opacity:.45}
+  .tools button .ping{position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:4px;background:#e0a92b}
+
+  /* 摇杆 */
+  .stick{position:fixed;z-index:20;left:14px;bottom:calc(14px + env(safe-area-inset-bottom));
+    width:122px;height:122px;border-radius:50%;
+    background:rgba(255,253,248,.42);border:2px solid rgba(255,255,255,.7);
+    backdrop-filter:blur(2px);touch-action:none}
+  .stick .knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;
+    border-radius:50%;background:rgba(255,253,248,.95);border:1px solid #e6ddc9;
+    box-shadow:0 4px 10px rgba(63,58,50,.16)}
+  .tipbar{position:fixed;z-index:19;left:50%;transform:translateX(calc(-50% + 70px));
+    bottom:calc(18px + env(safe-area-inset-bottom));background:rgba(63,58,50,.88);color:#fff;
+    padding:9px 15px;border-radius:20px;font-size:13px;white-space:normal;
+    opacity:0;transition:.25s;pointer-events:none;max-width:calc(100vw - 190px);
+    line-height:1.45;text-align:center}
+  .tipbar.show{opacity:1}
+
+  /* ================= 进屋提示 ================= */
+  .enter-room{
+    position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:20px;
+    background:rgba(45,52,45,.34);backdrop-filter:blur(2px);
+    opacity:0;pointer-events:none;transition:.28s;
+  }
+  .enter-room.show{opacity:1;pointer-events:auto}
+  .er-box{
+    background:var(--card);border-radius:24px;padding:24px 26px 18px;text-align:center;
+    width:min(320px,88vw);box-shadow:0 20px 44px rgba(30,40,32,.28);
+    transform:translateY(10px) scale(.97);transition:.28s;
+  }
+  .enter-room.show .er-box{transform:none}
+  .er-icon{
+    width:60px;height:60px;border-radius:20px;background:var(--accent-soft);
+    display:grid;place-items:center;margin:0 auto 10px;
+  }
+  .er-box h3{margin:0 0 6px;font-size:17px;letter-spacing:1px}
+  .er-box p{margin:0 0 16px;font-size:13px;color:var(--muted);line-height:1.7}
+  .er-go{
+    display:block;width:100%;border:none;border-radius:999px;padding:14px 0;
+    background:var(--accent);color:#fff;font-size:16px;font-weight:700;letter-spacing:2px;
+    cursor:pointer;font-family:inherit;box-shadow:0 8px 18px rgba(79,158,107,.32);
+  }
+  .er-go:active{transform:scale(.98)}
+  .er-later{
+    display:block;width:100%;margin-top:9px;border:none;background:transparent;
+    color:#9aa89d;font-size:13px;padding:8px 0;cursor:pointer;font-family:inherit;
+  }
+
+  /* ================= 弹层 ================= */
+  .mask{position:fixed;inset:0;z-index:40;background:rgba(45,52,45,.42);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:14px;
+    opacity:0;pointer-events:none;transition:.22s}
+  .mask.show{opacity:1;pointer-events:auto}
+  .sheet{position:relative;width:100%;max-width:470px;max-height:min(90vh,780px);overflow:auto;
+    overscroll-behavior:contain;background:var(--card);border-radius:26px;padding:18px 18px 16px;
+    box-shadow:0 20px 50px rgba(0,0,0,.22);transform:translateY(14px) scale(.98);transition:.24s}
+  .mask.show .sheet{transform:none}
+  .sheet h2{margin:0 0 4px;font-size:20px;letter-spacing:1px;padding-right:46px}
+  .sheet .sub{margin:0 0 12px;font-size:14px;color:#6f7d74;line-height:1.6;padding-right:4px}
+  .sheet .close{position:absolute;right:12px;top:12px;width:34px;height:34px;flex:0 0 auto;
+    padding:0;border-radius:12px;font-size:15px;line-height:1;background:#f4efe4;border:1px solid var(--line)}
+  .row{display:flex;gap:8px}
+  .btn{flex:1;border:1px solid var(--line);background:#fff;border-radius:15px;padding:14px 8px;
+    font-size:15px;color:var(--ink)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .btn.ghost{background:transparent}
+  .btn:active{transform:scale(.98)}
+
+  .stats{display:flex;justify-content:space-between;gap:8px;background:var(--accent-soft);
+    border-radius:15px;padding:9px 14px;font-size:12px;margin-bottom:10px;color:#5d7a66}
+  .stats b{font-size:16px;color:#3f6b4c}
+  .board{width:100%;min-height:210px;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:10px}
+  .board > *{width:100%}
+  .board .hintline{font-size:13px;color:#8a958c;text-align:center;line-height:1.6;margin-top:2px}
+  .note{font-size:12px;color:var(--muted);line-height:1.7;margin-top:10px}
+
+  /* 通用大按钮格（种菜/浇水/摘果用） */
+  .plots{display:grid;gap:10px;width:100%}
+  .plot{position:relative;border-radius:18px;border:2px dashed #d9cfb9;background:#f7f2e6;
+    display:grid;place-items:center;min-height:78px;transition:.16s;overflow:hidden}
+  .plot.grown{border-style:solid;border-color:#a9d5ab;background:#eef8ea}
+  .plot.wet{background:#e9f4fb;border-color:#a9cbe2}
+  .plot:active{transform:scale(.97)}
+  .plot .cap{position:absolute;left:0;right:0;bottom:4px;text-align:center;font-size:11px;color:#a09580}
+
+  /* 找一样 */
+  .find{display:grid;gap:10px;width:100%}
+  .find .card{height:96px;border-radius:18px;background:#fff;border:2px solid #ece3d2;
+    display:grid;place-items:center;transition:.16s;padding:6px}
+  .find .card:active{transform:scale(.96)}
+  .find .card.yes{border-color:#8fce9a;background:#eef9ec;animation:pop .35s}
+  .find .card.no{animation:shake .3s}
+  @keyframes pop{0%{transform:scale(1)}50%{transform:scale(1.08)}100%{transform:scale(1)}}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+  /* 路上一族（路径引导/走格子） */
+  .trail-wrap{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px}
+  .map-grid{display:grid;gap:5px;width:100%;background:#eef6ec;padding:8px;border-radius:18px}
+  .tg{aspect-ratio:1/1;border-radius:11px;background:#eef2ea;border:2px solid #e4eade;display:grid;place-items:center;min-height:9px;padding:2px;box-sizing:border-box}
+  .tg.block{background:#cfe0cb;border-color:#bdd3b8}
+  .tg.path{background:#fdf0cf;border-color:#f3deab}
+  .tg.hole{background:#fffdf4;border:3px dashed #f0a832;animation:pulsehold 1.4s infinite}
+  @keyframes pulsehold{0%,100%{border-color:#f0a832;background:#fffdf4}50%{border-color:#ffc952;background:#fff8e2}}
+  .tg.target{background:#fff7dd;border-color:#f0c25a;box-shadow:0 0 0 3px rgba(240,194,90,.35)}
+  .tg.me{box-shadow:inset 0 0 0 3px #f0a832}
+  .tg.next{animation:pulse 1.1s infinite}
+  @keyframes pulse{0%,100%{box-shadow:inset 0 0 0 2px rgba(240,168,50,.3)}50%{box-shadow:inset 0 0 0 3px rgba(240,168,50,.95)}}
+
+  /* 排序 */
+  .sortrow{display:flex;gap:10px;justify-content:center;align-items:flex-end;width:100%}
+  .sortrow .sitem{border-radius:18px;background:#fff;border:2px solid #ece3d2;display:flex;
+    justify-content:center;transition:.16s;padding:6px 0;overflow:hidden}
+  .sortrow .sitem.no{border-color:#f0a0a0;background:#fdf0f0}
+  .sortrow .sitem.on{border-color:#8fce9a;background:#eef9ec}
+  .sortqueue{display:flex;gap:10px;justify-content:center;width:100%;margin-top:6px}
+  .qcell{width:88px;height:118px;border-radius:18px;border:2px dashed #d9cfb9;background:#faf7ef;
+    display:flex;align-items:flex-end;justify-content:center;padding:6px 0;position:relative;overflow:hidden}
+  .qcell.filled{border-style:solid;border-color:#bfe0c4;background:#f3fbf2}
+  .qnum{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);color:#c9bfa9;font-size:20px;font-weight:700}
+  .ruler{display:flex;align-items:center;gap:8px;justify-content:center;margin:8px 0 2px;
+    font-size:11px;color:#9aa89d}
+  .ruler i{display:block;width:120px;height:3px;border-radius:2px;
+    background:linear-gradient(90deg,#cfe6d2,#7fbf6f)}
+
+  /* 分类列表 */
+  .list{display:grid;gap:8px}
+  .li{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:15px;
+    padding:10px 12px;background:#fff}
+  .li .ic{width:44px;height:44px;border-radius:13px;background:#eef7ee;display:grid;place-items:center;flex:0 0 auto}
+  .li .tx{flex:1;min-width:0}
+  .li .tx b{font-size:14px}
+  .li .tx p{margin:2px 0 0;font-size:11px;color:var(--muted);line-height:1.45}
+  .li .go{border:1px solid var(--line);background:#fff;border-radius:12px;padding:8px 12px;font-size:13px}
+  .li.locked{opacity:.62}
+
+  .toast{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.9);opacity:0;
+    background:rgba(58,53,44,.94);color:#fff;padding:16px 24px;border-radius:18px;font-size:15px;
+    transition:.24s;pointer-events:none;z-index:60;text-align:center;line-height:1.5;max-width:80vw}
+  .toast.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+
+  .kv{display:flex;justify-content:space-between;gap:12px;font-size:13px;padding:8px 0;border-bottom:1px dashed var(--line)}
+  .kv:last-child{border:none}
+  .kv span:first-child{color:var(--muted);flex:0 0 auto}
+  .kv span:last-child{text-align:right}
+
+  /* 开场封面 */
+  .cover{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:20px;
+    background:radial-gradient(circle at 50% 30%, #eaf7e6, #c6e3bf 70%);transition:.5s}
+  .cover.hide{opacity:0 !important;pointer-events:none !important;visibility:hidden}
+  .cover .box{text-align:center;max-width:380px}
+  .cover h1{font-size:30px;letter-spacing:4px;margin:14px 0 6px}
+  .cover p{margin:0 0 18px;font-size:14px;color:#6b7d70;line-height:1.7}
+  .cover .go{border:none;background:#4f9e6b;color:#fff;font-size:18px;font-weight:700;
+    padding:16px 46px;border-radius:999px;box-shadow:0 10px 22px rgba(79,158,107,.35);letter-spacing:2px}
+  .cover .go:active{transform:scale(.97)}
+  .cover .small{margin-top:14px;font-size:11px;color:#8b9c90}
+
+  /* 手机：品牌名一行，按钮收成两行小方块，星星和按钮同一行 */
+  @media (max-width:520px){
+    .hud{padding:8px 10px;gap:5px;flex-wrap:wrap}
+    .brand{padding:5px 9px;border-radius:12px}
+    .brand h1{font-size:13px;letter-spacing:.5px}
+    .brand p{display:none}
+    .hud-right{gap:5px;flex-direction:row;align-items:center;justify-content:space-between;flex:1 1 auto;min-width:0}
+    .pills{order:1;flex:0 1 auto;min-width:0}
+    .tools{order:2;gap:5px;flex:0 1 auto;justify-content:flex-end;flex-wrap:wrap}
+    .tools button{width:32px;height:32px;border-radius:10px}
+    .tools button svg{width:17px;height:17px}
+    .pill span{padding:4px 7px;font-size:11.5px;border-radius:999px;gap:3px}
+    .pill span svg{width:12px;height:12px}
+    .tipbar{font-size:11px;bottom:calc(8px + env(safe-area-inset-bottom));
+      max-width:calc(100vw - 140px);left:auto;right:8px;transform:none;border-radius:12px;padding:7px 10px}
+    .sheet{padding:16px 14px 14px;border-radius:22px}
+    .plot{min-height:70px}
+    #speech{max-width:calc(100vw - 24px)!important;font-size:12.5px!important;
+      padding:8px 12px!important;top:calc(92px + env(safe-area-inset-top))!important;
+      border-radius:13px!important;line-height:1.45!important;border-width:1.5px!important}
+    .bag-grid{grid-template-columns:repeat(3,1fr)}
+  }
+  @media (max-width:520px){
+    .maker{flex-direction:column;gap:10px}
+    .mk-preview{flex:0 0 auto;width:100%;height:104px}
+    .mk-preview svg{width:76px}
+    .row{flex-wrap:wrap}
+  }
+  @media (max-width:380px){
+    .stick{width:104px;height:104px}
+    .stick .knob{width:46px;height:46px;margin:-23px 0 0 -23px}
+    .tipbar{max-width:calc(100vw - 124px);font-size:10.5px}
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="world" id="world">
+    <svg class="map" id="mapSvg" viewBox="0 0 1440 900" aria-hidden="true"></svg>
+    <div id="hero"></div>
+  </div>
+</div>
+
+<div class="hud">
+  <div class="brand">
+    <h1>澄澄的小镇</h1>
+    <p>走一走，点一点，就能进屋玩</p>
+  </div>
+  <div class="hud-right">
+    <div class="pills">
+      <span id="pillStar" title="小星星"></span>
+      <span id="pillVisit" title="去过的地方"></span>
+    </div>
+    <div class="tools">
+      <button title="做个新朋友" onclick="openMaker()" data-ico="face"></button>
+      <button title="去哪里" onclick="openPlaces()" data-ico="map"></button>
+      <button title="商店" onclick="openShop()" data-ico="shop"></button>
+      <button title="我的背包" onclick="openBag()" data-ico="bag"></button>
+      <button title="只听声音" onclick="toggleSound()" id="btnSound" data-ico="sound"></button>
+      <button title="小镇图鉴" onclick="openBook()" data-ico="book"></button>
+      <button title="大人看这里" onclick="openHelp()" data-ico="help"></button>
+    </div>
+  </div>
+</div>
+
+<div class="stick" id="stick"><div class="knob" id="knob"></div></div>
+<div class="tipbar" id="tipbar"></div>
+<div class="toast" id="toast"></div>
+<div class="mask" id="mask"><div class="sheet" id="sheet"></div></div>
+
+<div class="cover" id="cover">
+  <div class="box">
+    <div id="coverHero" style="width:150px;margin:0 auto"></div>
+    <h1>澄澄的小镇</h1>
+    <p>澄澄要去看看小镇啦，<br>你陪她一起好不好？</p>
+    <button class="go" onclick="beginTown()">开始</button>
+    <div class="small">点「开始」后会有轻轻的背景音乐和讲解声音</div>
+  </div>
+</div>
+
+<script>
+/* =====================================================================
+   0. 世界设定
+   ===================================================================== */
+/* 小镇上其他小朋友和小狗的图形（和房间页同一套画法，单独放一份，
+   这样 index.html 不依赖 room.js，双击就能玩） */
+var FOLK_ART = (function(){
+  var D = {
+    boy: ''
+      + '<rect x="-4.8" y="6" width="4.2" height="8" rx="2.1" fill="#f3d3bc"/><rect x="0.6" y="6" width="4.2" height="8" rx="2.1" fill="#f3d3bc"/>'
+      + '<ellipse cx="-2.7" cy="14.4" rx="3.2" ry="2.1" fill="#4a6f96"/><ellipse cx="2.7" cy="14.4" rx="3.2" ry="2.1" fill="#4a6f96"/>'
+      + '<path d="M-7,-1 C-7,-4 7,-4 7,-1 L8.2,7 C4,9 -4,9 -8.2,7 Z" fill="#7fb6e0"/>'
+      + '<rect x="-10.6" y="-1.2" width="3.8" height="9.2" rx="1.9" fill="#fbe0cf"/><rect x="6.8" y="-1.2" width="3.8" height="9.2" rx="1.9" fill="#fbe0cf"/>'
+      + '<rect x="-2" y="-6" width="4" height="2.8" fill="#f0cdb6"/>'
+      + '<circle cx="0" cy="-11.8" r="7.2" fill="#fbe0cf"/>'
+      + '<path d="M-7.2,-11.8 C-7.2,-19.6 7.2,-19.6 7.2,-11.8 C7.2,-16.4 4,-18 0,-18 C-4,-18 -7.2,-16.4 -7.2,-11.8 Z" fill="#3f3a32"/>'
+      + '<path d="M-2.2,-20.4 C-2,-22.6 2,-22.6 2.2,-20.4 Z" fill="#3f3a32"/>'
+      + '<circle cx="-2.5" cy="-11.6" r="1.1" fill="#4a3327"/><circle cx="2.5" cy="-11.6" r="1.1" fill="#4a3327"/>'
+      + '<ellipse cx="-4.9" cy="-8.8" rx="1.7" ry="1" fill="#f79aa5" opacity=".55"/><ellipse cx="4.9" cy="-8.8" rx="1.7" ry="1" fill="#f79aa5" opacity=".55"/>'
+      + '<path d="M-1.7,-8.8 Q0,-7.3 1.7,-8.8" stroke="#c9705f" stroke-width="1.05" fill="none" stroke-linecap="round"/>',
+    girl2: ''
+      + '<circle cx="-8.6" cy="-9.6" r="3.4" fill="#8a5a3a"/><circle cx="8.6" cy="-9.6" r="3.4" fill="#8a5a3a"/>'
+      + '<rect x="-4.8" y="6" width="4.2" height="8" rx="2.1" fill="#f3d3bc"/><rect x="0.6" y="6" width="4.2" height="8" rx="2.1" fill="#f3d3bc"/>'
+      + '<ellipse cx="-2.7" cy="14.4" rx="3.2" ry="2.1" fill="#c98d2e"/><ellipse cx="2.7" cy="14.4" rx="3.2" ry="2.1" fill="#c98d2e"/>'
+      + '<path d="M-6.8,-1 C-6.8,-4 6.8,-4 6.8,-1 L9.4,7.6 C4.6,9.8 -4.6,9.8 -9.4,7.6 Z" fill="#f6b93b"/>'
+      + '<rect x="-10.4" y="-1.2" width="3.8" height="9.2" rx="1.9" fill="#fbe0cf"/><rect x="6.6" y="-1.2" width="3.8" height="9.2" rx="1.9" fill="#fbe0cf"/>'
+      + '<rect x="-2" y="-6" width="4" height="2.8" fill="#f0cdb6"/>'
+      + '<circle cx="0" cy="-11.8" r="7.2" fill="#fbe0cf"/>'
+      + '<path d="M-7.2,-11.8 C-7.2,-19.6 7.2,-19.6 7.2,-11.8 C7.2,-16.4 4,-18 0,-18 C-4,-18 -7.2,-16.4 -7.2,-11.8 Z" fill="#8a5a3a"/>'
+      + '<circle cx="-2.5" cy="-11.6" r="1.1" fill="#4a3327"/><circle cx="2.5" cy="-11.6" r="1.1" fill="#4a3327"/>'
+      + '<circle cx="-2.2" cy="-12" r="0.4" fill="#fff"/><circle cx="2.8" cy="-12" r="0.4" fill="#fff"/>'
+      + '<ellipse cx="-4.9" cy="-8.8" rx="1.7" ry="1" fill="#f79aa5" opacity=".6"/><ellipse cx="4.9" cy="-8.8" rx="1.7" ry="1" fill="#f79aa5" opacity=".6"/>'
+      + '<path d="M-1.7,-8.8 Q0,-7.3 1.7,-8.8" stroke="#c9705f" stroke-width="1.05" fill="none" stroke-linecap="round"/>',
+    dog: ''
+      + '<path d="M9,-1 C15,-3 16,-9 14,-11 C13.4,-7.4 11.6,-5 9,-4.4 Z" fill="#c99a62"/>'
+      + '<ellipse cx="0" cy="8" rx="9.4" ry="6.6" fill="#c99a62"/>'
+      + '<ellipse cx="0" cy="9.4" rx="5.6" ry="4" fill="#f0dcc2"/>'
+      + '<rect x="-6.4" y="11" width="4.2" height="5" rx="2.1" fill="#b98a55"/>'
+      + '<rect x="2.2" y="11" width="4.2" height="5" rx="2.1" fill="#b98a55"/>'
+      + '<circle cx="0" cy="-2" r="8.6" fill="#d9ad76"/>'
+      + '<path d="M-7.4,-7 C-12.6,-9 -13.4,-1.6 -8.4,-1.2 C-9.4,-3.6 -9,-5.6 -7.4,-7 Z" fill="#a9784f"/>'
+      + '<path d="M7.4,-7 C12.6,-9 13.4,-1.6 8.4,-1.2 C9.4,-3.6 9,-5.6 7.4,-7 Z" fill="#a9784f"/>'
+      + '<ellipse cx="-3.1" cy="-3.4" rx="1.35" ry="1.5" fill="#3f3a32"/><ellipse cx="3.1" cy="-3.4" rx="1.35" ry="1.5" fill="#3f3a32"/>'
+      + '<circle cx="-2.7" cy="-3.9" r="0.48" fill="#fff"/><circle cx="3.5" cy="-3.9" r="0.48" fill="#fff"/>'
+      + '<ellipse cx="0" cy="0.8" rx="2.5" ry="1.9" fill="#4a4038"/>'
+      + '<path d="M0,2.6 L0,4.4 M0,4.4 Q-1.8,5.6 -2.8,4 M0,4.4 Q1.8,5.6 2.8,4" stroke="#4a4038" stroke-width="0.95" fill="none" stroke-linecap="round"/>'
+      + '<ellipse cx="-6.2" cy="-0.2" rx="1.9" ry="1.2" fill="#f79aa5" opacity=".45"/><ellipse cx="6.2" cy="-0.2" rx="1.9" ry="1.2" fill="#f79aa5" opacity=".45"/>',
+    heart: '<path d="M0,9 C-11,2 -11,-6 -5.5,-6 C-2.4,-6 0,-3.4 0,-2 C0,-3.4 2.4,-6 5.5,-6 C11,-6 11,2 0,9 Z" fill="#f78fb3"/>',
+
+    /* —— 自己捏的小朋友：皮肤 / 头发 / 衣服 / 发饰 全部按参数上色 —— */
+    kid: ''
+      + '<rect x="-4.8" y="6" width="4.2" height="8" rx="2.1" fill="{S}"/><rect x="0.6" y="6" width="4.2" height="8" rx="2.1" fill="{S}"/>'
+      + '<ellipse cx="-2.7" cy="14.4" rx="3.2" ry="2.1" fill="{B}"/><ellipse cx="2.7" cy="14.4" rx="3.2" ry="2.1" fill="{B}"/>'
+      + '{P}'
+      + '<path d="M-7,-1 C-7,-4 7,-4 7,-1 L8.2,7 C4,9 -4,9 -8.2,7 Z" fill="{C}"/>'
+      + '<rect x="-10.6" y="-1.2" width="3.8" height="9.2" rx="1.9" fill="{S}"/><rect x="6.8" y="-1.2" width="3.8" height="9.2" rx="1.9" fill="{S}"/>'
+      + '<rect x="-2" y="-6" width="4" height="2.8" fill="{S}"/>'
+      + '<circle cx="0" cy="-11.8" r="7.2" fill="{S}"/>'
+      + '{H}'
+      + '{A}'
+      + '<circle cx="-2.5" cy="-11.6" r="1.1" fill="#4a3327"/><circle cx="2.5" cy="-11.6" r="1.1" fill="#4a3327"/>'
+      + '<circle cx="-2.2" cy="-12" r="0.42" fill="#fff"/><circle cx="2.8" cy="-12" r="0.42" fill="#fff"/>'
+      + '<ellipse cx="-4.9" cy="-8.8" rx="1.7" ry="1" fill="#f79aa5" opacity=".55"/><ellipse cx="4.9" cy="-8.8" rx="1.7" ry="1" fill="#f79aa5" opacity=".55"/>'
+      + '<path d="M-1.7,-8.8 Q0,-7.3 1.7,-8.8" stroke="#c9705f" stroke-width="1.05" fill="none" stroke-linecap="round"/>'
+  };
+  var VB = { boy:"-14 -25 28 43", girl2:"-14 -24 28 42", dog:"-16 -18 32 30", heart:"-18 -18 36 36",
+             kid:"-14 -25 28 43" };
+
+  /* 自己做的小朋友：look = { skin, hair, cloth, acc, hairStyle, shirt } */
+  function kidArt(look){
+    var L = look || {};
+    var skin  = L.skin  || "#f6d9c2";
+    var hair  = L.hair  || "#4a3a2e";
+    var cloth = L.cloth || "#7fb6e0";
+    var acc   = L.acc   || "";
+    var style = L.hairStyle || "short";
+    var shirt = L.shirt || "tee";
+
+    var hairD = "", accD = "", pantD = "";
+
+    if (style === "short"){
+      hairD = '<path d="M-7.2,-11.8 C-7.2,-19.6 7.2,-19.6 7.2,-11.8 C7.2,-16.4 4,-18 0,-18 C-4,-18 -7.2,-16.4 -7.2,-11.8 Z" fill="' + hair + '"/>';
+    } else if (style === "bob"){
+      hairD = '<path d="M-7.6,-11 C-7.6,-19.6 7.6,-19.6 7.6,-11 L8.8,-6.4 C8.8,-2.6 5.6,-2 5.2,-5 L4.6,-9 C2,-7 -2,-7 -4.6,-9 L-5.2,-5 C-5.6,-2 -8.8,-2.6 -8.8,-6.4 Z" fill="' + hair + '"/>';
+    } else if (style === "pigtail"){
+      hairD = '<path d="M-7.2,-11.8 C-7.2,-19.6 7.2,-19.6 7.2,-11.8 C7.2,-16.4 4,-18 0,-18 C-4,-18 -7.2,-16.4 -7.2,-11.8 Z" fill="' + hair + '"/>'
+            + '<circle cx="-9.4" cy="-9" r="3.6" fill="' + hair + '"/><circle cx="9.4" cy="-9" r="3.6" fill="' + hair + '"/>'
+            + '<circle cx="-10.6" cy="-5.6" r="2.4" fill="' + hair + '"/><circle cx="10.6" cy="-5.6" r="2.4" fill="' + hair + '"/>';
+    } else if (style === "bun"){
+      hairD = '<path d="M-7.2,-11.8 C-7.2,-19.6 7.2,-19.6 7.2,-11.8 C7.2,-16.4 4,-18 0,-18 C-4,-18 -7.2,-16.4 -7.2,-11.8 Z" fill="' + hair + '"/>'
+            + '<circle cx="0" cy="-21.2" r="4.2" fill="' + hair + '"/>';
+    } else { /* curly */
+      hairD = '<circle cx="-6.6" cy="-13" r="4.6" fill="' + hair + '"/><circle cx="-3" cy="-17" r="4.6" fill="' + hair + '"/>'
+            + '<circle cx="2.4" cy="-17.6" r="4.6" fill="' + hair + '"/><circle cx="6.4" cy="-13.4" r="4.4" fill="' + hair + '"/>'
+            + '<circle cx="0" cy="-12.6" r="5.2" fill="' + hair + '"/>';
+    }
+
+    if (acc === "bow"){
+      accD = '<path d="M6.2,-17.6 L11.4,-20.4 L11.4,-14.8 Z" fill="#f2789b"/><path d="M6.2,-17.6 L1,-20.4 L1,-14.8 Z" fill="#f2789b"/>'
+           + '<circle cx="6.2" cy="-17.6" r="1.5" fill="#e2648a"/>';
+    } else if (acc === "flower"){
+      accD = '<circle cx="7.2" cy="-17.4" r="2.1" fill="#f7a8c4"/><circle cx="10.2" cy="-19" r="2.1" fill="#f7a8c4"/>'
+           + '<circle cx="9.8" cy="-15.2" r="2.1" fill="#f7a8c4"/><circle cx="6.6" cy="-14.4" r="2.1" fill="#f7a8c4"/>'
+           + '<circle cx="8.4" cy="-16.8" r="1.3" fill="#ffe58a"/>';
+    } else if (acc === "cap"){
+      accD = '<path d="M-7.6,-14.2 C-7.6,-21.4 7.6,-21.4 7.6,-14.2 Z" fill="' + cloth + '"/>'
+           + '<rect x="-8.2" y="-15" width="16.4" height="2.6" rx="1.3" fill="' + cloth + '"/>'
+           + '<path d="M6.6,-13.6 C11,-13.6 12.4,-11.6 12,-10.4 L6.6,-11 Z" fill="' + cloth + '"/>';
+    } else if (acc === "hat"){
+      accD = '<ellipse cx="0" cy="-16.6" rx="11.4" ry="2.6" fill="#f2c14e"/>'
+           + '<path d="M-6.4,-16.8 C-6.4,-23.4 6.4,-23.4 6.4,-16.8 Z" fill="#f2c14e"/>'
+           + '<rect x="-6.6" y="-19.4" width="13.2" height="2.2" fill="#e0a92b"/>';
+    }
+
+    if (shirt === "dress"){
+      pantD = '<path d="M-6.8,-1 C-6.8,-4 6.8,-4 6.8,-1 L8.6,6 C3,8 -3,8 -8.6,6 Z" fill="' + cloth + '"/>';
+    } else if (shirt === "stripe"){
+      pantD = '<path d="M-7,-1 C-7,-4 7,-4 7,-1 L8.2,7 C4,9 -4,9 -8.2,7 Z" fill="' + cloth + '"/>'
+            + '<path d="M-7.6,2.2 L7.6,2.2 M-8,5 L8,5" stroke="#fff" stroke-width="1.5" opacity=".7" stroke-linecap="round"/>';
+    } else { /* tee */
+      pantD = '';
+    }
+
+    var d = D.kid
+      .replace(/\{S\}/g, skin)
+      .replace(/\{C\}/g, cloth)
+      .replace(/\{B\}/g, "#5a5a66")
+      .replace(/\{P\}/g, pantD)
+      .replace(/\{H\}/g, hairD)
+      .replace(/\{A\}/g, accD);
+    return d;
+  }
+
+  return function(kind, size, look){
+    var d = (kind === "kid") ? kidArt(look) : (D[kind] || D.heart), s = size || 60;
+    var vb = VB[kind] || "-18 -18 36 36";
+    var p2 = vb.split(" ").map(Number);
+    var h = Math.round(s * (p2[3] / p2[2]));
+    return '<svg viewBox="' + vb + '" width="' + s + '" height="' + h +
+           '" aria-hidden="true" style="display:block;overflow:visible;max-width:100%;height:auto">' + d + '</svg>';
+  };
+})();
+
+/* 统一取图：优先用本地的 FOLK_ART；要是别的页面把 Room 带进来了也能用 */
+function folkArt(kind, size, look){
+  if (window.FOLK_ART) return window.FOLK_ART(kind, size, look);
+  return (window.Room && Room.art) ? Room.art(kind, size) : "";
+}
+
+var W = 1440, H = 900;
+
+/* 每个地点：位置 + 造型关键 + 玩法 + 一句欢迎语（会念出来） */
+var BUILDINGS = [
+  { id:"home", name:"澄澄的家", ico:"home", x:300, y:200, w:198, h:186, tone:"#f9d2c4", roof:"#e2896d",
+    inside:"给院子里的小花浇浇水。", game:"water", by:"妈妈",
+    hello:"回家啦。院子的花有点渴，帮妈妈浇浇水吧。", skill:"顺序与因果（先做什么，后做什么）" },
+
+  { id:"gong", name:"外公外婆家", ico:"windmill", x:700, y:180, w:206, h:196, tone:"#f0dcc0", roof:"#c98b50",
+    inside:"帮外婆把菜地里的萝卜拔出来。", game:"harvest", by:"外婆",
+    hello:"外婆的萝卜长大啦，帮外婆拔出来好不好？", skill:"手眼协调与数的感知（1—5 个）" },
+
+  { id:"nai", name:"爷爷奶奶家", ico:"tea", x:1090, y:186, w:200, h:190, tone:"#e0e4f4", roof:"#8a95c6",
+    inside:"帮爷爷浇一浇门口的盆栽。", game:"water", by:"爷爷",
+    hello:"爷爷的盆栽口渴了，一盆一盆浇过去吧。", skill:"顺序与因果" },
+
+  { id:"kg", name:"幼儿园", ico:"crayon", x:190, y:520, w:238, h:200, tone:"#ffe4ab", roof:"#f0b23f",
+    inside:"把小朋友按大小排队，一起做游戏。", game:"sort", by:"李老师",
+    hello:"小朋友要排队啦，小的站前面，大的站后面。", skill:"大小比较与序列" },
+
+  { id:"fire", name:"消防站", ico:"bell", x:560, y:520, w:210, h:206, tone:"#f9c1b2", roof:"#d9534f",
+    inside:"沿着小路，把消防车开回站里。", game:"path", by:"消防员叔叔",
+    hello:"消防车要回站啦，沿着黄色的小路开过去。", skill:"空间路径规划与顺序" },
+
+  { id:"hosp", name:"医院", ico:"cross", x:930, y:520, w:200, h:200, tone:"#e6f1f7", roof:"#7fb6cb",
+    inside:"找出一样的药盒，配成一盒。", game:"same", by:"护士阿姨",
+    hello:"药盒要找一样的，找出两个一样的就配好啦。", skill:"观察与配对" },
+
+  { id:"mall", name:"超市", ico:"apple", x:1300, y:520, w:214, h:200, tone:"#f8e7a8", roof:"#e0a92b",
+    inside:"把水果搬进筐里，苹果放苹果筐。", game:"basket", by:"理货员",
+    hello:"水果到货啦，一样的放进同一个筐里。", skill:"分类思维（按属性归组）" },
+
+  { id:"park", name:"小镇公园", ico:"tree", x:300, y:778, w:200, h:168, tone:"#cbe8bd", roof:"#7fb069",
+    inside:"把草地上的小路铺好，走到大树下。", game:"path", by:"大树",
+    hello:"小路断了几段，把路接上，就能走到大树下啦。", skill:"空间路径规划" },
+
+  { id:"farm", name:"小镇农场", ico:"sprout", x:760, y:798, w:206, h:168, tone:"#dbeacb", roof:"#87b06a",
+    inside:"种下小种子，浇水，等它发芽。", game:"plant", by:"农场阿姨",
+    hello:"地里空空的，先挖坑，再放种子，最后浇水。", skill:"顺序与因果（三步）" },
+
+  { id:"lib", name:"小镇图书馆", ico:"book", x:1230, y:778, w:204, h:168, tone:"#e9dcc6", roof:"#a8804f",
+    inside:"把书一本一本放回书架。", game:"harvest", by:"管理员",
+    hello:"书要回到架子上，一本一本放回去。", skill:"手眼协调与顺序" }
+];
+
+var SKILLS = {
+  water:"顺序与因果（发现「浇水→花开了」的因果）",
+  harvest:"手眼协调与数的感知",
+  sort:"大小比较与序列",
+  path:"空间路径规划（先走哪一步）",
+  same:"观察与配对",
+  basket:"分类思维（按属性归组）",
+  plant:"顺序与因果（三步任务）"
+};
+
+/* =====================================================================
+   1. 存档
+   ===================================================================== */
+var KEY = "chengcheng-town-v2";
+var S = {
+  stars:0, visited:{}, cleared:{}, diff:"mid",
+  hero:{x:985,y:772},
+  flowers:{},      // 每个地点的花是否开过
+  sound:true, voice:true,
+  silent:{},       // 已听过的引导（避免每次重复念）
+  folk:{},         // 镇上居民的当前位置与心情
+  myfolk:[],       // 自己做的小朋友（名字、配色、家在哪）
+  bag:{},          // 背包：{ 物品id: 数量 }
+  entered:false    // 是否已经点过「开始」进过小镇
+};
+function load(){
+  try{
+    var v=JSON.parse(localStorage.getItem(KEY));
+    if(v&&typeof v==="object") S=Object.assign(S,v);
+  }catch(e){}
+  S.visited=S.visited||{}; S.cleared=S.cleared||{}; S.flowers=S.flowers||{}; S.silent=S.silent||{};
+  S.folk=S.folk||{}; S.bag=S.bag||{}; S.myfolk=S.myfolk||[];
+  if(!(S.myfolk instanceof Array)) S.myfolk=[];
+  if(typeof S.stars!=="number"||S.stars<0) S.stars=0;
+  S.hero=S.hero||{x:985,y:772};
+  if(S.sound===undefined) S.sound=true;
+  if(S.voice===undefined) S.voice=true;
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+/* =====================================================================
+   2. 声音：背景音乐（Web Audio 实时合成）+ 语音（speechSynthesis）
+   ===================================================================== */
+var Sound = (function(){
+  var ctx=null, master=null, musicGain=null, timer=null, playing=false, step=0;
+  /* 五声音阶（C 大调宫调式），听感柔和、不吵 */
+  var SCALE=[0,2,4,7,9,12,14,16,19,21];
+  var ROOT=261.63;      // C4
+  function freq(semi){ return ROOT*Math.pow(2,semi/12); }
+
+  function ensure(){
+    if(ctx) return ctx;
+    try{
+      var AC = window.AudioContext||window.webkitAudioContext;
+      if(!AC) return null;
+      ctx = new AC();
+      master = ctx.createGain(); master.gain.value=0.9; master.connect(ctx.destination);
+      musicGain = ctx.createGain(); musicGain.gain.value=0.0; musicGain.connect(master);
+      /* 一点点混响感：延迟反馈 */
+      var dly=ctx.createDelay(0.6), fb=ctx.createGain(), wet=ctx.createGain();
+      dly.delayTime.value=0.28; fb.gain.value=0.26; wet.gain.value=0.24;
+      musicGain.connect(dly); dly.connect(fb); fb.connect(dly); dly.connect(wet); wet.connect(master);
+    }catch(e){ ctx=null; }
+    return ctx;
+  }
+
+  /* 一个柔和的音：三角波 + 缓慢包络 */
+  function tone(f,when,dur,vol,type){
+    if(!ctx) return;
+    var o=ctx.createOscillator(), g=ctx.createGain();
+    o.type=type||"triangle";
+    o.frequency.value=f;
+    g.gain.setValueAtTime(0,when);
+    g.gain.linearRampToValueAtTime(vol,when+0.06);
+    g.gain.exponentialRampToValueAtTime(0.0008,when+dur);
+    o.connect(g); g.connect(musicGain);
+    o.start(when); o.stop(when+dur+0.05);
+  }
+
+  /* 每 8 拍一个循环的琶音，配一个很轻的低音 */
+  var MELODY=[0,4,2,5, 4,7,5,2, 0,4,2,5, 7,4,2,0];
+  function tick(){
+    if(!ctx) return;
+    var t=ctx.currentTime+0.02;
+    var n=MELODY[step%MELODY.length];
+    tone(freq(SCALE[n%SCALE.length]), t, 1.5, 0.085, "triangle");
+    if(step%4===0) tone(freq(SCALE[0]-12), t, 2.4, 0.055, "sine");
+    if(step%8===4) tone(freq(SCALE[3]-12), t, 2.0, 0.038, "sine");
+    step++;
+  }
+
+  return {
+    /* 用户第一次点击后调用：解锁音频并淡入 */
+    start:function(){
+      if(!S.sound) return;
+      ensure(); if(!ctx) return;
+      if(ctx.state==="suspended") ctx.resume();
+      if(playing) return;
+      playing=true;
+      musicGain.gain.cancelScheduledValues(ctx.currentTime);
+      musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
+      musicGain.gain.linearRampToValueAtTime(0.5, ctx.currentTime+2.5);
+      clearInterval(timer);
+      timer=setInterval(tick, 620);
+      tick();
+    },
+    stop:function(){
+      if(!ctx) { playing=false; return; }
+      playing=false;
+      clearInterval(timer);
+      musicGain.gain.cancelScheduledValues(ctx.currentTime);
+      musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
+      musicGain.gain.linearRampToValueAtTime(0, ctx.currentTime+0.8);
+    },
+    /* 语音播放时把音乐压低，说完再抬起来 */
+    duck:function(on){
+      if(!ctx||!playing) return;
+      var g = on?0.12:0.5;
+      musicGain.gain.cancelScheduledValues(ctx.currentTime);
+      musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
+      musicGain.gain.linearRampToValueAtTime(g, ctx.currentTime+0.4);
+    },
+    /* 音效：轻快的小提示音 */
+    blip:function(kind){
+      if(!S.sound) return;
+      ensure(); if(!ctx) return;
+      if(ctx.state==="suspended") ctx.resume();
+      var t=ctx.currentTime;
+      var map={ ok:[784,1047], good:[659,880,1175], soft:[523], pop:[880] };
+      var arr=map[kind]||map.soft;
+      var tmp=ctx.createGain(); tmp.gain.value=1; tmp.connect(master);
+      arr.forEach(function(f,i){
+        var o=ctx.createOscillator(), g=ctx.createGain();
+        o.type="sine"; o.frequency.value=f;
+        g.gain.setValueAtTime(0,t+i*0.09);
+        g.gain.linearRampToValueAtTime(0.16,t+i*0.09+0.02);
+        g.gain.exponentialRampToValueAtTime(0.001,t+i*0.09+0.42);
+        o.connect(g); g.connect(tmp);
+        o.start(t+i*0.09); o.stop(t+i*0.09+0.46);
+      });
+      setTimeout(function(){ try{tmp.disconnect();}catch(e){} }, 900);
+    }
+  };
+})();
+
+/* --------- 语音 --------- */
+var Voice = (function(){
+  var zh=null, ready=false, lastText="", lastAt=0;
+  function pick(){
+    if(!("speechSynthesis" in window)) return null;
+    var vs=window.speechSynthesis.getVoices()||[];
+    /* 优先中文女声 */
+    var pref=["Xiaoxiao","Xiaoyi","Tingting","Yaoyao","Huihui","Google 普通话","Chinese","中文","普通话"];
+    for(var i=0;i<pref.length;i++){
+      for(var j=0;j<vs.length;j++){
+        if((vs[j].name||"").indexOf(pref[i])>=0 && /zh|Chinese/i.test(vs[j].lang||"")) return vs[j];
+      }
+    }
+    for(var k=0;k<vs.length;k++){ if(/^zh/i.test(vs[k].lang||"")) return vs[k]; }
+    return null;
+  }
+  function refresh(){ zh=pick(); ready=true; }
+  if("speechSynthesis" in window){
+    refresh();
+    window.speechSynthesis.onvoiceschanged=refresh;
+    setTimeout(refresh,300); setTimeout(refresh,1200);
+  }
+  return {
+    say:function(text,opts){
+      if(!S.voice || !text) return;
+      if(!("speechSynthesis" in window)) return;
+      var now=Date.now();
+      if(text===lastText && now-lastAt<2500) return;   // 同一句不连续重复
+      lastText=text; lastAt=now;
+      try{
+        window.speechSynthesis.cancel();
+        var u=new SpeechSynthesisUtterance(text);
+        u.lang="zh-CN";
+        if(zh) u.voice=zh;
+        u.rate=(opts&&opts.rate)||0.92;      // 略慢，适合 3 岁
+        u.pitch=(opts&&opts.pitch)||1.15;    // 略高，更柔和
+        u.volume=0.95;
+        u.onstart=function(){ Sound.duck(true); };
+        u.onend=function(){ Sound.duck(false); };
+        u.onerror=function(){ Sound.duck(false); };
+        window.speechSynthesis.speak(u);
+      }catch(e){}
+    },
+    stop:function(){ try{ window.speechSynthesis.cancel(); Sound.duck(false); }catch(e){} },
+    has:function(){ return ("speechSynthesis" in window); }
+  };
+})();
+
+/* 统一播报：文字气泡 + 语音，一处调用 */
+function guide(text,opts){
+  if(text) showSpeech(text);
+  Voice.say(text,opts);
+}
+/* 说话气泡（贴在画面上方，给大人看也给小孩看） */
+var speechTimer=null;
+/* 手机上是两行 HUD，气泡要落在它下面，不然会盖住按钮 */
+function speechTop(){
+  var hud=document.querySelector(".hud");
+  var h=hud?Math.round(hud.getBoundingClientRect().bottom):78;
+  return Math.max(78,h+8);
+}
+function showSpeech(text,ms){
+  var el=document.getElementById("speech");
+  if(!el){
+    el=document.createElement("div");
+    el.id="speech";
+    el.style.cssText="position:fixed;z-index:35;left:50%;top:78px;transform:translateX(-50%);"+
+      "max-width:min(560px,88vw);background:rgba(255,253,248,.97);border:2px solid #f0e2c8;"+
+      "border-radius:18px;padding:12px 18px;font-size:15px;color:#4a4438;line-height:1.55;"+
+      "box-shadow:0 10px 24px rgba(63,58,50,.18);opacity:0;transition:.3s;pointer-events:none;text-align:center";
+    document.body.appendChild(el);
+  }
+  el.style.top=speechTop()+"px";
+  el.textContent=text;
+  el.style.opacity="1";
+  el.style.transform="translateX(-50%) translateY(0)";
+  clearTimeout(speechTimer);
+  speechTimer=setTimeout(function(){ el.style.opacity="0"; }, ms||3800);
+}
+
+/* 点一下才允许出声（浏览器策略） */
+function unlockAudio(){
+  Sound.start();
+  document.removeEventListener("pointerdown",unlockAudio);
+  document.removeEventListener("keydown",unlockAudio);
+}
+document.addEventListener("pointerdown",unlockAudio);
+document.addEventListener("keydown",unlockAudio);
+
+function toggleSound(){
+  S.sound=!S.sound; save();
+  var btn=document.getElementById("btnSound");
+  btn.classList.toggle("off",!S.sound);
+  if(S.sound){ Sound.start(); toast("声音打开啦"); } else { Sound.stop(); Voice.stop(); toast("先安静一会儿"); }
+}
+function paintSoundBtn(){
+  var btn=document.getElementById("btnSound");
+  if(!btn) return;
+  btn.classList.toggle("off",!S.sound);
+}
+
+/* =====================================================================
+   3. 视图与相机
+   ===================================================================== */
+var stage=document.getElementById("stage"), world=document.getElementById("world");
+var heroEl=document.getElementById("hero"), mapSvg=document.getElementById("mapSvg");
+var M={scale:1};
+function viewW(){ return window.innerWidth; }
+function viewH(){ return window.innerHeight; }
+
+function resize(){
+  var vw=viewW(), vh=viewH(), s;
+  if(vw>=vh) s = Math.max(vw/W*0.98, vh/H*0.98);   // 电脑/横屏：整镇入画
+  else s = vw/660;                                  // 手机竖屏：视野约 660 世界单位宽
+  s=Math.min(s,1.6);
+  M.scale=s;
+  world.style.width=W+"px"; world.style.height=H+"px";
+  var c=camTarget(); cam.x=c.x; cam.y=c.y;
+  world.style.transform="translate("+cam.x+"px,"+cam.y+"px) scale("+s+")";
+  drawHero();
+}
+window.addEventListener("resize",resize);
+
+var NS="http://www.w3.org/2000/svg";
+function E(name,attrs,parent){
+  var e=document.createElementNS(NS,name);
+  for(var k in attrs) e.setAttribute(k,attrs[k]);
+  if(parent) parent.appendChild(e);
+  return e;
+}
+
+/* ---------- 地图底图 ---------- */
+function tree(x,y,s){
+  var g=E("g",{transform:"translate("+x+","+y+") scale("+s+")"});
+  E("rect",{x:-5,y:-8,width:10,height:26,rx:4,fill:"#a9784f"},g);
+  E("circle",{cx:0,cy:-26,r:26,fill:"#8ec97e"},g);
+  E("circle",{cx:-16,cy:-14,r:18,fill:"#7fb96f"},g);
+  E("circle",{cx:16,cy:-14,r:18,fill:"#9ad689"},g);
+  E("circle",{cx:0,cy:-34,r:15,fill:"#a8e096",opacity:".8"},g);
+  return g;
+}
+function bush(x,y,s,fill){
+  var g=E("g",{transform:"translate("+x+","+y+") scale("+s+")"});
+  E("circle",{cx:0,cy:0,r:16,fill:fill||"#8dc97f"},g);
+  E("circle",{cx:14,cy:4,r:12,fill:fill||"#8dc97f"},g);
+  E("circle",{cx:-14,cy:4,r:12,fill:fill||"#8dc97f"},g);
+  return g;
+}
+function flower(x,y,c){
+  var g=E("g",{transform:"translate("+x+","+y+")"});
+  for(var i=0;i<5;i++){
+    var a=i/5*Math.PI*2;
+    E("circle",{cx:(Math.cos(a)*3.6).toFixed(2),cy:(Math.sin(a)*3.6).toFixed(2),r:3,fill:c},g);
+  }
+  E("circle",{cx:0,cy:0,r:2.2,fill:"#ffe9a8"},g);
+  return g;
+}
+
+function buildMap(){
+  E("rect",{x:0,y:0,width:W,height:H,fill:"#bfe2b7"},mapSvg);
+  for(var i=0;i<26;i++){
+    var cxp=(i*127)%W, cyp=(i*211)%H;
+    E("ellipse",{cx:cxp,cy:cyp,rx:90+(i%4)*30,ry:60+(i%3)*24,
+      fill:i%2?"#c6e7bd":"#b8ddb0",opacity:".5"},mapSvg);
+  }
+
+  /* 主路 */
+  var roads=E("g",{},mapSvg);
+  E("rect",{x:0,y:392,width:W,height:100,fill:"#f5ead4"},roads);
+  E("rect",{x:0,y:396,width:W,height:5,fill:"#fbf4e5"},roads);
+  E("rect",{x:0,y:484,width:W,height:5,fill:"#e9d9bc"},roads);
+  for(var x=30;x<W;x+=80) E("rect",{x:x,y:438,width:46,height:8,rx:4,fill:"#fffbf2"},roads);
+  /* 支路 */
+  [370,900,1330].forEach(function(vx){
+    E("rect",{x:vx-42,y:0,width:84,height:H,fill:"#f5ead4"},roads);
+    for(var y=20;y<H;y+=80) E("rect",{x:vx-4,y:y,width:8,height:46,rx:4,fill:"#fffbf2"},roads);
+    E("rect",{x:vx-42,y:392,width:84,height:100,fill:"#f5ead4"},roads);
+  });
+  /* 底部草坪与通向农场的路 */
+  E("rect",{x:0,y:790,width:W,height:110,fill:"#b3dcaa",opacity:".5"},roads);
+  E("rect",{x:700,y:700,width:120,height:200,fill:"#f5ead4"},roads);
+  for(var yy=712;yy<H;yy+=76) E("rect",{x:756,y:yy,width:8,height:42,rx:4,fill:"#fffbf2"},roads);
+
+  /* 小河 */
+  E("path",{d:"M0,292 C160,282 200,332 340,310 C480,288 520,242 660,260 C800,278 860,322 1000,306 L1000,346 C860,360 800,312 660,296 C520,280 470,324 340,346 C200,368 150,318 0,328 Z",
+    fill:"#a8d8ea",opacity:".92"},mapSvg);
+  E("path",{d:"M0,322 C150,312 210,354 340,336",fill:"none",stroke:"#c7e8f4","stroke-line-width":"5","stroke-width":"5","stroke-linecap":"round"},mapSvg);
+
+  /* 中心广场 */
+  E("ellipse",{cx:790,cy:618,rx:118,ry:76,fill:"#f8f0dd"},mapSvg);
+  E("ellipse",{cx:790,cy:618,rx:90,ry:56,fill:"#fcf7ea"},mapSvg);
+  E("ellipse",{cx:790,cy:620,rx:34,ry:19,fill:"#c9e7f4"},mapSvg);
+  E("ellipse",{cx:790,cy:616,rx:34,ry:19,fill:"#ddf1fb"},mapSvg);
+  E("rect",{x:786,y:584,width:8,height:32,rx:4,fill:"#e4ebdf"},mapSvg);
+  E("circle",{cx:790,cy:582,r:7,fill:"#b7e2f2"},mapSvg);
+
+  /* 树与灌木 */
+  [[60,110,1.15],[110,232,.9],[1070,100,.95],[1400,140,1.05],[1370,296,.85],
+   [90,630,1.05],[470,690,.92],[1080,690,.95],[1420,650,1.0],[60,890,.92],[430,910,1.0],
+   [1010,930,.92],[1500,915,1.05],[610,120,.8],[880,640,.72],[236,366,.45],[1260,366,.5],
+   [300,880,.95],[1180,300,.8]].forEach(function(t){ mapSvg.appendChild(tree(t[0],t[1],t[2])); });
+
+  [[250,320,1],[440,336,.9],[710,318,.8],[1050,316,1],[1360,336,.9],
+   [520,600,.8],[860,600,.7],[1160,640,.8],[1420,420,.8],[70,420,.7],[690,760,.8],[380,760,.8]]
+   .forEach(function(b){ mapSvg.appendChild(bush(b[0],b[1],b[2])); });
+
+  /* 花丛 */
+  var cols=["#f7a5ad","#f6d365","#b9a5f7","#fbfbf8","#f78fb3"];
+  for(var k=0;k<58;k++){
+    var px=((k*271)%1400)+40, py=((k*173)%860)+40;
+    if(py>380&&py<500) continue;
+    if(Math.abs(px-370)<64||Math.abs(px-900)<64||Math.abs(px-1330)<64) continue;
+    if(px>690&&px<830&&py>690) continue;
+    mapSvg.appendChild(flower(px,py,cols[k%cols.length]));
+  }
+  /* 云影 */
+  for(var c=0;c<5;c++){
+    var cg=E("g",{transform:"translate("+(110+c*320)+","+(36+(c%3)*28)+")",opacity:".5"},mapSvg);
+    E("ellipse",{cx:0,cy:0,rx:54,ry:21,fill:"#ffffff"},cg);
+    E("ellipse",{cx:34,cy:8,rx:33,ry:15,fill:"#ffffff"},cg);
+    E("ellipse",{cx:-32,cy:9,rx:29,ry:13,fill:"#ffffff"},cg);
+  }
+}
+
+/* =====================================================================
+   4. 建筑造型：10 栋各不相同，各有标志物
+   ===================================================================== */
+function el(n,a){ return E(n,a); }
+
+/* 通用零件 */
+function gWindows(g,x,y,w,h,n){
+  var gap=(w-n*22)/(n+1);
+  for(var i=0;i<n;i++){
+    var wx=x+gap+i*(22+gap);
+    E("rect",{x:wx,y:y,width:22,height:h,rx:7,fill:"#cfeaf6"},g);
+    E("rect",{x:wx-2,y:y-2,width:26,height:h+4,rx:8,fill:"none",stroke:"#fff","stroke-width":"3",opacity:".9"},g);
+    E("line",{x1:wx+11,y1:y,x2:wx+11,y2:y+h,stroke:"#fff","stroke-width":"2.4"},g);
+  }
+}
+function gDoor(g,cx,by,w,h,col){
+  E("rect",{x:cx-w/2,y:by-h,width:w,height:h,rx:w/2.6,fill:col||"#a9784f"},g);
+  E("rect",{x:cx-w/2+4,y:by-h+5,width:5,height:h*0.32,rx:2.5,fill:"rgba(255,255,255,.4)"},g);
+  E("circle",{cx:cx+w/2-6,cy:by-h/2+2,r:2.4,fill:"#f6e6c8"},g);
+  E("rect",{x:cx-w/2-8,y:by,width:w+16,height:7,rx:3.5,fill:"#e6dcc8"},g);
+}
+function gSign(g,cx,cy,w,h,fill,text){
+  E("rect",{x:cx-w/2,y:cy-h/2,width:w,height:h,rx:h/2,fill:fill||"#fffdf8",
+    stroke:"rgba(0,0,0,.08)","stroke-width":"2"},g);
+  if(text){
+    var t=E("text",{x:cx,y:cy+1,"text-anchor":"middle","dominant-baseline":"central",
+      "font-size":"12","font-family":"-apple-system,'PingFang SC','Microsoft YaHei',sans-serif",
+      "font-weight":"700",fill:"#6b5a45"},g);
+    t.textContent=text;
+  }
+}
+
+/* 每栋房子的绘制函数（viewBox 200x200） */
+var ART = {};
+
+/* 澄澄的家：红色尖顶 + 白色小烟囱 + 门前小花园 */
+ART.home=function(g,s){
+  E("ellipse",{cx:100,cy:188,rx:80,ry:11,fill:"rgba(70,90,60,.15)"},g);
+  /* 院墙 */
+  E("rect",{x:20,y:158,width:160,height:30,rx:12,fill:"#cbe8bd"},g);
+  for(var i=0;i<9;i++) E("circle",{cx:30+i*17,cy:164,r:5,fill:"#f7a5ad"},g);
+  /* 墙 */
+  E("rect",{x:44,y:96,width:112,height:70,rx:8,fill:"#f9d2c4"},g);
+  E("rect",{x:44,y:96,width:112,height:70,rx:8,fill:"rgba(255,255,255,.28)"},g);
+  /* 屋顶：尖三角 */
+  E("path",{d:"M34,102 L100,34 L166,102 Z",fill:"#e2896d"},g);
+  E("path",{d:"M34,102 L100,34 L100,102 Z",fill:"rgba(255,255,255,.16)"},g);
+  E("rect",{x:30,y:98,width:140,height:8,rx:4,fill:"#cf7758"},g);
+  /* 烟囱 */
+  E("rect",{x:124,y:46,width:16,height:26,rx:3,fill:"#e6c9b8"},g);
+  E("rect",{x:121,y:42,width:22,height:7,rx:3,fill:"#d8b6a2"},g);
+  E("circle",{cx:132,cy:36,r:6,fill:"#fff",opacity:".75"},g);
+  E("circle",{cx:140,cy:28,r:4,fill:"#fff",opacity:".55"},g);
+  /* 门与窗 */
+  gDoor(g,100,166,30,44,"#b57a52");
+  E("circle",{cx:100,cy:108,r:9,fill:"#fffdf8",stroke:"#e9c7b8","stroke-width":"3"},g);
+  E("path",{d:"M95,108 a5,5 0 0,1 10,0 a5,5 0 0,1 -10,0",fill:"#f7a5ad"},g);
+  gWindows(g,44,110,112,22,2);
+  /* 门口的小花 */
+  [66,74,126,134].forEach(function(x,i){ E("circle",{cx:x,cy:176,r:4,fill:i%2?"#f6d365":"#b9a5f7"},g); });
+};
+
+/* 外公外婆家：田园草顶 + 风车 */
+ART.gong=function(g,s){
+  E("ellipse",{cx:100,cy:190,rx:82,ry:11,fill:"rgba(70,90,60,.15)"},g);
+  /* 菜园 */
+  E("rect",{x:18,y:158,width:164,height:32,rx:10,fill:"#c6a97c"},g);
+  [40,70,100,130,160].forEach(function(x,i){
+    E("ellipse",{cx:x,cy:168,rx:10,ry:4,fill:"#b0916a"},g);
+    E("circle",{cx:x,cy:162,r:6,fill:"#8fc97e"},g);
+    E("path",{d:"M"+x+",168 L"+x+",156",stroke:"#6da45f","stroke-width":"2"},g);
+  });
+  /* 墙 */
+  E("rect",{x:48,y:96,width:104,height:70,rx:10,fill:"#f0dcc0"},g);
+  E("rect",{x:48,y:96,width:104,height:70,rx:10,fill:"rgba(255,255,255,.22)"},g);
+  /* 草屋顶（圆弧）*/
+  E("path",{d:"M38,100 C38,58 162,58 162,100 Z",fill:"#c98b50"},g);
+  E("path",{d:"M38,100 C38,58 100,58 100,100 Z",fill:"rgba(255,255,255,.14)"},g);
+  E("rect",{x:34,y:96,width:132,height:9,rx:4.5,fill:"#b3783f"},g);
+  /* 风车 */
+  E("rect",{x:150,y:52,width:6,height:48,rx:3,fill:"#c9b79d"},g);
+  var hub=E("g",{transform:"translate(153,52)"},g);
+  E("circle",{cx:0,cy:0,r:5,fill:"#fffdf8",stroke:"#c9b79d","stroke-width":"2"},hub);
+  for(var i=0;i<4;i++){
+    E("rect",{x:-1.6,y:-30,width:3.2,height:28,rx:1.6,fill:"#fffdf8",stroke:"#d9c8ad","stroke-width":"1.4",
+      transform:"rotate("+(i*90)+")"},hub);
+  }
+  hub.setAttribute("class","windmill");
+  /* 门与窗 */
+  gDoor(g,100,166,30,44,"#a9784f");
+  gWindows(g,48,112,104,20,2);
+  /* 屋顶标识牌由 signSvg() 统一挂在外面，这里不再重复画 */
+  /* 灯笼 */
+  E("circle",{cx:60,cy:86,r:7,fill:"#e05f5f"},g);
+  E("rect",{x:58,y:78,width:4,height:3,fill:"#c9b79d"},g);
+  E("circle",{cx:140,cy:86,r:7,fill:"#e05f5f"},g);
+  E("rect",{x:138,y:78,width:4,height:3,fill:"#c9b79d"},g);
+};
+
+/* 爷爷奶奶家：蓝灰坡顶 + 茶壶烟囱 */
+ART.nai=function(g,s){
+  E("ellipse",{cx:100,cy:190,rx:80,ry:11,fill:"rgba(70,90,60,.15)"},g);
+  E("rect",{x:26,y:160,width:148,height:28,rx:12,fill:"#d9e7d2"},g);
+  /* 墙 */
+  E("rect",{x:50,y:98,width:100,height:68,rx:9,fill:"#e0e4f4"},g);
+  E("rect",{x:50,y:98,width:100,height:68,rx:9,fill:"rgba(255,255,255,.3)"},g);
+  /* 折线屋顶（更平缓）*/
+  E("path",{d:"M40,102 L64,66 L136,66 L160,102 Z",fill:"#8a95c6"},g);
+  E("path",{d:"M40,102 L64,66 L100,66 L100,102 Z",fill:"rgba(255,255,255,.15)"},g);
+  E("rect",{x:36,y:98,width:128,height:8,rx:4,fill:"#7681b4"},g);
+  /* 茶壶烟囱 */
+  var pot=E("g",{transform:"translate(132,52)"},g);
+  E("ellipse",{cx:0,cy:8,rx:14,ry:9,fill:"#a8b3dd"},g);
+  E("rect",{x:-9,y:-4,width:18,height:12,rx:5,fill:"#a8b3dd"},g);
+  E("path",{d:"M9,0 C15,0 15,8 8,8",fill:"none",stroke:"#a8b3dd","stroke-width":"3"},pot);
+  E("path",{d:"M-9,1 C-16,2 -16,10 -8,10",fill:"none",stroke:"#a8b3dd","stroke-width":"3"},pot);
+  E("rect",{x:-4,y:-8,width:8,height:4,rx:2,fill:"#8f9bcb"},g);
+  E("circle",{cx:-14,cy:-2,r:4,fill:"#fff",opacity:".8"},g);
+  /* 门与窗 */
+  gDoor(g,100,166,30,42,"#a9784f");
+  gWindows(g,50,112,100,20,2);
+  /* 小盆栽 */
+  E("path",{d:"M52,170 L60,170 L58,178 L54,178 Z",fill:"#d08a6a"},g);
+  E("circle",{cx:56,cy:166,r:5,fill:"#8fc97e"},g);
+};
+
+/* 幼儿园：黄色大屋顶 + 风车旗 + 彩色气球 */
+ART.kg=function(g,s){
+  E("ellipse",{cx:100,cy:190,rx:86,ry:11,fill:"rgba(70,90,60,.15)"},g);
+  /* 草地 */
+  E("rect",{x:16,y:158,width:168,height:32,rx:14,fill:"#bfe2a9"},g);
+  /* 墙 */
+  E("rect",{x:40,y:92,width:120,height:74,rx:10,fill:"#ffe4ab"},g);
+  E("rect",{x:40,y:92,width:120,height:74,rx:10,fill:"rgba(255,255,255,.25)"},g);
+  /* 大圆顶 */
+  E("path",{d:"M30,96 A70,52 0 0,1 170,96 Z",fill:"#f0b23f"},g);
+  E("path",{d:"M30,96 A70,52 0 0,1 100,44 L100,96 Z",fill:"rgba(255,255,255,.18)"},g);
+  E("rect",{x:26,y:92,width:148,height:9,rx:4.5,fill:"#dda02c"},g);
+  /* 屋顶小旗 */
+  E("rect",{x:98,y:20,width:4,height:26,fill:"#d8b26a"},g);
+  E("path",{d:"M102,22 L132,31 L102,40 Z",fill:"#f7a5ad"},g);
+  /* 气球 */
+  [[58,44,"#8fd0e8"],[74,34,"#f7a5ad"],[146,40,"#b9a5f7"]].forEach(function(b){
+    E("ellipse",{cx:b[0],cy:b[1],rx:8,ry:9.5,fill:b[2]},g);
+    E("path",{d:"M"+b[0]+","+(b[1]+9)+" C"+(b[0]+3)+","+(b[1]+14)+" "+(b[0]-3)+","+(b[1]+16)+" "+b[0]+","+(b[1]+21),
+      stroke:"#b9ae9c","stroke-width":"1.4",fill:"none"},g);
+  });
+  /* 门（双开）与圆窗 */
+  E("rect",{x:84,y:126,width:32,height:40,rx:5,fill:"#c98b50"},g);
+  E("line",{x1:100,y1:126,x2:100,y2:166,stroke:"#a9784f","stroke-width":"2"},g);
+  E("circle",{cx:74,y:112,r:9,fill:"#cfeaf6",stroke:"#fff","stroke-width":"3"},g);
+  E("circle",{cx:126,y:112,r:9,fill:"#cfeaf6",stroke:"#fff","stroke-width":"3"},g);
+  /* 滑梯 */
+  E("rect",{x:150,y:150,width:6,height:20,rx:3,fill:"#e2a15c"},g);
+  E("path",{d:"M153,150 L176,168",stroke:"#e2a15c","stroke-width":"7","stroke-linecap":"round"},g);
+};
+
+/* 消防站：红色双开库门 + 观察塔 + 警报铃 */
+ART.fire=function(g,s){
+  E("ellipse",{cx:100,cy:190,rx:84,ry:11,fill:"rgba(70,90,60,.15)"},g);
+  /* 墙 */
+  E("rect",{x:34,y:84,width:132,height:84,rx:6,fill:"#f9c1b2"},g);
+  E("rect",{x:34,y:84,width:132,height:84,rx:6,fill:"rgba(255,255,255,.2)"},g);
+  /* 平屋顶 + 女儿墙 */
+  E("rect",{x:28,y:74,width:144,height:14,rx:5,fill:"#d9534f"},g);
+  E("rect",{x:28,y:74,width:144,height:5,rx:2.5,fill:"rgba(255,255,255,.28)"},g);
+  /* 观察塔 */
+  E("rect",{x:146,y:26,width:26,height:52,rx:4,fill:"#e8887f"},g);
+  E("rect",{x:142,y:20,width:34,height:8,rx:4,fill:"#c9463f"},g);
+  E("rect",{x:150,y:34,width:18,height:14,rx:3,fill:"#cfeaf6"},g);
+  /* 警报铃 */
+  E("path",{d:"M64,74 A10,10 0 0,1 84,74 Z",fill:"#f6d365"},g);
+  E("circle",{cx:74,cy:76,r:2.4,fill:"#c9a23f"},g);
+  /* 车库大门（红白条纹）*/
+  E("rect",{x:58,y:112,width:84,height:56,rx:6,fill:"#f4f1e8"},g);
+  for(var i=0;i<4;i++) E("rect",{x:58,y:112+i*14,width:84,height:7,fill:"#d9534f",opacity:".85"},g);
+  E("rect",{x:58,y:112,width:84,height:56,rx:6,fill:"none",stroke:"#c9463f","stroke-width":"3"},g);
+  /* 墙上的出水口 */
+  E("circle",{cx:44,cy:112,r:4,fill:"#c9463f"},g);
+  E("circle",{cx:156,cy:112,r:4,fill:"#c9463f"},g);
+  /* 消防梯 */
+  E("path",{d:"M120,74 L142,50 M132,74 L152,52",stroke:"#c9463f","stroke-width":"3"},g);
+};
+
+/* 医院：白色方楼 + 大红十字 + 门口救护车 */
+ART.hosp=function(g,s){
+  E("ellipse",{cx:100,cy:190,rx:84,ry:11,fill:"rgba(70,90,60,.15)"},g);
+  /* 主楼 */
+  E("rect",{x:40,y:74,width:120,height:94,rx:8,fill:"#eaf4f8"},g);
+  E("rect",{x:40,y:74,width:120,height:94,rx:8,fill:"rgba(255,255,255,.5)"},g);
+  E("rect",{x:34,y:66,width:132,height:12,rx:6,fill:"#7fb6cb"},g);
+  /* 侧翼 */
+  E("rect",{x:26,y:104,width:26,height:64,rx:5,fill:"#d5e9f1"},g);
+  E("rect",{x:148,y:104,width:26,height:64,rx:5,fill:"#d5e9f1"},g);
+  /* 红十字 */
+  E("rect",{x:94,y:22,width:12,height:36,rx:4,fill:"#e05f5f"},g);
+  E("rect",{x:82,y:34,width:36,height:12,rx:4,fill:"#e05f5f"},g);
+  /* 窗户 */
+  gWindows(g,46,86,108,18,3);
+  gWindows(g,46,120,108,18,3);
+  /* 门 */
+  E("rect",{x:86,y:146,width:28,height:22,rx:4,fill:"#8fc4d8"},g);
+  E("line",{x1:100,y1:146,x2:100,y2:168,stroke:"#fff","stroke-width":"2"},g);
+  /* 救护车 */
+  E("rect",{x:36,y:172,width:44,height:14,rx:4,fill:"#fffdf8",stroke:"#cfe0e8","stroke-width":"2"},g);
+  E("rect",{x:80,y:176,width:16,height:10,rx:3,fill:"#fffdf8",stroke:"#cfe0e8","stroke-width":"2"},g);
+  E("rect",{x:46,y:174,width:8,height:4,rx:2,fill:"#e05f5f"},g);
+  E("circle",{cx:48,cy:187,r:4,fill:"#5b6068"},g);
+  E("circle",{cx:70,cy:187,r:4,fill:"#5b6068"},g);
+};
+
+/* 超市：条纹遮阳棚 + 购物车 + 苹果标 */
+ART.mall=function(g,s){
+  E("ellipse",{cx:100,cy:190,rx:86,ry:11,fill:"rgba(70,90,60,.15)"},g);
+  /* 墙 */
+  E("rect",{x:30,y:88,width:140,height:80,rx:6,fill:"#f8e7a8"},g);
+  E("rect",{x:30,y:88,width:140,height:80,rx:6,fill:"rgba(255,255,255,.32)"},g);
+  /* 条纹遮阳棚 */
+  var aw=E("g",{},g);
+  for(var i=0;i<7;i++){
+    E("rect",{x:24+i*22,y:66,width:22,height:22,fill:i%2?"#f7f3e4":"#e0a92b"},aw);
+  }
+  E("path",{d:"M24,88 L192,88 L184,102 L32,102 Z",fill:"#e0a92b",opacity:".25"},g);
+  /* 大字招牌条 */
+  E("rect",{x:56,y:96,width:88,height:20,rx:10,fill:"#fffdf8",stroke:"#e8d9ae","stroke-width":"2"},g);
+  E("circle",{cx:100,cy:106,r:7,fill:"#e4705f"},g);
+  E("path",{d:"M100,99 C100,96 103,95 104,94",stroke:"#7fbf6f","stroke-width":"2",fill:"none"},g);
+  /* 玻璃门 */
+  E("rect",{x:74,y:124,width:52,height:44,rx:5,fill:"#cfeaf6"},g);
+  E("line",{x1:100,y1:124,x2:100,y2:168,stroke:"#fff","stroke-width":"3"},g);
+  E("rect",{x:74,y:124,width:52,height:44,rx:5,fill:"none",stroke:"#e8d9ae","stroke-width":"3"},g);
+  /* 购物车 */
+  var cart=E("g",{transform:"translate(40,146)"},g);
+  E("path",{d:"M0,0 L4,14 L26,14 L30,2 L6,2",fill:"none",stroke:"#a8b0b8","stroke-width":"3","stroke-linejoin":"round"},cart);
+  E("circle",{cx:9,cy:20,r:3.6,fill:"#8f979f"},cart);
+  E("circle",{cx:22,cy:20,r:3.6,fill:"#8f979f"},cart);
+  /* 门口果箱 */
+  E("rect",{x:132,y:150,width:30,height:18,rx:4,fill:"#c99a62"},g);
+  E("circle",{cx:140,cy:148,r:5,fill:"#e4705f"},g);
+  E("circle",{cx:152,cy:148,r:5,fill:"#f0a832"},g);
+};
+
+/* 公园：不盖房子，是草地 + 大树 + 长椅 + 秋千 */
+ART.park=function(g,s){
+  E("ellipse",{cx:100,cy:188,rx:86,ry:12,fill:"rgba(70,90,60,.14)"},g);
+  E("rect",{x:14,y:140,width:172,height:50,rx:26,fill:"#bfe2a9"},g);
+  /* 大树 */
+  E("rect",{x:66,y:108,width:16,height:56,rx:7,fill:"#a9784f"},g);
+  E("circle",{cx:76,cy:88,r:38,fill:"#7fb96f"},g);
+  E("circle",{cx:48,cy:104,r:24,fill:"#8ec97e"},g);
+  E("circle",{cx:104,cy:104,r:24,fill:"#93d183"},g);
+  E("circle",{cx:76,cy:66,r:22,fill:"#a8dd93"},g);
+  E("circle",{cx:62,cy:74,r:5,fill:"#e4705f"},g);
+  E("circle",{cx:92,cy:86,r:5,fill:"#f0a832"},g);
+  /* 长椅 */
+  E("rect",{x:118,y:148,width:56,height:9,rx:4,fill:"#c99a62"},g);
+  E("rect",{x:118,y:160,width:56,height:7,rx:3.5,fill:"#c99a62"},g);
+  E("rect",{x:124,y:157,width:6,height:16,fill:"#a9784f"},g);
+  E("rect",{x:162,y:157,width:6,height:16,fill:"#a9784f"},g);
+  /* 秋千 */
+  E("path",{d:"M126,60 L150,44 L174,60",fill:"none",stroke:"#c9b79d","stroke-width":"4","stroke-linecap":"round"},g);
+  E("path",{d:"M140,50 L140,84 M160,50 L160,84",stroke:"#d9cdb8","stroke-width":"2"},g);
+  E("rect",{x:134,y:84,width:32,height:6,rx:3,fill:"#c99a62"},g);
+  /* 小径 */
+  E("path",{d:"M20,182 C60,168 90,178 120,168 C150,158 172,170 186,164",fill:"none",stroke:"#f0e3c2",
+    "stroke-width":"10","stroke-linecap":"round"},g);
+};
+
+/* 农场：青色谷仓 + 筒仓 + 菜畦 */
+ART.farm=function(g,s){
+  E("ellipse",{cx:100,cy:190,rx:86,ry:11,fill:"rgba(70,90,60,.15)"},g);
+  /* 菜畦 */
+  E("rect",{x:14,y:156,width:172,height:34,rx:10,fill:"#c6a97c"},g);
+  for(var i=0;i<5;i++){
+    E("ellipse",{cx:32+i*34,cy:172,rx:14,ry:6,fill:"#b0916a"},g);
+    E("path",{d:"M"+(32+i*34)+",172 L"+(32+i*34)+",158",stroke:"#6da45f","stroke-width":"2"},g);
+    E("circle",{cx:32+i*34-5,cy:156,r:4.5,fill:"#8fc97e"},g);
+    E("circle",{cx:32+i*34+5,cy:156,r:4.5,fill:"#8fc97e"},g);
+  }
+  /* 谷仓 */
+  E("rect",{x:52,y:88,width:96,height:68,rx:4,fill:"#e07b6a"},g);
+  E("path",{d:"M46,92 L100,50 L154,92 Z",fill:"#b9574a"},g);
+  E("path",{d:"M46,92 L100,50 L100,92 Z",fill:"rgba(255,255,255,.14)"},g);
+  /* 谷仓门（X 形）*/
+  E("rect",{x:82,y:116,width:40,height:40,rx:3,fill:"#f3ead9"},g);
+  E("path",{d:"M82,116 L122,156 M122,116 L82,156",stroke:"#b9574a","stroke-width":"3"},g);
+  E("rect",{x:82,y:116,width:40,height:40,rx:3,fill:"none",stroke:"#b9574a","stroke-width":"3"},g);
+  /* 筒仓 */
+  E("rect",{x:152,y:76,width:26,height:80,rx:5,fill:"#c8d6de"},g);
+  E("path",{d:"M150,76 A15,16 0 0,1 180,76 Z",fill:"#9fb4bf"},g);
+  E("line",{x1:152,y1:96,x2:178,y2:96,stroke:"#aebec8","stroke-width":"2"},g);
+  E("line",{x1:152,y1:116,x2:178,y2:116,stroke:"#aebec8","stroke-width":"2"},g);
+  /* 小窗 */
+  E("rect",{x:64,y:104,width:16,height:16,rx:3,fill:"#f6d365"},g);
+  E("rect",{x:120,y:104,width:16,height:16,rx:3,fill:"#f6d365"},g);
+};
+
+/* 图书馆：棕色坡顶 + 大书本招牌 + 罗马柱 */
+ART.lib=function(g,s){
+  E("ellipse",{cx:100,cy:190,rx:84,ry:11,fill:"rgba(70,90,60,.15)"},g);
+  /* 台基 */
+  E("rect",{x:26,y:158,width:148,height:16,rx:5,fill:"#d9cdb8"},g);
+  /* 墙 */
+  E("rect",{x:44,y:88,width:112,height:72,rx:6,fill:"#e9dcc6"},g);
+  E("rect",{x:44,y:88,width:112,height:72,rx:6,fill:"rgba(255,255,255,.26)"},g);
+  /* 坡顶 */
+  E("path",{d:"M34,92 L100,44 L166,92 Z",fill:"#a8804f"},g);
+  E("path",{d:"M34,92 L100,44 L100,92 Z",fill:"rgba(255,255,255,.13)"},g);
+  E("rect",{x:30,y:88,width:140,height:8,rx:4,fill:"#8f6c42"},g);
+  /* 书本招牌 */
+  E("rect",{x:76,y:96,width:48,height:20,rx:5,fill:"#fffdf8",stroke:"#d9c8ad","stroke-width":"2"},g);
+  E("path",{d:"M100,100 L100,112",stroke:"#c99a62","stroke-width":"2"},g);
+  E("path",{d:"M86,101 L98,104 L98,111 L86,108 Z",fill:"#c99a62"},g);
+  E("path",{d:"M114,101 L102,104 L102,111 L114,108 Z",fill:"#8f9ec9"},g);
+  /* 三根柱子 */
+  [58,92,126].forEach(function(x){
+    E("rect",{x:x,y:120,width:9,height:38,rx:3,fill:"#f6efe1"},g);
+    E("rect",{x:x-2,y:116,width:13,height:5,rx:2,fill:"#e2d4bb"},g);
+    E("rect",{x:x-2,y:157,width:13,height:5,rx:2,fill:"#e2d4bb"},g);
+  });
+  /* 门洞 */
+  E("rect",{x:88,y:126,width:24,height:32,rx:4,fill:"#b98a4f"},g);
+  /* 阶梯 */
+  E("rect",{x:60,y:174,width:80,height:8,rx:4,fill:"#e4dac6"},g);
+};
+
+function buildingSvg(b){
+  var s=E("svg",{viewBox:"0 0 200 200"});
+  var g=E("g",{},s);
+  (ART[b.id]||ART.home)(g,s);
+  drawSign(g,b);
+  return s;
+}
+
+/* 招牌：每栋房顶一块不同的标识牌（图形 + 颜色），3 岁看图就能记住 */
+var SIGN={
+  home:   {x:100,y:0,sy:10,bg:"#fffdf8",d:'<path d="M-8,1 L0,-8 L8,1 L8,8 L-8,8 Z" fill="#e2896d"/>'},
+  windmill:{x:100,y:0,sy:10,bg:"#fffdf8",d:'<circle r="3" fill="#c98b50"/><path d="M0,-11 L2.4,-3 L0,-1 L-2.4,-3 Z M11,0 L3,2.4 L1,0 L3,-2.4 Z M0,11 L-2.4,3 L0,1 L2.4,3 Z M-11,0 L-3,-2.4 L-1,0 L-3,2.4 Z" fill="#c98b50"/>'},
+  tea:    {x:100,y:0,sy:10,bg:"#fffdf8",d:'<path d="M-8,-2 L8,-2 L6,8 L-6,8 Z" fill="#8a95c6"/><path d="M8,-1 C12,0 12,5 6,5" fill="none" stroke="#8a95c6" stroke-width="2"/>'},
+  crayon: {x:100,y:0,sy:10,bg:"#fffdf8",d:'<circle cx="-4" cy="-1" r="4.4" fill="#f0b23f"/><circle cx="5" cy="-1" r="4.4" fill="#8fd0e8"/><circle cx="0" cy="6" r="4.4" fill="#f7a5ad"/>'},
+  bell:   {x:100,y:0,sy:10,bg:"#fffdf8",d:'<path d="M-8,5 A8,9 0 0,1 8,5 Z" fill="#d9534f"/><rect x="-9" y="5" width="18" height="3" rx="1.5" fill="#b9463f"/><circle cx="0" cy="9" r="2.2" fill="#b9463f"/>'},
+  cross:  {x:100,y:0,sy:10,bg:"#fffdf8",d:'<rect x="-2.4" y="-8" width="4.8" height="16" rx="1.6" fill="#e05f5f"/><rect x="-8" y="-2.4" width="16" height="4.8" rx="1.6" fill="#e05f5f"/>'},
+  apple:  {x:100,y:0,sy:10,bg:"#fffdf8",d:'<circle cx="0" cy="2" r="8" fill="#e4705f"/><path d="M0,-6 C0,-10 3,-11 4,-11" stroke="#7d5b3a" stroke-width="2" fill="none"/><path d="M2,-8 C6,-12 10,-10 9,-7 C7,-5 3,-6 2,-8 Z" fill="#7fbf6f"/>'},
+  tree:   {x:100,y:0,sy:10,bg:"#fffdf8",d:'<circle cx="0" cy="-1" r="7" fill="#7fb96f"/><rect x="-1.6" y="5" width="3.2" height="6" rx="1.5" fill="#a9784f"/>'},
+  sprout: {x:100,y:0,sy:10,bg:"#fffdf8",d:'<path d="M0,9 L0,-4" stroke="#6da45f" stroke-width="2.4"/><path d="M0,-2 C-9,-2 -10,-11 -2,-9 Z" fill="#8fc97e"/><path d="M0,-5 C9,-5 10,-13 2,-11 Z" fill="#a9d993"/>'},
+  book:   {x:100,y:0,sy:10,bg:"#fffdf8",d:'<rect x="-8" y="-6" width="6" height="12" rx="1.5" fill="#a8804f"/><rect x="-1" y="-7" width="6" height="14" rx="1.5" fill="#c99a62"/><rect x="6" y="-6" width="4" height="12" rx="1.5" fill="#8f9ec9"/>'}
+};
+/* 招牌直接画进建筑 SVG 里：天然跟着屋顶走，不会错位 */
+function drawSign(g,b){
+  var cfg=SIGN[b.ico]||SIGN.home;
+  var y=(cfg.sy!==undefined?cfg.sy:74);
+  var sign=E("g",{transform:"translate(100,"+y+")"},g);
+  /* 小白牌 + 小杆子，像插在屋顶上的小招牌 */
+  E("rect",{x:-1.5,y:15,width:3,height:8,rx:1.5,fill:"#c9b79d"},sign);
+  E("circle",{r:16,fill:cfg.bg,stroke:"#e6ddc9","stroke-width":"2.6"},sign);
+  var wrap=E("g",{},sign);
+  var tmp=document.createElementNS(NS,"g"); tmp.innerHTML=cfg.d;
+  while(tmp.firstChild) wrap.appendChild(tmp.firstChild);
+  return sign;
+}
+
+function placeBuildings(){
+  BUILDINGS.forEach(function(b){
+    var btn=document.createElement("button");
+    btn.className="b"; btn.id="b-"+b.id; btn.type="button";
+    btn.style.left=(b.x-b.w/2)+"px";
+    btn.style.top=(b.y-b.h/2)+"px";
+    btn.style.width=b.w+"px";
+    btn.style.height=b.h+"px";
+    /* 按「脚底线」排前后：站在房子下方的人物要盖住房子底部 */
+    btn.style.zIndex=String(10+Math.round((b.y+b.h/2)/10));
+    btn.innerHTML='<div class="tag"><b>'+b.name.replace("小镇","")+'</b></div>'+
+                 '<div class="badge" id="badge-'+b.id+'" hidden>!</div>';
+    btn.appendChild(buildingSvg(b));
+    btn.addEventListener("click",function(e){ e.stopPropagation(); enter(b.id); });
+    world.appendChild(btn);
+    b.el=btn;
+  });
+}
+
+/* =====================================================================
+   5. 澄澄：小女孩形象
+   ===================================================================== */
+function girlSvg(size){
+  var s=size||64;
+  return '<svg viewBox="0 0 80 120" width="'+s+'" height="'+(s*1.5)+'" style="overflow:visible">'+
+    /* 影子 */
+    '<ellipse cx="40" cy="113" rx="19" ry="5" fill="rgba(60,80,55,.16)"/>'+
+    /* 腿 */
+    '<rect x="31" y="84" width="7" height="20" rx="3.5" fill="#f6d7c4"/>'+
+    '<rect x="42" y="84" width="7" height="20" rx="3.5" fill="#f6d7c4"/>'+
+    /* 白袜与红鞋 */
+    '<rect x="29.5" y="98" width="10" height="7" rx="3.4" fill="#fffdf8"/>'+
+    '<rect x="40.5" y="98" width="10" height="7" rx="3.4" fill="#fffdf8"/>'+
+    '<ellipse cx="34" cy="107" rx="6.5" ry="4.2" fill="#e4705f"/>'+
+    '<ellipse cx="46" cy="107" rx="6.5" ry="4.2" fill="#e4705f"/>'+
+    /* 裙子（粉色渐变感）*/
+    '<path d="M28,62 C28,56 52,56 52,62 L58,88 C46,93 34,93 22,88 Z" fill="#f7a8bd"/>'+
+    '<path d="M28,62 C28,56 52,56 52,62 L54,74 C44,78 36,78 26,74 Z" fill="#ffc2d1" opacity=".9"/>'+
+    '<path d="M22,88 C34,93 46,93 58,88 L57,92 C45,96 35,96 23,92 Z" fill="#f08fa6"/>'+
+    /* 白色小围裙领 */
+    '<path d="M33,58 C36,63 44,63 47,58 L46,66 C42,69 38,69 34,66 Z" fill="#fffdf8" opacity=".95"/>'+
+    /* 上衣 */
+    '<path d="M30,52 C30,47 50,47 50,52 L50,63 C44,67 36,67 30,63 Z" fill="#fffaf5"/>'+
+    '<path d="M30,52 C30,47 50,47 50,52 L50,55 C44,59 36,59 30,55 Z" fill="#ffe6ee"/>'+
+    /* 手臂 */
+    '<rect x="25" y="53" width="6.4" height="19" rx="3.2" fill="#f6d7c4"/>'+
+    '<rect x="48.6" y="53" width="6.4" height="19" rx="3.2" fill="#f6d7c4"/>'+
+    '<circle cx="28.2" cy="73" r="3.4" fill="#f9e0d0"/>'+
+    '<circle cx="51.8" cy="73" r="3.4" fill="#f9e0d0"/>'+
+    /* 双马尾：从耳侧向上翘起再垂落，扎在两侧偏高处 */
+    '<path d="M25,30 C16,20 8,27 10,38 C11.5,46 15,50 19,51 C22.5,51.6 23.5,46 21.4,42 C19.4,38 19.6,32 25.6,29.6 Z" fill="#6b4630"/>'+
+    '<path d="M55,30 C64,20 72,27 70,38 C68.5,46 65,50 61,51 C57.5,51.6 56.5,46 58.6,42 C60.6,38 60.4,32 54.4,29.6 Z" fill="#6b4630"/>'+
+    /* 发丝高光 */
+    '<path d="M13,31 C12,36 13.5,42 16,46" stroke="#8a5f45" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".6"/>'+
+    '<path d="M67,31 C68,36 66.5,42 64,46" stroke="#8a5f45" stroke-width="1.5" fill="none" stroke-linecap="round" opacity=".6"/>'+
+    /* 发圈 */
+    '<circle cx="25.6" cy="29.8" r="3" fill="#f6b93b"/>'+
+    '<circle cx="54.4" cy="29.8" r="3" fill="#f6b93b"/>'+
+    /* 脖子 */
+    '<rect x="36" y="44" width="8" height="8" rx="3" fill="#efc9b1"/>'+
+    /* 脸 */
+    '<ellipse cx="40" cy="33" rx="15.5" ry="15" fill="#fbe0cf"/>'+
+    /* 刘海 */
+    '<path d="M24.2,33 C24.2,16 55.8,16 55.8,33 C55.8,24 48,17.5 40,17.5 C32,17.5 24.2,24 24.2,33 Z" fill="#6b4630"/>'+
+    '<path d="M24.2,31 C21.5,35 22.6,41 26,42 C25,38 25,34 26.4,32 Z" fill="#6b4630"/>'+
+    '<path d="M55.8,31 C58.5,35 57.4,41 54,42 C55,38 55,34 53.6,32 Z" fill="#6b4630"/>'+
+    /* 蝴蝶结 */
+    '<g transform="translate(52,20) rotate(12)">'+
+      '<path d="M0,0 C-7,-7 -12,-2 -8,2 C-11,5 -5,7 0,0 Z" fill="#f6b93b"/>'+
+      '<path d="M0,0 C7,-7 12,-2 8,2 C11,5 5,7 0,0 Z" fill="#f6b93b"/>'+
+      '<circle r="2.1" fill="#e8a72a"/>'+
+    '</g>'+
+    /* 眼睛：大眼 + 高光 */
+    '<ellipse cx="33.5" cy="34" rx="3.1" ry="3.6" fill="#4a3327"/>'+
+    '<ellipse cx="46.5" cy="34" rx="3.1" ry="3.6" fill="#4a3327"/>'+
+    '<circle cx="34.6" cy="32.6" r="1.15" fill="#fff"/>'+
+    '<circle cx="47.6" cy="32.6" r="1.15" fill="#fff"/>'+
+    '<path d="M30.4,30.4 C32,28.8 35,28.8 36.6,30.2" stroke="#4a3327" stroke-width="1.1" fill="none" stroke-linecap="round"/>'+
+    '<path d="M43.4,30.2 C45,28.8 48,28.8 49.6,30.4" stroke="#4a3327" stroke-width="1.1" fill="none" stroke-linecap="round"/>'+
+    /* 腮红与嘴 */
+    '<ellipse cx="28.5" cy="40" rx="3.4" ry="2.4" fill="#f79aa5" opacity=".55"/>'+
+    '<ellipse cx="51.5" cy="40" rx="3.4" ry="2.4" fill="#f79aa5" opacity=".55"/>'+
+    '<path d="M37.6,40.6 Q40,43.4 42.4,40.6" stroke="#c9705f" stroke-width="1.5" fill="none" stroke-linecap="round"/>'+
+    '</svg>';
+}
+heroEl.innerHTML=girlSvg(64);
+document.getElementById("coverHero").innerHTML=girlSvg(150);
+
+var heroPose={x:S.hero.x,y:S.hero.y,face:1,walk:0};
+var heroInner=heroEl.querySelector("svg");
+function drawHero(){
+  heroEl.style.left=(heroPose.x-32)+"px";
+  heroEl.style.top=(heroPose.y-104)+"px";
+  heroEl.style.transform="scaleX("+heroPose.face+")";
+  heroEl.style.zIndex=String(10+Math.round((heroPose.y+2)/10));
+}
+
+/* =====================================================================
+   6. 行走与相机
+   ===================================================================== */
+var keys={};
+document.addEventListener("keydown",function(e){
+  var k=e.key.toLowerCase();
+  if(["arrowup","arrowdown","arrowleft","arrowright","w","a","s","d"].indexOf(k)>=0){ keys[k]=true; e.preventDefault(); }
+  if(k==="escape") closeSheet();
+});
+document.addEventListener("keyup",function(e){ keys[e.key.toLowerCase()]=false; });
+
+var stick=document.getElementById("stick"), knob=document.getElementById("knob");
+var stickVec={x:0,y:0}, stickId=null;
+function stickStart(e){ stickId=e.pointerId; try{stick.setPointerCapture(stickId);}catch(err){} stickMove(e); }
+function stickMove(e){
+  if(stickId===null) return;
+  var r=stick.getBoundingClientRect();
+  var dx=e.clientX-(r.left+r.width/2), dy=e.clientY-(r.top+r.height/2);
+  var len=Math.hypot(dx,dy), max=r.width/2-12;
+  if(len>max){ dx=dx/len*max; dy=dy/len*max; }
+  knob.style.transform="translate("+dx+"px,"+dy+"px)";
+  stickVec.x=dx/max; stickVec.y=dy/max;
+}
+function stickEnd(){ stickId=null; stickVec.x=0; stickVec.y=0; knob.style.transform="translate(0,0)"; }
+stick.addEventListener("pointerdown",stickStart);
+stick.addEventListener("pointermove",stickMove);
+stick.addEventListener("pointerup",stickEnd);
+stick.addEventListener("pointercancel",stickEnd);
+
+var walkTo=null;
+stage.addEventListener("pointerdown",function(e){
+  if(e.target.closest(".b")) return;
+  if(document.getElementById("cover") && !document.getElementById("cover").classList.contains("hide")) return;
+  var r=world.getBoundingClientRect();
+  walkTo={ x:(e.clientX-r.left)/M.scale, y:(e.clientY-r.top)/M.scale };
+});
+
+function blocked(x,y){
+  for(var i=0;i<BUILDINGS.length;i++){
+    var b=BUILDINGS[i];
+    if(x>b.x-b.w/2+14 && x<b.x+b.w/2-14 && y>b.y+b.h/2-26 && y<b.y+b.h/2+14) return true;
+  }
+  return false;
+}
+function clampX(x){ return Math.max(24,Math.min(W-24,x)); }
+function clampY(y){ return Math.max(70,Math.min(H-14,y)); }
+
+var lastT=0;
+function loop(t){
+  var dt=Math.min(0.05,(t-lastT)/1000||0.016); lastT=t;
+  var speed=330, vx=0, vy=0;
+  if(keys["arrowleft"]||keys["a"]) vx-=1;
+  if(keys["arrowright"]||keys["d"]) vx+=1;
+  if(keys["arrowup"]||keys["w"]) vy-=1;
+  if(keys["arrowdown"]||keys["s"]) vy+=1;
+  vx+=stickVec.x; vy+=stickVec.y;
+  var len=Math.hypot(vx,vy);
+  if(len>1){ vx/=len; vy/=len; len=1; }
+  var inputActive=len>0.18;          /* 真的有人在按方向键 / 推摇杆 */
+
+  var moving=false;
+  if(len>0.08){
+    var nx=clampX(heroPose.x+vx*speed*dt), ny=clampY(heroPose.y+vy*speed*dt);
+    if(!blocked(nx,heroPose.y)) heroPose.x=nx;
+    if(!blocked(heroPose.x,ny)) heroPose.y=ny;
+    if(Math.abs(vx)>0.1) heroPose.face=vx>0?1:-1;
+    moving=true;
+    /* 只有键盘/摇杆真有输入时才取消点地走路，
+       否则摇杆松手后的残值会把点地走路一直清掉 */
+    if(inputActive) walkTo=null;
+  }
+  if(walkTo){
+    var dx=walkTo.x-heroPose.x, dy=walkTo.y-heroPose.y, d=Math.hypot(dx,dy);
+    if(d>8){
+      var st=Math.min(speed*dt,d);
+      var stepX=dx/d*st, stepY=dy/d*st;
+      var mx=clampX(heroPose.x+stepX), my=clampY(heroPose.y+stepY);
+      var okX=!blocked(mx,heroPose.y), okY=!blocked(heroPose.x,my);
+      if(okX) heroPose.x=mx;
+      if(okY) heroPose.y=my;
+      if(Math.abs(dx)>2) heroPose.face=dx>0?1:-1;
+      if(!okX && !okY){
+        /* 两个方向都堵住了：绕一下，先把能走的方向走完 */
+        var slipA=clampX(heroPose.x+Math.sign(dx)*st), slipB=clampY(heroPose.y+Math.sign(dy)*st);
+        if(!blocked(slipA,heroPose.y)) heroPose.x=slipA;
+        else if(!blocked(heroPose.x,slipB)) heroPose.y=slipB;
+        else walkTo=null;              /* 彻底堵死，停下 */
+      }
+      moving=true;
+    } else walkTo=null;
+  }
+  if(moving){
+    heroPose.walk+=dt*11;
+    heroInner.style.transform="translateY("+(Math.sin(heroPose.walk)*2).toFixed(2)+"px) rotate("+(Math.sin(heroPose.walk)*1.6).toFixed(2)+"deg)";
+  } else {
+    heroInner.style.transform="translateY("+(Math.sin(Date.now()/900)*0.9).toFixed(2)+"px)";
+  }
+  if(moving){ S.hero.x=heroPose.x; S.hero.y=heroPose.y; saveThrottled(); }
+  drawHero(); stepFolk(dt); stepCarry(); updateCamera(dt); updateNearest();
+  requestAnimationFrame(loop);
+}
+
+var cam={x:0,y:0};
+function camTarget(){
+  var s=M.scale, vw=viewW(), vh=viewH();
+  var tx=vw/2-heroPose.x*s;
+  var ty=vh*0.52-heroPose.y*s;
+  var minX=vw-W*s, minY=vh-H*s;
+  if(minX>=0) tx=minX/2; else tx=Math.max(minX,Math.min(0,tx));
+  if(vh>H*s) ty=(vh-H*s)/2; else ty=Math.max(minY,Math.min(0,ty));
+  return {x:tx,y:ty};
+}
+function updateCamera(dt){
+  var t=camTarget(), k=Math.min(1,dt*5);
+  cam.x+=(t.x-cam.x)*k; cam.y+=(t.y-cam.y)*k;
+  world.style.transform="translate("+cam.x+"px,"+cam.y+"px) scale("+M.scale+")";
+}
+var saveT=0;
+function saveThrottled(){ var n=Date.now(); if(n-saveT>900){ saveT=n; save(); } }
+
+var nearId=null, nearSaid=0;
+function nearest(){
+  var best=null, bd=1e9;
+  BUILDINGS.forEach(function(b){
+    var bx=b.x, by=b.y+b.h/2-6;
+    var d=Math.hypot(heroPose.x-bx,heroPose.y-by);
+    var inDoor=Math.abs(heroPose.x-b.x)<b.w/2+30 && Math.abs(heroPose.y-(b.y+b.h/2+8))<72;
+    var score=inDoor?d*0.5:d;
+    if(score<bd){ bd=score; best=b; }
+  });
+  return (best&&bd<190)?best:null;
+}
+function updateNearest(){
+  var n=nearest(), id=n?n.id:null;
+  if(id===nearId) return;
+  nearId=id;
+  BUILDINGS.forEach(function(b){ b.el.dataset.active=(b.id===id)?"1":"0"; });
+  if(n){
+    showTip("到「"+n.name+"」门口了 · 点一下进去");
+    /* 每 12 秒才念一次，避免吵闹 */
+    if(Date.now()-nearSaid>12000){ nearSaid=Date.now(); }
+  } else hideTip();
+}
+var tipTimer=null;
+function showTip(t){ var e=document.getElementById("tipbar"); e.textContent=t; e.classList.add("show"); }
+function hideTip(){ document.getElementById("tipbar").classList.remove("show"); }
+
+/* =====================================================================
+   7. 弹层
+   ===================================================================== */
+var mask=document.getElementById("mask"), sheet=document.getElementById("sheet");
+function openSheet(html){
+  sheet.innerHTML='<button class="close" onclick="closeSheet()">✕</button>'+html;
+  mask.classList.add("show");
+}
+function closeSheet(){
+  mask.classList.remove("show");
+  closeEnterRoom();
+  Voice.stop();
+  setTimeout(function(){ if(!mask.classList.contains("show")) sheet.innerHTML=""; },260);
+}
+mask.addEventListener("click",function(e){ if(e.target===mask) closeSheet(); });
+
+function toast(msg,ms){
+  var t=document.getElementById("toast");
+  t.innerHTML=msg; t.classList.add("show");
+  clearTimeout(toast._t); toast._t=setTimeout(function(){ t.classList.remove("show"); },ms||1700);
+}
+function boardEl(){ var el=document.getElementById("gBoard"); return (el&&document.body.contains(el))?el:null; }
+function shuffle(a){ for(var i=a.length-1;i>0;i--){ var j=Math.floor(Math.random()*(i+1)); var t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+function pickPhrase(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+
+/* =====================================================================
+   8. 进入建筑
+   ===================================================================== */
+var curBuilding=null, curGame=null, hintsLeft=3;
+
+function enter(id){
+  var b=BUILDINGS.filter(function(x){return x.id===id})[0];
+  if(!b) return;
+
+  /* 超市是个能逛的房间，进去直接逛，不用先做题 */
+  if(DIRECT_ROOMS[id] && ROOM_PAGES[id]){
+    Sound.blip("ok");
+    location.href = ROOM_PAGES[id].file + "?from=door";
+    return;
+  }
+  curBuilding=b; curGame=null; walkTo=null;
+  if(!S.visited[id]){ S.visited[id]=true; save(); }
+  paintHud();
+
+  openSheet(
+    '<h2>'+b.name+'</h2>'+
+    '<p class="sub">'+b.inside+'</p>'+
+    '<div class="stats">'+
+      '<div>难度<br><b id="gDiff">'+diffName()+'</b></div>'+
+      '<div>进度<br><b id="gScore">0</b></div>'+
+      '<div>提示<br><b id="gHint">3</b></div>'+
+    '</div>'+
+    '<div class="board" id="gBoard"></div>'+
+    '<div class="row" style="margin-top:12px">'+
+      '<button class="btn" onclick="restartGame()" id="againBtn">再玩一次</button>'+
+      '<button class="btn primary" onclick="hintGame()">帮帮我</button>'+
+    '</div>'+
+    '<div class="note">'+b.skill+'</div>'
+  );
+  guide(b.hello);
+  startGame(b.game);
+}
+
+function diffName(){ return {easy:"小班",mid:"中班",hard:"大班"}[S.diff]||"中班"; }
+function switchDiff(){
+  var order=["easy","mid","hard"];
+  S.diff=order[(order.indexOf(S.diff)+1)%3]; save();
+  var e=document.getElementById("gDiff"); if(e) e.textContent=diffName();
+  restartGame(); toast("换成「"+diffName()+"」了");
+}
+function restartGame(){
+  if(!curBuilding) return;
+  startGame(curBuilding.game);
+  if(curBuilding) guide("我们再来一次。");
+}
+function hintGame(){
+  if(!curGame||!curGame.hint){ toast("这里点一下就好啦"); return; }
+  if(hintsLeft<=0){ toast("先自己试试看～"); guide("先自己试试看。"); return; }
+  hintsLeft--;
+  var e=document.getElementById("gHint"); if(e) e.textContent=hintsLeft;
+  curGame.hint();
+}
+function startGame(name){
+  curGame=null; hintsLeft=3; gameDone=false;
+  /* 没有关卡面板就现搭一个（超市是直接进房间的，单独测关卡时才走这条路） */
+  if(!boardEl()){
+    openSheet('<h2>'+(curBuilding?curBuilding.name:"小任务")+'</h2>'+
+      '<p class="sub">'+(curBuilding?curBuilding.inside:"")+'</p>'+
+      '<div class="stats">'+
+        '<div>难度<br><b id="gDiff">'+diffName()+'</b></div>'+
+        '<div>进度<br><b id="gScore">0</b></div>'+
+        '<div>提示<br><b id="gHint">3</b></div>'+
+      '</div>'+
+      '<div class="board" id="gBoard"></div>'+
+      '<div class="row" style="margin-top:12px">'+
+        '<button class="btn" onclick="restartGame()" id="againBtn">再玩一次</button>'+
+        '<button class="btn primary" onclick="hintGame()">帮帮我</button>'+
+      '</div>');
+  }
+  var g=boardEl(); if(g) g.innerHTML="";
+  var h=document.getElementById("gHint"); if(h) h.textContent="3";
+  var s=document.getElementById("gScore"); if(s) s.textContent="0";
+  var f=MINI[name];
+  if(f) curGame=f();
+}
+function paintScore(v,total){
+  var s=document.getElementById("gScore");
+  if(s) s.textContent=total? (v+" / "+total) : v;
+}
+function addStars(n){ S.stars+=n; save(); paintHud(); }
+
+/* 通关一次：花朵记录 + 星星 + 语音鼓励 */
+var gameDone=false;                 /* 本局是否已通关，拦住重复结算 */
+function finish(say){
+  if(gameDone) return;
+  gameDone=true;
+  var b=curBuilding;
+  var firstTime = b && !S.cleared[b.id];
+  if(b){ S.cleared[b.id]=(S.cleared[b.id]||0)+1; S.flowers[b.id]=true; }
+  /* 第一次玩一个地方给 3 颗，够买最便宜的东西；重复玩给 1 颗 */
+  addStars(firstTime ? 3 : 1);
+  paintHud();
+  Sound.blip("good");
+  if(say) guide(say);
+  var again=document.getElementById("againBtn");
+  if(again) again.textContent="再来一次";
+  /* 做完这里的任务，问一句要不要进屋看看 */
+  setTimeout(function(){ showEnterRoom(b); }, 1400);
+}
+
+/* 哪些地方已经做好了「房间页」 */
+var ROOM_PAGES = {
+  home: { file:"room-home.html", label:"澄澄的家",  who:"妈妈和奶奶在屋里" },
+  kg:   { file:"room-kg.html",   label:"幼儿园",    who:"李老师和小朋友在教室" },
+  fire: { file:"room-fire.html", label:"消防站",    who:"消防员叔叔在擦头盔" },
+  mall: { file:"room-shop.html", label:"超市",      who:"理货员阿姨在整理货架" }
+};
+
+/* 有些地方不用先玩游戏，进去就是能逛的房间（超市） */
+var DIRECT_ROOMS = { mall:1 };
+
+/* 通关后弹出的「进屋」提示 */
+function showEnterRoom(b){
+  if(!b) return;
+  var rp = ROOM_PAGES[b.id];
+  if(!rp) return;
+  if(document.getElementById("enterRoom")) return;
+
+  Sound.blip("tap");
+  var d=document.createElement("div");
+  d.id="enterRoom";
+  d.className="enter-room";
+  d.innerHTML =
+    '<div class="er-box">'+
+      '<div class="er-icon">'+ico("home",34,"#4f9e6b")+'</div>'+
+      '<h3>'+rp.label+'的门开着</h3>'+
+      '<p>'+rp.who+'，<br>要不要进屋看看？</p>'+
+      '<button class="er-go" id="erGo">进屋</button>'+
+      '<button class="er-later" id="erLater">等会儿</button>'+
+    '</div>';
+  document.body.appendChild(d);
+  requestAnimationFrame(function(){ d.classList.add("show"); });
+
+  /* 念一句，不用气泡，避免和结算提示打架 */
+  Voice.say(rp.who+"，要不要进屋看看？");
+
+  document.getElementById("erGo").onclick=function(){
+    Sound.blip("ok");
+    location.href=rp.file+"?from=door";
+  };
+  document.getElementById("erLater").onclick=function(){
+    d.classList.remove("show");
+    setTimeout(function(){ if(d.parentNode) d.parentNode.removeChild(d); },300);
+    toast("想进屋的时候，再玩一次这里就好啦");
+  };
+}
+function closeEnterRoom(){
+  var d=document.getElementById("enterRoom");
+  if(d && d.parentNode) d.parentNode.removeChild(d);
+}
+
+/* =====================================================================
+   8.5 小镇居民：三个小朋友 + 一只小狗，各有自己的日子
+   ---------------------------------------------------------------------
+   · 各自在街上慢慢走，会停下来做小动作（看花、跳一下、打哈欠、追蝴蝶）
+   · 有心情：开心 / 饿了 / 困了 / 想玩。饿了头上冒小餐具，走过去点它就能喂
+   · 玩家靠近会转头看你；点它会说话、给东西它会开心跳
+   · 两个居民碰到一起会打招呼、并肩走一段；小狗会跟着澄澄跑
+   全部存在 localStorage，刷新后位置和心情都还在
+   ===================================================================== */
+var FOLK = [
+  { id:"doudou", name:"豆豆", kind:"boy",   spd:52,  home:{x:470,y:700}, like:"bread", talks:[
+      "我在找小石头，你看这颗圆不圆？",
+      "刚才有一只蝴蝶，从我鼻子前面飞过去啦。",
+      "我跑得可快了，你追不上我。",
+      "你饿不饿？我有一点饿。"
+    ], hungry:["我肚子咕咕叫了。","有点饿，想吃面包。"] },
+
+  { id:"duoduo", name:"朵朵", kind:"girl2", spd:44,  home:{x:1010,y:700}, like:"candy", talks:[
+      "我在数地上的格子，一共好多好多。",
+      "等会儿我想去公园看大树。",
+      "你裙子上有花，真好看。",
+      "我们慢慢走，不用着急。"
+    ], hungry:["肚子空空的。","我想吃甜甜的东西。"] },
+
+  { id:"afu", name:"阿福", kind:"dog", spd:78, home:{x:620,y:640}, like:"bread", talks:[
+      "汪！",
+      "汪汪！（它把尾巴摇成了一朵花）",
+      "呜——（它把头搁在你手上）",
+      "汪！汪！（好像有什么在那边）"
+    ], hungry:["呜……（它盯着你的口袋）","汪……（肚子叫了）"] }
+];
+
+/* 每只居民的运行时状态（不直接进存档，存档是精简版） */
+var folkState = [];
+/* 自己做的小朋友的配色，配色变了画图就跟着变 */
+/* 自己做的小朋友存在这里（和上面三个固定居民合起来才是全部居民） */
+var MYFOLK = [];
+
+/* 从存档里读回自己做的小朋友 */
+function loadMyFolk(){
+  MYFOLK = (S.myfolk || []).map(function(u){
+    return {
+      id: u.id,
+      name: u.name,
+      kind: "kid",
+      gen: 1,
+      look: u.look || randomLook(),
+      lookId: u.id,
+      spd: 46 + (u.id.length % 5) * 3,
+      home: u.home || { x: 520, y: 700 },
+      like: u.like || "apple",
+      carry: u.carry || null,
+      talks: u.talks || KID_TALKS.slice(),
+      hungry: u.hungry || KID_HUNGRY.slice(),
+      gone: u.gone ? 1 : 0
+    };
+  });
+}
+var LOOK_SKIN = ["#f6d9c2", "#eec9a9", "#dcae86"];
+var LOOK_HAIR = ["#4a3a2e", "#2f2a26", "#7a5334", "#c98a4b"];
+var LOOK_CLOTH = ["#7fb6e0", "#f6a3b0", "#8fcca0", "#f2c14e", "#b4a2dd"];
+
+function allFolk(){
+  return FOLK.concat(MYFOLK.filter(function(u){ return !u.gone; }));
+}
+/* 配色换了，把所有用这套配色的娃娃重新画一遍 */
+function repaintLook(id){
+  folkState.forEach(function(n){
+    if (n.cfg.lookId === id && n.el){
+      n.el.innerHTML = '<span class="fbubble" hidden></span>' +
+        '<span class="fmood" hidden></span>' + folkSvg("kid", 92, n.cfg.look);
+      n.el.className = n.el.className.replace(/\s+gen\d+/, "");
+      n.el.classList.add("gen" + n.cfg.gen);
+      n.inner = n.el.querySelector("svg");
+    }
+  });
+}
+
+function folkSvg(kind, size, look){
+  return folkArt(kind, size, look);
+}
+
+/* 一个居民的运行时状态 */
+function makeState(f, sv){
+  sv = sv || {};
+  return {
+    cfg: f,
+    x: typeof sv.x === "number" ? sv.x : f.home.x,
+    y: typeof sv.y === "number" ? sv.y : f.home.y,
+    tx: null, ty: null,
+    pause: 0,                 /* 还要停多久（秒） */
+    act: null,                /* 正在做的小动作 */
+    actT: 0,
+    face: 1,
+    walk: Math.random() * 6,
+    mood: sv.mood || "happy", /* happy / hungry / sleepy / play */
+    moodT: 8 + Math.random() * 14,
+    greet: 0,                 /* 头顶气泡倒计时 */
+    greetTxt: "",
+    heart: 0,                 /* 冒爱心倒计时 */
+    el: null, inner: null
+  };
+}
+
+/* 找回上次的位置和心情，没有就放在家门口 */
+function loadFolk(){
+  var saved = S.folk || {};
+  folkState = allFolk().map(function(f){
+    var st = makeState(f, saved[f.id]);
+    /* 手里牵着的玩具跟着存档回来 */
+    if (saved[f.id] && saved[f.id].carry){ st.carry = saved[f.id].carry; f.carry = saved[f.id].carry; }
+    else if (f.carry) st.carry = f.carry;
+    return st;
+  });
+}
+
+function bindFolkEl(n){
+  var b = document.createElement("button");
+  b.className = "folk" + (n.cfg.gen ? " gen" + n.cfg.gen : "");
+  b.type = "button";
+  b.id = "folk-" + n.cfg.id;
+  b.innerHTML = '<span class="fbubble" hidden></span>' + folkSvg(n.cfg.kind, 92, n.cfg.look);
+  b.addEventListener("click", function(e){ e.stopPropagation(); talkFolk(n); });
+  world.appendChild(b);
+  n.el = b;
+  n.inner = b.querySelector("svg");
+  if (n.cfg.carry) attachCarry(n);
+}
+
+function placeFolk(){
+  folkState.forEach(bindFolkEl);
+}
+
+/* 新建一个居民：加状态、加存档、放到小镇上 */
+function addFolk(u){
+  var n = makeState(u, { x: u.home.x, y: u.home.y, mood: "happy" });
+  folkState.push(n);
+  bindFolkEl(n);
+  n.el.classList.add("pop");
+  drawFolk();
+  return n;
+}
+
+/* 把某个居民从镇上拿走（收进小柜子） */
+function removeFolk(id){
+  var i = -1;
+  folkState.forEach(function(n, k){ if (n.cfg.id === id) i = k; });
+  if (i < 0) return;
+  var n = folkState[i];
+  if (n.el && n.el.parentNode) n.el.parentNode.removeChild(n.el);
+  folkState.splice(i, 1);
+  delete S.folk[id];
+}
+
+function drawFolk(){
+  folkState.forEach(function(n){
+    n.el.style.left = (n.x - 24) + "px";
+    n.el.style.top = (n.y - 82) + "px";
+    n.el.style.zIndex = String(10 + Math.round((n.y + 2) / 10));
+    n.el.style.transform = "scaleX(" + n.face + ")";
+    var bob = n.pause > 0
+      ? Math.sin(Date.now() / 700 + n.walk) * 1.2
+      : Math.sin(n.walk * 2) * 2.2;
+    var tilt = n.pause > 0 ? 0 : Math.sin(n.walk) * 1.4;
+    n.inner.style.transform = "translateY(" + bob.toFixed(2) + "px) rotate(" + tilt.toFixed(2) + "deg)";
+  });
+}
+
+/* 挑一个新目标点：在自己家门口附近转悠，不走进房子 */
+function pickTarget(n){
+  var h = n.cfg.home;
+  for (var k = 0; k < 12; k++){
+    var a = Math.random() * Math.PI * 2;
+    var r = 90 + Math.random() * 230;
+    var x = clampX(h.x + Math.cos(a) * r);
+    var y = clampY(h.y + Math.sin(a) * r * 0.6);
+    if (!blocked(x, y)) { n.tx = x; n.ty = y; return; }
+  }
+  n.tx = h.x; n.ty = h.y;
+}
+
+/* 到了某个点做点小动作 */
+var SMALL_ACTS = ["look", "jump", "stretch", "yawn"];
+
+function startAct(n){
+  n.act = SMALL_ACTS[Math.floor(Math.random() * SMALL_ACTS.length)];
+  n.actT = 1.1 + Math.random() * 1.2;
+  var txt = "";
+  if (n.act === "yawn") txt = "呼——（打了个哈欠）";
+  else if (n.act === "jump") txt = "嘿！（跳了一下）";
+  else if (n.act === "stretch") txt = "（伸了个懒腰）";
+  else txt = "（抬头看了看天）";
+  if (Math.random() < 0.5) sayFolk(n, txt, 1.6);
+}
+
+function sayFolk(n, txt, sec){
+  n.greetTxt = txt;
+  n.greet = sec || 2.4;
+  var bb = n.el.querySelector(".fbubble");
+  if (bb){ bb.textContent = txt; bb.hidden = false; }
+}
+
+/* 心情变化：饿了、困了、想玩，过一阵又自己好了 */
+function shiftMood(dt){
+  folkState.forEach(function(n){
+    n.moodT -= dt;
+    if (n.moodT <= 0){
+      n.moodT = 16 + Math.random() * 20;
+      var pool = ["happy", "hungry", "play", "sleepy"];
+      var pickM = pool[Math.floor(Math.random() * pool.length)];
+      /* 玩家刚喂过就多开心一会儿 */
+      if (n.justFed > 0){ pickM = "happy"; n.justFed = 0; }
+      n.mood = pickM;
+    }
+    if (n.justFed > 0) n.justFed -= dt;
+  });
+}
+
+/* 玩家靠近：转头看过来 */
+function folkNoticeHero(){
+  folkState.forEach(function(n){
+    var d = Math.hypot(n.x - heroPose.x, n.y - heroPose.y);
+    if (d < 130 && n.pause > 0.2){
+      n.face = heroPose.x >= n.x ? 1 : -1;
+    }
+  });
+}
+
+/* 两只居民靠近了，打个招呼 */
+function folkMeet(dt){
+  folkState.forEach(function(a, i){
+    if (a.cool > 0){ a.cool -= dt; return; }
+    for (var j = i + 1; j < folkState.length; j++){
+      var b = folkState[j];
+      if (Math.hypot(a.x - b.x, a.y - b.y) < 60){
+        if (a.cfg.id !== "afu" && b.cfg.id !== "afu"){
+          sayFolk(a, "嗨，" + b.cfg.name + "！", 1.8);
+          sayFolk(b, "嗨！", 1.8);
+        } else {
+          sayFolk(a.cfg.id === "afu" ? a : b, "汪！", 1.4);
+        }
+        a.cool = 9; b.cool = 9;
+        a.mood = a.mood === "hungry" ? a.mood : "happy";
+        b.mood = b.mood === "hungry" ? b.mood : "happy";
+        break;
+      }
+    }
+  });
+}
+
+/* 阿福会跟着澄澄跑一小段 */
+function dogFollow(dt){
+  var dog = null;
+  folkState.forEach(function(n){ if (n.cfg.kind === "dog") dog = n; });
+  if (!dog) return;
+  var d = Math.hypot(dog.x - heroPose.x, dog.y - heroPose.y);
+  if (d < 300 && d > 70){
+    dog.tx = heroPose.x + (dog.x > heroPose.x ? 46 : -46);
+    dog.ty = heroPose.y + 12;
+    dog.pause = 0;
+  }
+}
+
+/* 主循环：每帧推进所有居民 */
+function stepFolk(dt){
+  dogFollow(dt);
+  shiftMood(dt);
+  folkMeet(dt);
+  folkNoticeHero();
+
+  folkState.forEach(function(n){
+    /* 头顶气泡倒计时 */
+    if (n.greet > 0){
+      n.greet -= dt;
+      if (n.greet <= 0){
+        var bb = n.el.querySelector(".fbubble");
+        if (bb) bb.hidden = true;
+      }
+    }
+
+    /* 饿了 / 困了的图标提示 */
+    var badge = n.el.querySelector(".fmood");
+    if (!badge){
+      badge = document.createElement("span");
+      badge.className = "fmood";
+      badge.hidden = true;
+      n.el.appendChild(badge);
+    }
+    if (n.mood === "hungry"){
+      badge.hidden = false;
+      badge.textContent = "🍎";
+      badge.className = "fmood hungry";
+    } else if (n.mood === "sleepy"){
+      badge.hidden = false;
+      badge.textContent = "💤";
+      badge.className = "fmood sleepy";
+    } else {
+      badge.hidden = true;
+    }
+
+    /* 正在做小动作 */
+    if (n.act && n.actT > 0){
+      n.actT -= dt;
+      if (n.act === "jump" && n.inner){
+        n.inner.style.transform = "translateY(" + (-Math.abs(Math.sin(n.actT * 9)) * 9).toFixed(1) + "px)";
+      }
+      if (n.actT <= 0){ n.act = null; n.pause = 0.4 + Math.random() * 1.4; }
+      return;
+    }
+
+    /* 停下来歇着 */
+    if (n.pause > 0){ n.pause -= dt; return; }
+
+    /* 该出发了 */
+    if (n.tx === null || n.ty === null) pickTarget(n);
+
+    var dx = n.tx - n.x, dy = n.ty - n.y, d = Math.hypot(dx, dy);
+    if (d < 8){
+      n.tx = null; n.ty = null;
+      n.pause = 1.6 + Math.random() * 3.6;
+      if (Math.random() < 0.55) startAct(n);
+      return;
+    }
+    var st = Math.min(n.cfg.spd * dt, d);
+    var nx = clampX(n.x + dx / d * st), ny = clampY(n.y + dy / d * st);
+    if (!blocked(nx, n.y)) n.x = nx;
+    if (!blocked(n.x, ny)) n.y = ny;
+    if (Math.abs(dx) > 1) n.face = dx > 0 ? 1 : -1;
+    n.walk += dt * 9;
+  });
+  drawFolk();
+}
+
+/* 点一个居民 */
+function talkFolk(n){
+  Sound.blip("tap");
+  var line;
+  if (n.mood === "hungry") line = pickPhrase(n.cfg.hungry);
+  else if (n.mood === "sleepy") line = "啊……有点困了。";
+  else line = pickPhrase(n.cfg.talks);
+
+  sayFolk(n, line, 3.2);
+  Voice.say(line.replace(/（.*?）/g, ""));
+
+  /* 如果背包里有它喜欢的，顺手就能送 */
+  var like = n.cfg.like;
+  if ((S.bag[like] || 0) > 0){
+    setTimeout(function(){ offerGift(n, like); }, 700);
+  }
+}
+
+/* 送礼小窗：点了「送给它」才真的送出 */
+function offerGift(n, itemId){
+  var it = SHOP_ITEMS.filter(function(x){ return x.id === itemId; })[0];
+  if (!it) return;
+  if (document.getElementById("giftBox")) return;
+  var d = document.createElement("div");
+  d.id = "giftBox";
+  d.className = "gift-box";
+  d.innerHTML =
+    '<div class="gb-in">' +
+      '<div class="gb-ico">' + art(itemId, 54) + '</div>' +
+      '<p>把' + it.name + '送给' + n.cfg.name + '？</p>' +
+      '<button class="gb-yes" id="gbYes">送</button>' +
+      '<button class="gb-no" id="gbNo">先留着</button>' +
+    '</div>';
+  document.body.appendChild(d);
+  requestAnimationFrame(function(){ d.classList.add("show"); });
+
+  document.getElementById("gbYes").onclick = function(){
+    S.bag[itemId] = (S.bag[itemId] || 0) - 1;
+    if (S.bag[itemId] <= 0) delete S.bag[itemId];
+    n.mood = "happy"; n.justFed = 20; n.moodT = 20 + Math.random() * 8;
+    /* 气球和风筝是拿在手里玩的，送出去以后它会一直牵着 */
+    if (itemId === "balloon" || itemId === "kite"){
+      n.carry = itemId;
+      n.cfg.carry = itemId;
+      attachCarry(n);
+      saveFolk();
+    }
+    save(); paintHud(); paintCarry();
+    closeGift();
+    Sound.blip("good");
+    /* 先把庆祝的小动作收住，不然会把话盖掉 */
+    n.act = null; n.actT = 0; n.pause = 3;
+    var cheer = "给我的吗？谢谢你！";
+    if (itemId === "balloon") cheer = "气球！我牵着它走。";
+    else if (itemId === "kite") cheer = "风筝！等下就去放。";
+    else if (itemId === "teddy") cheer = "我可以抱着它睡午觉。";
+    sayFolk(n, cheer, 3.2);
+    Voice.say(cheer);
+    n.inner.style.transition = "transform .18s ease";
+    var t0 = Date.now();
+    var iv = setInterval(function(){
+      var k = (Date.now() - t0) / 120;
+      n.inner.style.transform = "translateY(" + (-Math.abs(Math.sin(k)) * 14).toFixed(1) + "px)";
+      if (Date.now() - t0 > 900){ clearInterval(iv); n.inner.style.transform = ""; }
+    }, 60);
+    heartBurst(n);
+    toast("送给" + n.cfg.name + "一个" + it.name);
+  };
+  document.getElementById("gbNo").onclick = function(){ closeGift(); };
+}
+function closeGift(){
+  var d = document.getElementById("giftBox");
+  if (d && d.parentNode) d.parentNode.removeChild(d);
+}
+
+/* 头顶冒爱心 */
+function heartBurst(n){
+  for (var i = 0; i < 3; i++){
+    (function(i){
+      setTimeout(function(){
+        var h = document.createElement("div");
+        h.className = "fheart";
+        h.innerHTML = folkArt("heart", 22);
+        h.style.left = (n.x - 12 + (i - 1) * 16) + "px";
+        h.style.top = (n.y - 96) + "px";
+        world.appendChild(h);
+        setTimeout(function(){ if (h.parentNode) h.parentNode.removeChild(h); }, 1200);
+      }, i * 130);
+    })(i);
+  }
+}
+
+/* 存档：只存必要的 */
+function saveFolk(){
+  var o = {};
+  folkState.forEach(function(n){
+    o[n.cfg.id] = { x: Math.round(n.x), y: Math.round(n.y), mood: n.mood };
+    if (n.carry) o[n.cfg.id].carry = n.carry;      /* 手里牵着的气球要记住 */
+  });
+  S.folk = o;
+}
+/* 自己做的小朋友整只存下来：名字、配色、家在哪 */
+function saveMyFolk(){
+  S.myfolk = MYFOLK.map(function(u){
+    return { id:u.id, name:u.name, look:u.look, home:u.home, like:u.like,
+             talks:u.talks, hungry:u.hungry, carry:u.carry || null, gone:u.gone ? 1 : 0 };
+  });
+}
+setInterval(function(){ saveFolk(); save(); }, 4000);
+
+/* =====================================================================
+   8.55 做个新朋友：自己捏一个小朋友，放进小镇里一起玩
+   ===================================================================== */
+var KID_TALKS = [
+  "我在找一颗最圆的小石头。",
+  "你看那边的云，像一只小羊。",
+  "我喜欢在这个小镇上走来走去。",
+  "等下我们一起去公园好不好？",
+  "我刚才看见一只小鸟飞过去了。",
+  "你走得真快，等等我呀。"
+];
+var KID_HUNGRY = ["我肚子有点饿了。", "好想吃一点点东西呀。"];
+
+function randOf(a){ return a[Math.floor(Math.random() * a.length)]; }
+
+/* 工坊里正在捏的这个（不存盘，点「做好啦」才落盘） */
+var DRAFT = { name:"", look:{}, shirt:"tee" };
+
+function randomLook(){
+  return {
+    skin: randOf(LOOK_SKIN),
+    hair: randOf(LOOK_HAIR),
+    cloth: randOf(LOOK_CLOTH),
+    acc: randOf(["", "bow", "flower", "cap", "hat"]),
+    hairStyle: randOf(["short", "bob", "pigtail", "bun", "curly"]),
+    shirt: randOf(["tee", "dress", "stripe"])
+  };
+}
+
+function openMaker(){
+  DRAFT = { name:"", look: randomLook(), shirt:"tee" };
+  DRAFT.look.shirt = DRAFT.shirt;
+  paintMaker();
+  Voice.say("给新朋友起一个名字，再挑颜色。");
+}
+function rerollLook(){
+  var s = DRAFT.look.hairStyle, sh = DRAFT.look.shirt;
+  DRAFT.look = randomLook();
+  /* 换一换只换颜色和发饰，发型和衣服样式尽量保留，孩子才好比较 */
+  if (Math.random() < 0.5) DRAFT.look.hairStyle = s;
+  DRAFT.look.shirt = sh;
+  document.getElementById("mkPreview").innerHTML =
+    folkSvg("kid", 92, DRAFT.look) + '<span class="tag">新的样子</span>';
+  paintMakerChoices();
+  Sound.blip("tap");
+}
+function setLook(key, val){
+  DRAFT.look[key] = val;
+  if (key === "shirt") DRAFT.shirt = val;
+  document.getElementById("mkPreview").innerHTML =
+    folkSvg("kid", 92, DRAFT.look) + '<span class="tag">' + (DRAFT.name || "还没有名字") + '</span>';
+  paintMakerChoices();
+}
+
+function paintMakerChoices(){
+  var box = document.getElementById("mkChoices");
+  if (!box) return;
+  var L = DRAFT.look, h = "";
+  h += '<div class="mk-lab">皮肤</div><div class="mk-row">';
+  LOOK_SKIN.forEach(function(c, i){
+    h += '<button class="mk-dot' + (L.skin === c ? " on" : "") + '" style="background:' + c +
+         '" onclick="setLook(\'skin\',\'' + c + '\')" aria-label="皮肤' + (i + 1) + '"></button>';
+  });
+  h += '</div>';
+  h += '<div class="mk-lab">头发</div><div class="mk-row">';
+  LOOK_HAIR.forEach(function(c, i){
+    h += '<button class="mk-dot' + (L.hair === c ? " on" : "") + '" style="background:' + c +
+         '" onclick="setLook(\'hair\',\'' + c + '\')" aria-label="头发' + (i + 1) + '"></button>';
+  });
+  h += '</div>';
+  h += '<div class="mk-lab">衣服颜色</div><div class="mk-row">';
+  LOOK_CLOTH.forEach(function(c, i){
+    h += '<button class="mk-dot' + (L.cloth === c ? " on" : "") + '" style="background:' + c +
+         '" onclick="setLook(\'cloth\',\'' + c + '\')" aria-label="衣服' + (i + 1) + '"></button>';
+  });
+  h += '</div>';
+  h += '<div class="mk-lab">发型</div><div class="mk-row">';
+  [["short", "短发"], ["bob", "蘑菇头"], ["pigtail", "两个小辫"], ["bun", "小圆髻"], ["curly", "卷卷毛"]]
+    .forEach(function(p){
+      h += '<button class="mk-pick' + (L.hairStyle === p[0] ? " on" : "") +
+           '" onclick="setLook(\'hairStyle\',\'' + p[0] + '\')">' + p[1] + '</button>';
+    });
+  h += '</div>';
+  h += '<div class="mk-lab">身上的东西</div><div class="mk-row">';
+  [["", "什么都不戴"], ["bow", "蝴蝶结"], ["flower", "小花"], ["cap", "小帽子"], ["hat", "草帽"]]
+    .forEach(function(p){
+      h += '<button class="mk-pick' + (L.acc === p[0] ? " on" : "") +
+           '" onclick="setLook(\'acc\',\'' + p[0] + '\')">' + p[1] + '</button>';
+    });
+  h += '</div>';
+  h += '<div class="mk-lab">衣服样子</div><div class="mk-row">';
+  [["tee", "小T恤"], ["dress", "小裙子"], ["stripe", "条纹衫"]].forEach(function(p){
+    h += '<button class="mk-pick' + (L.shirt === p[0] ? " on" : "") +
+         '" onclick="setLook(\'shirt\',\'' + p[0] + '\')">' + p[1] + '</button>';
+  });
+  h += '</div>';
+  box.innerHTML = h;
+}
+
+function paintMaker(){
+  var left = Math.max(0, 3 - MYFOLK.length);
+  var html = '<h2>做一个新朋友</h2>' +
+    '<p class="sub">' + (left > 0
+      ? "起个名字，再挑颜色。做好了他就会住进小镇，自己在街上走来走去。"
+      : "小镇上已经有三个自己做的新朋友啦，先让位置给他们吧。") + '</p>';
+  html += '<div class="maker">' +
+      '<div class="mk-left">' +
+        '<div class="mk-preview" id="mkPreview">' + folkSvg("kid", 92, DRAFT.look) +
+          '<span class="tag">新的样子</span></div>' +
+        '<button class="mk-dice" onclick="rerollLook()">换一换</button>' +
+      '</div>' +
+      '<div class="mk-form">' +
+        '<div class="mk-lab">叫什么名字</div>' +
+        '<input class="mk-name" id="mkName" maxlength="6" placeholder="比如：小满" value="' + DRAFT.name + '">' +
+        '<div id="mkChoices"></div>' +
+      '</div>' +
+    '</div>';
+  html += '<div class="mk-tip">名字最多 6 个字。做好的新朋友会记住自己的名字和样子，下次打开还在。</div>';
+  html += '<div class="row" style="margin-top:12px">' +
+            (left > 0
+              ? '<button class="btn primary" onclick="confirmMake()">做好啦</button>' +
+                '<button class="btn ghost" onclick="closeSheet()">先不做</button>'
+              : '<button class="btn primary" onclick="closeSheet()">知道啦</button>') +
+          '</div>';
+  html += '<div class="row" style="margin-top:8px">' +
+            '<button class="btn" onclick="openFolkBook()">看看镇上的人</button></div>';
+  openSheet(html);
+  paintMakerChoices();
+  var inp = document.getElementById("mkName");
+  if (inp) inp.addEventListener("input", function(){
+    DRAFT.name = inp.value.trim();
+    var pv = document.getElementById("mkPreview");
+    if (pv){
+      pv.innerHTML = folkSvg("kid", 92, DRAFT.look) +
+        '<span class="tag">' + (DRAFT.name || "新的样子") + '</span>';
+    }
+  });
+}
+
+function confirmMake(){
+  if (MYFOLK.length >= 3){
+    toast("已经有三个新朋友啦");
+    return;
+  }
+  var nm = (document.getElementById("mkName") || {}).value || DRAFT.name || "";
+  nm = nm.trim();
+  if (!nm){
+    toast("给他起个名字吧");
+    Voice.say("先给他起个名字吧。");
+    var inp = document.getElementById("mkName");
+    if (inp) inp.focus();
+    return;
+  }
+  /* 别和已有的重名，不然喊人的时候会乱 */
+  var dup = false;
+  allFolk().forEach(function(f){ if (f.name === nm) dup = true; });
+  if (dup){ toast("已经有人叫「" + nm + "」啦，换个名字"); return; }
+
+  var id = "my" + (Date.now() % 100000);
+  var cnt = MYFOLK.length;
+  var u = {
+    id: id,
+    name: nm,
+    kind: "kid",
+    gen: MYFOLK.length,          /* 自己做的统一比原住民高一点，看着像长大了一号 */
+    look: JSON.parse(JSON.stringify(DRAFT.look)),
+    lookId: id,
+    spd: 46 + Math.round(Math.random() * 12),
+    home: { x: 300 + Math.random() * 800, y: 660 + Math.random() * 90 },
+    like: randOf(["apple", "bread", "candy", "balloon", "teddy", "kite"]),
+    talks: KID_TALKS.slice(),
+    hungry: KID_HUNGRY.slice()
+  };
+  u.talks.unshift("我叫" + nm + "，你叫什么名字？");
+  MYFOLK.push(u);
+  saveMyFolk();
+  var n = addFolk(u);
+  save();
+  closeSheet();
+  Sound.blip("good");
+  setTimeout(function(){
+    sayFolk(n, "我叫" + nm + "！", 3.2);
+    n.pause = 2.5;
+    heartBurst(n);
+  }, 260);
+  toast(nm + "来了，他就在小镇上");
+  Voice.say(nm + "来了。他会自己在小镇上走来走去。");
+}
+
+/* 看看镇上的人 + 把新朋友收起来 / 放出来 */
+function openFolkBook(){
+  var mine = MYFOLK;
+  var html = '<h2>镇上的人</h2><p class="sub">点点街上的小人，他们会跟你说话。饿了头上会冒苹果。</p>';
+  html += '<div class="bag-grid">';
+  allFolk().forEach(function(f){
+    var isMine = mine.indexOf(f) >= 0;
+    html += '<div class="bag-cell"><div class="bg-ico">' +
+            folkSvg(f.kind, 46, f.look) + '</div><b>' + f.name + '</b>' +
+            '<span>' + (isMine ? "自己做" : (f.kind === "dog" ? "小狗" : "原住民")) + '</span></div>';
+  });
+  html += '</div>';
+  if (mine.length){
+    html += '<div class="row" style="margin-top:12px;flex-wrap:wrap">';
+    mine.forEach(function(f){
+      html += '<button class="btn" onclick="toggleMine(\'' + f.id + '\')">' +
+              (f.gone ? "叫回" : "收起") + f.name + '</button>';
+    });
+    html += '</div>';
+  }
+  html += '<div class="row" style="margin-top:12px">' +
+          (MYFOLK.length < 3
+            ? '<button class="btn primary" onclick="openMaker()">再做一个</button>'
+            : '') +
+          '<button class="btn" onclick="closeSheet()">继续逛</button></div>';
+  openSheet(html);
+}
+
+function toggleMine(id){
+  var u = null;
+  MYFOLK.forEach(function(x){ if (x.id === id) u = x; });
+  if (!u) return;
+  if (u.gone){
+    u.gone = 0;
+    addFolk(u);
+    Sound.blip("ok");
+    toast(u.name + "回来了");
+  } else {
+    u.gone = 1;
+    removeFolk(id);
+    Sound.blip("tap");
+    toast(u.name + "先回家了，想他的时候再叫回来");
+  }
+  saveMyFolk(); save();
+  openFolkBook();
+}
+
+/* =====================================================================
+   8.6 商店与背包
+   ===================================================================== */
+var SHOP_ITEMS = [
+  { id:"apple",  name:"苹果",  cost:2, line:"红红的苹果，脆脆的。" },
+  { id:"bread",  name:"面包",  cost:2, line:"刚烤好的面包，香香的。" },
+  { id:"candy",  name:"糖果",  cost:3, line:"甜甜的糖，只能吃一颗。" },
+  { id:"balloon",name:"气球",  cost:3, line:"一个会飞的气球。" },
+  { id:"teddy",  name:"小熊",  cost:5, line:"软软的小熊，可以抱着睡。" },
+  { id:"kite",   name:"风筝",  cost:6, line:"有风的时候，风筝会飞很高。" }
+];
+
+function buyItem(id){
+  var it = SHOP_ITEMS.filter(function(x){ return x.id === id; })[0];
+  if (!it) return;
+  if (S.stars < it.cost){
+    Sound.blip("tap");
+    toast("还差 " + (it.cost - S.stars) + " 颗星星，再去玩一会儿吧");
+    Voice.say("星星还不够，再去玩一会儿吧。");
+    return;
+  }
+  S.stars -= it.cost;
+  S.bag[id] = (S.bag[id] || 0) + 1;
+  save(); paintHud(); paintCarry();
+  Sound.blip("good");
+  toast("买到" + it.name + "啦，放进背包了");
+  Voice.say("买到" + it.name + "啦。");
+  if (document.getElementById("mask") && mask.classList.contains("show")) paintShopSheet();
+}
+
+/* 商店面板（小镇 HUD 的「商店」按钮直接打开，方便随时看） */
+function openShop(){
+  paintShopSheet();
+}
+function paintShopSheet(){
+  var html = '<h2>小镇商店</h2><p class="sub">玩小游戏攒的星星，可以换东西。换到的东西放在背包里，能送给别人；气球和风筝送出去，他们会一直牵着。</p>';
+  html += '<div class="shop-wallet">' + ico("star", 16, "#f0a832") + ' <b>' + S.stars + '</b> 颗星星可以花</div>';
+  html += '<div class="shop-grid">';
+  SHOP_ITEMS.forEach(function(it){
+    var can = S.stars >= it.cost;
+    html += '<div class="shop-cell' + (can ? "" : " poor") + '">' +
+              '<div class="sc-ico">' + art(it.id, 62) + '</div>' +
+              '<b>' + it.name + '</b>' +
+              '<div class="sc-cost">' + ico("star", 13, "#f0a832") + ' ' + it.cost + '</div>' +
+              '<button class="sc-buy" ' + (can ? 'onclick="buyItem(\'' + it.id + '\')"' : 'disabled') + '>' +
+                (can ? "换" : "还差") + '</button>' +
+            '</div>';
+  });
+  html += '</div>';
+  html += '<div class="row" style="margin-top:14px"><button class="btn" onclick="openBag()">看看背包</button>' +
+          '<button class="btn primary" onclick="closeSheet()">继续逛</button></div>';
+  openSheet(html);
+}
+
+/* 背包面板（从小镇 HUD 打开） */
+function openBag(){
+  var ids = Object.keys(S.bag || {});
+  var html = '<h2>我的背包</h2><p class="sub">' + (ids.length ? "点一下可以看，走到谁身边就能送给谁。" : "还是空的，去超市用星星换点东西吧。") + '</p>';
+  if (ids.length){
+    html += '<div class="bag-grid">';
+    ids.forEach(function(id){
+      var it = SHOP_ITEMS.filter(function(x){ return x.id === id; })[0];
+      if (!it) return;
+      html += '<div class="bag-cell"><div class="bg-ico">' + art(id, 58) + '</div>' +
+              '<b>' + it.name + '</b><span>× ' + S.bag[id] + '</span></div>';
+    });
+    html += '</div>';
+  }
+  html += '<div class="row" style="margin-top:14px"><button class="btn primary" onclick="closeSheet()">收起来</button></div>';
+  openSheet(html);
+  guide(ids.length ? "背包里有" + ids.length + "样东西。" : "背包还空着。");
+}
+
+/* =====================================================================
+   9. 图形素材（手绘 SVG，3 岁看图就懂）
+   ===================================================================== */
+var ART_LIB={};
+function art(kind,size,opt){
+  opt=opt||{};
+  var c=opt.c||"#8fc97e", s=size||60;
+  var D={
+    /* —— 植物 —— */
+    seed:'<ellipse cx="0" cy="3" rx="8.5" ry="10.5" fill="#c99a6a"/><ellipse cx="-2.6" cy="0" rx="3" ry="4" fill="#e0bb92" opacity=".8"/><path d="M-4,4 C-1,0 2,1 4,4" stroke="#a37b4f" stroke-width="1.8" fill="none" stroke-linecap="round"/>',
+    sprout:'<path d="M0,12 L0,-2" stroke="#6da45f" stroke-width="3" stroke-linecap="round"/><path d="M0,0 C-10,0 -12,-11 -3,-9 Z" fill="#8fc97e"/><path d="M0,-4 C10,-4 12,-14 3,-12 Z" fill="#a9d993"/>',
+    leaf:'<path d="M-10,10 C-10,-6 4,-14 13,-9 C13,5 -1,14 -10,10 Z" fill="#7fbf6f"/><path d="M-8,9 C-3,3 4,-4 11,-8" stroke="#5f9e51" stroke-width="2" fill="none"/>',
+    flower:'<circle cx="0" cy="-8" r="5.4" fill="'+c+'"/><circle cx="7.4" cy="-2" r="5.4" fill="'+c+'"/><circle cx="5" cy="7" r="5.4" fill="'+c+'"/><circle cx="-5" cy="7" r="5.4" fill="'+c+'"/><circle cx="-7.4" cy="-2" r="5.4" fill="'+c+'"/><circle cx="0" cy="0" r="4.2" fill="#ffe58a"/>',
+    carrot:'<path d="M-2,-6 L8,4 C11,8 10,12 7,13 C4,14 0,13 -3,10 L-9,-2 Z" fill="#f08a3c"/><path d="M-9,-4 C-14,-10 -11,-15 -6,-12 C-4,-16 2,-14 0,-8 Z" fill="#7fbf6f"/><path d="M-6,0 L3,9 M-3,-3 L6,6" stroke="#dd7a2e" stroke-width="1.8" stroke-linecap="round"/>',
+    tree:'<rect x="-3.4" y="4" width="6.8" height="12" rx="3" fill="#a9784f"/><circle cx="0" cy="-4" r="12" fill="#7fb96f"/><circle cx="-9" cy="4" r="8" fill="#8ec97e"/><circle cx="9" cy="4" r="8" fill="#93d183"/>',
+    bush:'<circle cx="-7" cy="3" r="9" fill="#8dc97f"/><circle cx="7" cy="3" r="9" fill="#8dc97f"/><circle cx="0" cy="-3" r="10" fill="#9ad689"/>',
+    apple:'<circle cx="0" cy="2" r="11" fill="#e4705f"/><path d="M0,-8 C0,-13 4,-14 5,-14" stroke="#7d5b3a" stroke-width="2.4" fill="none"/><path d="M2,-10 C7,-15 12,-12 10,-8 C8,-6 4,-8 2,-10 Z" fill="#7fbf6f"/>',
+    orange:'<circle cx="0" cy="2" r="11" fill="#f0a832"/><path d="M0,-9 C2,-14 7,-13 8,-11" stroke="#7fbf6f" stroke-width="2.6" fill="none"/>',
+    pear:'<path d="M0,-9 C6,-9 6,-2 4,2 C9,8 4,14 -1,13 C-8,12 -9,5 -4,1 C-6,-4 -5,-9 0,-9 Z" fill="#c7d95e"/><path d="M0,-9 L2,-14" stroke="#7d5b3a" stroke-width="2"/>',
+    banana:'<path d="M-11,-6 C-10,7 6,12 12,2 C8,9 -6,7 -7,-6 Z" fill="#f6d365"/><path d="M-11,-6 L-12,-10" stroke="#c9a23f" stroke-width="2.4"/>',
+    berry:'<circle cx="-4" cy="2" r="6" fill="#e4705f"/><circle cx="5" cy="4" r="5" fill="#d95c52"/><circle cx="-1" cy="-5" r="5" fill="#e87a68"/><path d="M-1,-11 C-6,-14 -2,-17 2,-14" stroke="#7fbf6f" stroke-width="2" fill="none"/>',
+    veg:'<rect x="-2.6" y="-13" width="5.2" height="9" rx="2.6" fill="#a9d993"/><circle cx="0" cy="2" r="9.5" fill="#7cb85f"/><path d="M0,-6 C-7,-9 -10,-2 -3,0 Z" fill="#a9d993"/><path d="M0,-6 C7,-9 10,-2 3,0 Z" fill="#a9d993"/><path d="M0,-4 L0,4" stroke="#5f9e51" stroke-width="1.4"/>',
+    /* —— 道具 —— */
+    water:'<path d="M0,-13 C6,-5 11,0 11,4 A11,11 0 0 1 -11,4 C-11,0 -6,-5 0,-13 Z" fill="#8fd0e8"/><ellipse cx="-3.6" cy="3" rx="2.6" ry="3.4" fill="#fff" opacity=".55"/><path d="M0,-13 C6,-5 11,0 11,4" stroke="#6fb3cf" stroke-width="1.6" fill="none"/>',
+    can:'<rect x="-9" y="-2" width="14" height="13" rx="4" fill="#7fb6e0"/><path d="M5,-1 L13,-7 L14,-3 L7,2 Z" fill="#6fa8d4"/><path d="M-4,-2 C-4,-8 2,-8 2,-2" fill="none" stroke="#6fa8d4" stroke-width="3"/>',
+    shovel:'<rect x="-1.8" y="-14" width="3.6" height="18" rx="1.8" fill="#c9a06a"/><path d="M-7,4 L7,4 L0,15 Z" fill="#b9c4cc"/><rect x="-5.5" y="-16" width="11" height="4" rx="2" fill="#a9784f"/>',
+    basket:'<path d="M-11,-2 L11,-2 L8,12 L-8,12 Z" fill="#d9a25c"/><path d="M-11,-2 L11,-2" stroke="#b3803f" stroke-width="3"/><path d="M-6,-2 C-6,-10 6,-10 6,-2" fill="none" stroke="#b3803f" stroke-width="2.4"/>',
+    star:'<path d="M0,-12 L3.4,-3.7 L12,-3.3 L5.3,-1.3 L7.7,7 L0,2.2 L-7.7,7 L-5.3,-1.3 L-12,-3.3 L-3.4,-3.7 Z" fill="#f0c25a"/>',
+    heart:'<path d="M0,10 C-12,2 -12,-8 -5,-8 C-2,-8 0,-5 0,-5 C0,-5 2,-8 5,-8 C12,-8 12,2 0,10 Z" fill="#f79aa5"/>',
+    /* —— 商店与礼物 —— */
+    bread:'<ellipse cx="0" cy="2" rx="12" ry="8" fill="#e8b96a"/><ellipse cx="0" cy="0" rx="9" ry="5.4" fill="#f0cd94"/><path d="M-5,-2 L-3,0 M0,-3 L2,-1 M4,-2 L6,0" stroke="#c9954f" stroke-width="1.5" stroke-linecap="round"/>',
+    candy:'<circle cx="-3.5" cy="1" r="6.4" fill="#f78fb3"/><circle cx="3.5" cy="1" r="6.4" fill="#f6b93b"/><circle cx="0" cy="-4" r="6.4" fill="#8fc97e"/><circle cx="-1.5" cy="-6" r="1.8" fill="#fff" opacity=".75"/>',
+    balloon:'<ellipse cx="0" cy="-4" rx="9" ry="10.5" fill="#f78fb3"/><ellipse cx="-2.8" cy="-7.6" rx="2.6" ry="3.4" fill="#fff" opacity=".5"/><path d="M0,6.5 L0,9.5" stroke="#c98aa0" stroke-width="1.5"/><path d="M0,9.5 C-3.4,12.5 3.4,13.5 0,16.5" stroke="#c98aa0" stroke-width="1.4" fill="none"/>',
+    teddy:'<circle cx="-6.4" cy="-10.4" r="3.8" fill="#c99a62"/><circle cx="6.4" cy="-10.4" r="3.8" fill="#c99a62"/><circle cx="0" cy="-6" r="7.4" fill="#d9ad76"/><ellipse cx="0" cy="6.4" rx="8.4" ry="7.6" fill="#c99a62"/><ellipse cx="0" cy="7.4" rx="4.8" ry="4.6" fill="#f0dcc2"/><circle cx="-2.7" cy="-7" r="1.25" fill="#4a3327"/><circle cx="2.7" cy="-7" r="1.25" fill="#4a3327"/><ellipse cx="0" cy="-4" rx="1.7" ry="1.25" fill="#4a3327"/>',
+    kite:'<path d="M0,-13 L10.5,-2 L0,11 L-10.5,-2 Z" fill="#f6b93b"/><path d="M0,-13 L0,11 M-10.5,-2 L10.5,-2" stroke="#fffdf8" stroke-width="1.3" opacity=".85"/><path d="M0,11 C2.4,15 -2.4,16 0,19" stroke="#c9954f" stroke-width="1.5" fill="none"/>',
+    cloud:'<ellipse cx="0" cy="0" rx="14" ry="9" fill="#fff"/><ellipse cx="-10" cy="3" rx="9" ry="7" fill="#fff"/><ellipse cx="10" cy="3" rx="9" ry="7" fill="#fff"/>',
+    sun:'<circle r="8" fill="#f6c445"/><g stroke="#f6c445" stroke-width="2.4" stroke-linecap="round"><path d="M0,-13 L0,-10"/><path d="M0,13 L0,10"/><path d="M-13,0 L-10,0"/><path d="M13,0 L10,0"/><path d="M-9,-9 L-7,-7"/><path d="M9,9 L7,7"/><path d="M9,-9 L7,-7"/><path d="M-9,9 L-7,7"/></g>',
+    fire:'<path d="M0,-13 C8,-3 8,4 0,12 C-8,4 -8,-3 0,-13 Z" fill="#e05f5f"/><path d="M0,-3 C4,1 4,7 0,10 C-4,7 -4,1 0,-3 Z" fill="#f6d365"/>',
+    truck:'<rect x="-12" y="-4" width="16" height="10" rx="3" fill="#d9534f"/><path d="M4,0 L9,0 L13,6 L13,6 L4,6 Z" fill="#e8887f"/><rect x="-9" y="-1" width="9" height="3" rx="1.5" fill="#fff" opacity=".7"/><circle cx="-7" cy="7" r="3.4" fill="#4a4438"/><circle cx="7" cy="7" r="3.4" fill="#4a4438"/>',
+    ball:'<circle r="11" fill="#7fb6e0"/><path d="M-11,0 A11,11 0 0,0 11,0" fill="#f7a5ad"/><path d="M-8,-6 C-2,-2 -2,2 -8,6" stroke="#fff" stroke-width="2" fill="none"/>',
+    book:'<rect x="-10" y="-8" width="9" height="16" rx="2" fill="#a8804f"/><rect x="-1" y="-9" width="9" height="18" rx="2" fill="#c99a62"/><rect x="8" y="-8" width="4" height="16" rx="2" fill="#8f9ec9"/>',
+    carrot2:'<path d="M0,-4 L9,14 L-9,14 Z" fill="#f08a3c" transform="translate(0,-4)"/><path d="M0,-6 C-6,-12 -2,-16 2,-12 C3,-16 9,-13 4,-7 Z" fill="#7fbf6f"/>',
+    /* —— 人物 —— */
+    girl:'<circle cx="0" cy="-6" r="8" fill="#fbe0cf"/><path d="M-8,-6 C-8,-16 8,-16 8,-6 C8,-11 4,-13 0,-13 C-4,-13 -8,-11 -8,-6 Z" fill="#6b4630"/><path d="M-8,-5 C-14,-2 -14,6 -9,7 C-11,3 -10,0 -7,-2 Z" fill="#6b4630"/><path d="M8,-5 C14,-2 14,6 9,7 C11,3 10,0 7,-2 Z" fill="#6b4630"/><path d="M-7,4 C-7,1 7,1 7,4 L9,13 C4,15 -4,15 -9,13 Z" fill="#f7a8bd"/><circle cx="-2.6" cy="-6" r="1.1" fill="#4a3327"/><circle cx="2.6" cy="-6" r="1.1" fill="#4a3327"/>',
+    kid1:'<circle cx="0" cy="-4" r="7.5" fill="#fbe0cf"/><path d="M-7.5,-4 C-7.5,-13 7.5,-13 7.5,-4 C7.5,-9 3,-11 0,-11 C-3,-11 -7.5,-9 -7.5,-4 Z" fill="#3f3a32"/><path d="M-6,5 C-6,2 6,2 6,5 L8,14 C3,16 -3,16 -8,14 Z" fill="#7fb6e0"/><circle cx="-2.4" cy="-4" r="1" fill="#3f3a32"/><circle cx="2.4" cy="-4" r="1" fill="#3f3a32"/>',
+    kid2:'<circle cx="0" cy="-5" r="6.5" fill="#fbe0cf"/><path d="M-6.5,-5 C-6.5,-13 6.5,-13 6.5,-5 C6.5,-9 3,-11 0,-11 C-3,-11 -6.5,-9 -6.5,-5 Z" fill="#8a5a3a"/><path d="M-5,4 C-5,1 5,1 5,4 L7,12 C3,14 -3,14 -7,12 Z" fill="#f6b93b"/><circle cx="-2" cy="-5" r="1" fill="#3f3a32"/><circle cx="2" cy="-5" r="1" fill="#3f3a32"/>',
+    kid3:'<circle cx="0" cy="-3.5" r="6" fill="#fbe0cf"/><path d="M-6,-3.5 C-6,-11 6,-11 6,-3.5 C6,-7 3,-9 0,-9 C-3,-9 -6,-7 -6,-3.5 Z" fill="#c9705f"/><path d="M-4.6,4 C-4.6,1.5 4.6,1.5 4.6,4 L6,11 C2.6,12.6 -2.6,12.6 -6,11 Z" fill="#a9d993"/><circle cx="-1.8" cy="-3.5" r=".9" fill="#3f3a32"/><circle cx="1.8" cy="-3.5" r=".9" fill="#3f3a32"/>',
+    /* —— 医 —— */
+    pill:'<rect x="-11" y="-6" width="22" height="12" rx="6" fill="#e8a0a0" transform="rotate(-25)"/><path d="M-4,-1 L2,-7" stroke="#fff" stroke-width="2.2"/>',
+    bottle:'<rect x="-6" y="-2" width="12" height="15" rx="3" fill="#d8b4e0"/><rect x="-4" y="-9" width="8" height="7" rx="2" fill="#9d8bc4"/><rect x="-4" y="4" width="8" height="5" fill="#fff" opacity=".65"/>',
+    cross:'<rect x="-2.6" y="-9" width="5.2" height="18" rx="1.8" fill="#e05f5f"/><rect x="-9" y="-2.6" width="18" height="5.2" rx="1.8" fill="#e05f5f"/>',
+    plaster:'<rect x="-12" y="-5" width="24" height="10" rx="4" fill="#f0d0b8"/><path d="M-4,-4 L-4,4 M0,-4 L0,4 M4,-4 L4,4" stroke="#d9b295" stroke-width="1.6"/>',
+    thermometer:'<rect x="-3" y="-12" width="6" height="18" rx="3" fill="#fff" stroke="#c8ccd2" stroke-width="1.6"/><circle cx="0" cy="9" r="5" fill="#e4705f"/>',
+    /* —— 花草道具 —— */
+    pot:'<path d="M-9,-2 L9,-2 L7,12 L-7,12 Z" fill="#d08a6a"/><rect x="-10" y="-5" width="20" height="5" rx="2.5" fill="#c07a5a"/>',
+    thirsty:'<path d="M-9,-2 L9,-2 L7,12 L-7,12 Z" fill="#d08a6a"/><rect x="-10" y="-5" width="20" height="5" rx="2.5" fill="#c07a5a"/><path d="M0,-4 C-1,-9 3,-13 7,-13" stroke="#9dbd8a" stroke-width="2.6" stroke-linecap="round" fill="none"/><path d="M1.5,-8 C-4,-10 -7,-5 -2,-3.6 Z" fill="#b8cf9e"/><path d="M4,-11.5 C9,-15 12,-10 7.6,-8 Z" fill="#b8cf9e"/>',
+    bloom:'<circle cx="-5" cy="-7" r="4.4" fill="'+'@C@'+'"/><circle cx="5" cy="-7" r="4.4" fill="'+'@C@'+'"/><circle cx="0" cy="-13" r="4.4" fill="'+'@C@'+'"/><circle cx="0" cy="-8" r="3" fill="#ffe58a"/><path d="M0,-4 L0,0" stroke="#6da45f" stroke-width="2.4"/><path d="M-9,-2 L9,-2 L7,12 L-7,12 Z" fill="#d08a6a"/><rect x="-10" y="-5" width="20" height="5" rx="2.5" fill="#c07a5a"/>',
+    bucket:'<path d="M-9,-4 L9,-4 L7,12 L-7,12 Z" fill="#b9c4cc"/><path d="M-9,-4 L9,-4" stroke="#98a5ae" stroke-width="3"/><path d="M-7,-4 C-7,-12 7,-12 7,-4" fill="none" stroke="#98a5ae" stroke-width="2"/>'
+  }[kind]||'<circle r="10" fill="'+c+'"/>';
+  ART_LIB[kind]=D;
+  D=D.split("@C@").join(c);       /* 允许个别图形用自己的颜色 */
+  /* viewBox 留出足够余量，避免花、萝卜、水壶等图形被裁掉 */
+  return '<svg viewBox="-22 -22 44 44" width="'+s+'" height="'+s+'" aria-hidden="true" style="display:block;overflow:visible;max-width:100%;height:auto">'+D+'</svg>';
+}
+
+/* =====================================================================
+   10. 玩法（全部为 3 岁可完成的任务型，不含认字/算式）
+   ===================================================================== */
+var MINI={};
+
+/* ---------- 10.1 浇水：按顺序给每盆花浇水 ---------- */
+MINI.water=function(){
+  var n = S.diff==="easy"?3:(S.diff==="mid"?4:5);
+  var cur=0, seq=[];            // seq 里存每盆花的花色
+  var cols=["#f7a5ad","#f6d365","#b9a5f7","#f78fb3","#8fd0e8"];
+  seq=cols.slice(0,n);
+  var step=0;                   // 0 浇水 1 开花结果
+
+  function render(){
+    var g=boardEl(); if(!g) return; g.innerHTML="";
+    g.innerHTML='<div style="display:flex;justify-content:center">'+art(step===0?"can":"bloom",60,{c:"#f7a5ad"})+'</div>'+
+      '<div class="hintline" id="wHint">'+(step===0? "点一点小花，给它浇浇水" : "花开了，真好看")+'</div>';
+    var grid=document.createElement("div"); grid.className="plots";
+    grid.style.gridTemplateColumns="repeat("+Math.min(n,3)+",1fr)";
+    seq.forEach(function(c,i){
+      var d=document.createElement("button");
+      d.className="plot"+(i<cur?" wet":"");
+      d.innerHTML=art(i<cur? "bloom" : "thirsty", 46, {c:c});
+      var cap=document.createElement("div"); cap.className="cap";
+      cap.textContent = i<cur? (step===0?"喝饱了":"开花了") : "还没浇";
+      d.appendChild(cap);
+      if(i===cur && step===0){
+        d.style.borderColor="#7fb6e0"; d.style.background="#eef7fd";
+        d.onclick=function(){ water(i,c); };
+      }
+      grid.appendChild(d);
+    });
+    g.appendChild(grid);
+    paintScore(cur,seq.length);
+  }
+  function water(i,c){
+    cur++; Sound.blip("ok"); render();
+    if(cur<seq.length){
+      guide(pickPhrase(["真棒，再浇下一盆。","这一盆也喝饱啦。","好厉害，还有几盆呢。"]),{rate:0.95});
+    }else{
+      step=1; render();
+      Sound.blip("good");
+      finish("花都开了，你帮了大忙，谢谢你。");
+      var btn=document.getElementById("againBtn"); if(btn) btn.textContent="再浇一次";
+    }
+  }
+  function hint(){
+    var g=boardEl(); if(!g) return;
+    var ps=g.querySelectorAll(".plot");
+    if(ps[cur]){ ps[cur].style.boxShadow="0 0 0 5px #f0a832"; setTimeout(function(){ if(ps[cur]) ps[cur].style.boxShadow=""; },1600); }
+    guide("点一亮一亮的这一盆。");
+  }
+  render();
+  return {hint:hint};
+};
+
+/* ---------- 10.2 收获：把所有萝卜拔出来（手眼协调 + 数数） ---------- */
+MINI.harvest=function(){
+  var n = S.diff==="easy"?4:(S.diff==="mid"?6:8);
+  var left=n;
+  function render(){
+    var g=boardEl(); if(!g) return; g.innerHTML="";
+    g.innerHTML='<div style="display:flex;justify-content:center">'+art("carrot",54)+'</div>'+
+      '<div class="hintline">还有 <b style="color:#e0832c">'+left+'</b> 个，点一点拔出来</div>';
+    var grid=document.createElement("div"); grid.className="plots";
+    grid.style.gridTemplateColumns="repeat(4,1fr)";
+    for(var i=0;i<n;i++){
+      var d=document.createElement("button");
+      d.className="plot"+(i<n-left?" grown":"");
+      d.style.minHeight="62px";
+      if(i<n-left){ d.innerHTML=art("sprout",26); d.style.opacity=".45"; d.disabled=true; }
+      else {
+        d.innerHTML=art("carrot",40);
+        (function(d){
+          d.onclick=function(){
+            left--; Sound.blip("pop"); render();
+            if(left===0){
+              Sound.blip("good");
+              finish("全部拔出来啦，可以拿去做萝卜汤了。");
+              var b=document.getElementById("againBtn"); if(b) b.textContent="再摘一次";
+            }
+          };
+        })(d);
+      }
+      grid.appendChild(d);
+    }
+    g.appendChild(grid);
+    paintScore(n-left,n);
+  }
+  function hint(){
+    var g=boardEl(); if(!g) return;
+    var ps=[].filter.call(g.querySelectorAll(".plot"),function(x){return !x.disabled;});
+    if(ps[0]){ ps[0].style.boxShadow="0 0 0 5px #f0a832"; setTimeout(function(){ if(ps[0]) ps[0].style.boxShadow=""; },1600); }
+    guide("点还没拔出来的。");
+  }
+  render();
+  return {hint:hint};
+};
+
+/* ---------- 10.3 排队：按从小到大排好（大小比较） ---------- */
+MINI.sort=function(){
+  /* 三个身高差别明显的小朋友（矮 / 中 / 高），按从矮到高排进队里 */
+  var n = S.diff==="easy"?3:3;
+  var KIDS=[
+    {k:"kid3", h:52, name:"小小"},
+    {k:"kid2", h:72, name:"中中"},
+    {k:"kid1", h:94, name:"大大"}
+  ];
+  var chosen = KIDS.slice(0, n);
+  var ans = chosen.slice();                      /* 已经是矮→高 */
+  var pool = shuffle(chosen.slice());
+  var placed = [];
+
+  /* 画小朋友：底部对齐，高度决定大小，一眼看出谁高 */
+  function kidSvg(k, h){
+    /* 确保图形字典已生成 */
+    if(!ART_LIB[k]) art(k,40);
+    /* 用统一的 36 单位视口，只改宽高：图形等比放大，不会被裁头 */
+    var size = Math.round(h*1.55);
+    return '<div style="display:flex;align-items:flex-end;justify-content:center">'+
+             '<svg viewBox="-18 -18 36 36" width="'+size+'" height="'+size+'" style="display:block;overflow:visible;flex:0 0 auto">'+
+               ART_LIB[k] +
+             '</svg>'+
+           '</div>';
+  }
+
+  function render(){
+    var g=boardEl(); if(!g) return; g.innerHTML="";
+    g.innerHTML='<div class="hintline">从矮到高，一个一个点</div>';
+
+    /* 队列：左边是起点（矮），右边越来越高 */
+    var slots=document.createElement("div"); slots.className="sortqueue";
+    for(var i=0;i<n;i++){
+      var cell=document.createElement("div");
+      cell.className="qcell"+(placed[i]?" filled":"");
+      if(placed[i]) cell.innerHTML=kidSvg(placed[i].k, placed[i].h);
+      else cell.innerHTML='<span class="qnum">'+(i+1)+'</span>';
+      slots.appendChild(cell);
+    }
+    g.appendChild(slots);
+
+    /* 身高刻度参考 */
+    var ruler=document.createElement("div"); ruler.className="ruler";
+    ruler.innerHTML='<span>矮</span><i></i><span>高</span>';
+    g.appendChild(ruler);
+
+    var row=document.createElement("div"); row.className="sortrow";
+    pool.forEach(function(it){
+      if(it.used) return;
+      var d=document.createElement("button"); d.className="sitem";
+      d.style.width="88px"; d.style.height="118px"; d.style.alignItems="flex-end";
+      d.innerHTML=kidSvg(it.k, it.h);
+      d.onclick=function(){ pick(it,d); };
+      row.appendChild(d);
+    });
+    g.appendChild(row);
+    paintScore(placed.length,n);
+  }
+
+  function pick(it,dom){
+    var idx=placed.length;
+    if(it===ans[idx]){
+      it.used=true; placed.push(it); Sound.blip("ok"); render();
+      if(placed.length===n){
+        Sound.blip("good");
+        finish("排好啦！一个比一个高，真整齐。");
+        var b=document.getElementById("againBtn"); if(b) b.textContent="再排一次";
+      }else{
+        guide(pickPhrase(["对，把它放进来。","接着找高一点的。","很好，再看下一个。"]),{rate:0.95});
+      }
+    }else{
+      Sound.blip("soft");
+      if(dom){ dom.classList.add("no"); setTimeout(function(){ dom.classList.remove("no"); },420); }
+      guide("先点最矮的那个，它会排在第一个。",{rate:0.95});
+    }
+  }
+
+  function hint(){
+    var want=ans[placed.length];
+    if(!want){ return; }
+    guide("找一找，哪一个最矮？");
+    var g=boardEl(); if(!g) return;
+    var found=null;
+    [].forEach.call(g.querySelectorAll(".sortrow .sitem"),function(btn){
+      if(btn.querySelector('svg') && +btn.querySelector('svg').getAttribute("width")===Math.round(94*want.h/94)) found=btn;
+    });
+    /* 用高度匹配更稳：直接找 svg 高度等于目标高度的按钮 */
+    [].forEach.call(g.querySelectorAll(".sortrow .sitem"),function(btn){
+      var sv=btn.querySelector("svg");
+      if(sv && Math.abs(+sv.getAttribute("height") - Math.round(94*want.h/94))<3) found=btn;
+    });
+    if(found){ found.style.boxShadow="0 0 0 5px #f0a832"; setTimeout(function(){ if(found) found.style.boxShadow=""; },1800); }
+  }
+  render();
+  return {hint:hint};
+};
+
+/* ---------- 10.4 找一样：从四张图里找出和样板一样的 ---------- */
+MINI.same=function(){
+  var pool=["apple","orange","pear","banana","berry","flower","pill","bottle","plaster","ball","book","leaf"];
+  var round=0, total=S.diff==="easy"?3:(S.diff==="mid"?4:5);
+  var target=null, opts=[];
+
+  function next(){
+    target=pickPhrase(pool);
+    var others=shuffle(pool.filter(function(x){return x!==target;})).slice(0,3);
+    opts=shuffle([target].concat(others));
+    render();
+  }
+  function render(){
+    var g=boardEl(); if(!g) return; g.innerHTML="";
+    g.innerHTML='<div style="text-align:center;font-size:13px;color:#7c8b80">找出和这个一样的</div>'+
+      '<div style="display:flex;justify-content:center;margin:4px 0 6px">'+
+        '<div id="sameTarget" data-k="'+target+'" style="background:#f4f9f2;border-radius:20px;padding:8px">'+art(target,56)+'</div></div>';
+    var grid=document.createElement("div"); grid.className="find";
+    grid.style.gridTemplateColumns="repeat(2,1fr)";
+    opts.forEach(function(k){
+      var d=document.createElement("button"); d.className="card"; d.dataset.k=k;
+      d.innerHTML=art(k,76);
+      d.onclick=function(){ choose(k,d); };
+      grid.appendChild(d);
+    });
+    g.appendChild(grid);
+    paintScore(round,total);
+  }
+  var locked=false;
+  function choose(k,el){
+    if(locked||gameDone) return;
+    if(k===target){
+      locked=true;
+      el.classList.add("yes"); Sound.blip("ok"); round++;
+      if(round>=total){
+        paintScore(round,total);       /* 先把分数刷成 4/4 再收尾 */
+        Sound.blip("good");
+        finish("都找对啦，眼睛真亮。");
+        var b=document.getElementById("againBtn"); if(b) b.textContent="再找一次";
+        return;
+      }
+      guide("找对啦。");
+      setTimeout(function(){ locked=false; next(); },700);
+    }else{
+      el.classList.add("no"); Sound.blip("soft");
+      setTimeout(function(){ el.classList.remove("no"); },340);
+      guide("这两个不一样，再仔细看看。");
+    }
+  }
+  function hint(){
+    var g=boardEl(); if(!g) return;
+    var cs=g.querySelectorAll(".find .card");
+    for(var i=0;i<cs.length;i++){
+      if(cs[i].innerHTML.indexOf(art(target,58))>=0){ cs[i].style.boxShadow="0 0 0 5px #f0a832"; setTimeout(function(){ cs[i].style.boxShadow=""; },1700); break; }
+    }
+    guide("和上面那张图一样的，就是它。");
+  }
+  next();
+  return {hint:hint};
+};
+
+/* ---------- 10.5 分类：一样的放同一个筐 ---------- */
+MINI.basket=function(){
+  var kinds=[
+    {id:"apple", name:"苹果筐", k:"apple"},
+    {id:"orange",name:"橘子筐", k:"orange"},
+    {id:"pear",  name:"梨筐",   k:"pear"}
+  ].slice(0, S.diff==="easy"?2:3);
+  var total=S.diff==="easy"?4:6;
+  var queue=[], idx=0, right=0;
+
+  function makeQueue(){
+    var q=[];
+    for(var i=0;i<total;i++) q.push(kinds[i%kinds.length]);
+    return shuffle(q);
+  }
+  queue=makeQueue();
+
+  function render(){
+    var g=boardEl(); if(!g) return; g.innerHTML="";
+    var it=queue[idx];
+    if(!it){
+      g.innerHTML='<div style="display:flex;justify-content:center">'+art("basket",64)+'</div>'+
+        '<div class="hintline">都放好啦</div>';
+      return;
+    }
+    g.innerHTML='<div style="text-align:center;font-size:13px;color:#7c8b80">它该放哪个筐？</div>'+
+      '<div id="basketItem" data-k="'+it.id+'" style="display:flex;justify-content:center;margin:8px 0">'+art(it.k,64)+'</div>';
+    var row=document.createElement("div"); row.className="trash";
+    row.style.cssText="display:flex;gap:10px;align-items:flex-end";
+    kinds.forEach(function(kd){
+      var d=document.createElement("button");
+      d.className="plot"; d.dataset.id=kd.id;
+      d.style.minHeight="132px"; d.style.background="#fff"; d.style.flex="1";
+      d.innerHTML='<div style="font-size:0;line-height:0;margin-top:2px">'+art(kd.k,64)+'</div>'+
+                  '<div style="margin-top:2px;font-size:0;line-height:0;opacity:.9">'+art("basket",30)+'</div>'+
+                  '<div class="cap" style="position:static;margin-top:4px;color:#5f564a;font-size:12.5px;font-weight:600">'+kd.name+'</div>';
+      d.onclick=function(){ put(kd,d); };
+      row.appendChild(d);
+    });
+    g.appendChild(row);
+    paintScore(right,total);
+  }
+  function put(kd,el){
+    var it=queue[idx];
+    if(kd.id===it.id){
+      right++; idx++; Sound.blip("ok");
+      if(idx>=queue.length){
+        paintScore(right,total);          /* 先刷成 6/6 */
+        Sound.blip("good");
+        finish("水果都分开装好啦，超市可以开门了。");
+        var b=document.getElementById("againBtn"); if(b) b.textContent="再搬一次";
+      }
+      render();
+    }else{
+      el.style.background="#fbe4e0"; Sound.blip("soft");
+      setTimeout(function(){ el.style.background="#fff"; },420);
+      guide("这个不是它的筐，再想想。");
+    }
+  }
+  function hint(){
+    var it=queue[idx]; if(!it) return;
+    var kd=kinds.filter(function(x){return x.id===it.id;})[0];
+    guide("把它放进"+kd.name+"。");
+  }
+  render();
+  return {hint:hint};
+};
+
+/* ---------- 10.6 铺路：把路接通（空间路径引导） ---------- */
+MINI.path=function(){
+  /* 7x5 网格，左中出发，右上终点；中间有断点，点亮空格铺路 */
+  var cols=S.diff==="easy"?5:7, rows=S.diff==="easy"?3:5;
+  var start=[Math.floor(rows/2),0], goal=[0,cols-1];
+  var grid=[];
+  for(var r=0;r<rows;r++){ grid.push([]); for(var c=0;c<cols;c++) grid[r].push("block"); }
+  /* 正确的路：先右到底，再上到顶（形成 L 形，容易看懂） */
+  var path=[];
+  for(var c2=0;c2<cols;c2++) path.push([start[0],c2]);
+  for(var r2=start[0]-1;r2>=0;r2--) path.push([r2,cols-1]);
+  path.forEach(function(p){ grid[p[0]][p[1]]="path"; });
+
+  /* 随机挖断几个格子，让小朋友补回来 */
+  var holes = S.diff==="easy"?2:(S.diff==="mid"?3:4);
+  var inner=path.slice(1,path.length-1);
+  shuffle(inner).slice(0,holes).forEach(function(p){ grid[p[0]][p[1]]="hole"; });
+
+  var pos={r:start[0],c:start[1]};
+  var filled=0, need=inner.filter(function(p){return grid[p[0]][p[1]]==="hole";}).length;
+
+  function reachable(from,to){
+    var seen={}, q=[from];
+    seen[from.r+","+from.c]=1;
+    while(q.length){
+      var cur=q.shift();
+      if(cur.r===to.r&&cur.c===to.c) return true;
+      [[1,0],[-1,0],[0,1],[0,-1]].forEach(function(d){
+        var nr=cur.r+d[0], nc=cur.c+d[1];
+        if(nr<0||nc<0||nr>=rows||nc>=cols) return;
+        if(grid[nr][nc]==="block") return;
+        var key=nr+","+nc;
+        if(seen[key]) return;
+        seen[key]=1; q.push({r:nr,c:nc});
+      });
+    }
+    return false;
+  }
+
+  function render(){
+    var g=boardEl(); if(!g) return; g.innerHTML="";
+    g.innerHTML='<div class="hintline" id="pHint">点亮空格，把路接到'+(curBuilding&&curBuilding.id==="park"?"大树":"消防站")+'</div>';
+    var m=document.createElement("div"); m.className="map-grid";
+    m.style.gridTemplateColumns="repeat("+cols+",1fr)";
+    for(var r=0;r<rows;r++){
+      for(var c=0;c<cols;c++){
+        var cell=document.createElement("div");
+        var st=grid[r][c];
+        cell.className="tg"+(st==="block"?" block":(st==="path"?" path":(st==="hole"?" hole":"")));
+        if(r===goal[0]&&c===goal[1]){ cell.classList.add("target"); cell.innerHTML=art(curBuilding&&curBuilding.id==="park"?"tree":"truck",30); }
+        else if(st==="path") cell.innerHTML='<div style="width:100%;height:100%;border-radius:9px;background:#f6d98a"></div>';
+        else if(st==="hole") cell.innerHTML='<div style="width:100%;height:100%;border-radius:9px;background:#fff3d4"></div>';
+        if(r===pos.r&&c===pos.c){ cell.classList.add("me"); cell.innerHTML=art("girl",30); }
+        (function(r,c,st,cell){
+          if(st==="hole") cell.onclick=function(){ fillHole(r,c,cell); };
+        })(r,c,st,cell);
+        m.appendChild(cell);
+      }
+    }
+    g.appendChild(m);
+    paintScore(filled,need);
+  }
+  function fillHole(r,c,cell){
+    grid[r][c]="path"; filled++; Sound.blip("ok");
+    /* 铺好后自动往前走一步 */
+    if(filled>=need){
+      render();
+      Sound.blip("good");
+      finish("路接通啦，可以走过去喽。");
+      var b=document.getElementById("againBtn"); if(b) b.textContent="再铺一次";
+    }else{
+      render();
+      guide("这一段接上了，继续往前。");
+    }
+  }
+  function hint(){
+    var g=boardEl(); if(!g) return;
+    var cs=g.querySelectorAll(".map-grid .tg");
+    for(var i=0;i<cs.length;i++){
+      if(cs[i].style.background==="rgb(255, 253, 243)"){
+        cs[i].style.boxShadow="0 0 0 4px #f0a832";
+        setTimeout(function(){ cs[i].style.boxShadow=""; },1700);
+        break;
+      }
+    }
+    guide("点亮空着的那一格，路就接上了。");
+  }
+  render();
+  return {hint:hint};
+};
+
+/* ---------- 10.7 种地：挖坑 → 放种子 → 浇水（三步任务） ---------- */
+MINI.plant=function(){
+  var n = S.diff==="easy"?1:(S.diff==="mid"?2:3);
+  var plots=[];   /* 0 空地 1 挖好坑 2 放了种子 3 发芽 */
+  for(var i=0;i<n;i++) plots.push(0);
+  var active=0;
+  var STAGE=["点铲子，先挖个小坑","放进一颗小种子","浇一点水，等它发芽"];
+  var TOOLS=["shovel","seed","can"];
+  var NAMES=["小铲子","种子","水壶"];
+
+  function soilSvg(stage){
+    /* 一块土垄：底色土黄 + 细纹，中间按阶段画坑/种子/苗 */
+    /* 先确保图形字典就绪 */
+    if(!ART_LIB.seed) art("seed",20);
+    if(!ART_LIB.sprout) art("sprout",20);
+    var inner="";
+    if(stage===0) inner='<ellipse cx="0" cy="2" rx="8" ry="3.6" fill="#b08a5e" opacity=".38"/>';
+    if(stage===1) inner='<ellipse cx="0" cy="2" rx="11" ry="5.6" fill="#8f7048"/>'+
+                        '<ellipse cx="0" cy="0.6" rx="8" ry="3.8" fill="#6f5638"/>';
+    if(stage===2) inner='<ellipse cx="0" cy="2" rx="11" ry="5.6" fill="#8f7048"/>'+
+                        '<g transform="translate(0,-5) scale(.62)">'+ART_LIB.seed+'</g>';
+    if(stage===3) inner='<g transform="translate(0,-4) scale(.9)">'+ART_LIB.sprout+'</g>';
+    return '<svg viewBox="-26 -16 52 34" width="100%" height="70" preserveAspectRatio="xMidYMid meet" style="display:block;overflow:visible;max-width:100%;height:auto">'+
+             /* 土垄：一块略立体的褐色土台 */
+             '<path d="M-23,8 C-23,1 23,1 23,8 L23,12 C23,19 -23,19 -23,12 Z" fill="#b18f63"/>'+
+             '<ellipse cx="0" cy="8" rx="23" ry="7.2" fill="#cBa87b"/>'+
+             '<ellipse cx="0" cy="7" rx="19.5" ry="5.6" fill="#d6b98d"/>'+
+             /* 小土粒 */
+             '<circle cx="-13" cy="6" r="1.3" fill="#c0a071" opacity=".8"/>'+
+             '<circle cx="11" cy="8.4" r="1.1" fill="#c0a071" opacity=".8"/>'+
+             '<circle cx="7" cy="4.6" r="1" fill="#c0a071" opacity=".7"/>'+
+             '<circle cx="-8" cy="9.2" r="1" fill="#c0a071" opacity=".7"/>'+
+             inner+
+           '</svg>';
+  }
+
+  function render(){
+    var g=boardEl(); if(!g) return; g.innerHTML="";
+    var st=(active<n)?(plots[active]||0):3;
+    var line=(active<n)?(STAGE[st]||STAGE[0]):"全都发芽啦，真棒";
+    g.innerHTML='<div class="hintline" style="font-size:14px;color:#5d7a66;font-weight:600">'+line+'</div>';
+    var row=document.createElement("div"); row.className="plots";
+    row.style.gridTemplateColumns="repeat("+n+",1fr)";
+    plots.forEach(function(stage,i){
+      var d=document.createElement("button");
+      d.className="plot"+(stage===3?" grown":"");
+      d.style.padding="4px";
+      d.style.minHeight="80px";
+      d.innerHTML=soilSvg(stage);
+      if(i===active && !ended){
+        d.style.borderColor="#f0c25a"; d.style.background="#fffdf3";
+        d.onclick=function(){ advance(); };
+      }
+      row.appendChild(d);
+    });
+    g.appendChild(row);
+
+    /* 三个工具：该用的那个亮起来，并带一句名字 */
+    var tools=document.createElement("div");
+    tools.style.cssText="display:flex;justify-content:center;gap:12px;margin-top:10px";
+    TOOLS.forEach(function(k,i){
+      var wrap=document.createElement("div");
+      wrap.style.cssText="text-align:center";
+      var b=document.createElement("div");
+      var on=(i===Math.min(st,2));
+      b.style.cssText="width:60px;height:60px;border-radius:16px;display:grid;place-items:center;border:2px solid "+
+        (on?"#f0c25a":"#ece3d2")+";background:"+(on?"#fff6e4":"#fff")+";"+
+        (on?"box-shadow:0 4px 10px rgba(240,194,90,.35);":"opacity:.4;");
+      b.innerHTML=art(k,34);
+      var lb=document.createElement("div");
+      lb.style.cssText="font-size:11px;color:"+(on?"#a3792a":"#a9a49a")+";margin-top:3px";
+      lb.textContent=NAMES[i];
+      wrap.appendChild(b); wrap.appendChild(lb);
+      tools.appendChild(wrap);
+    });
+    g.appendChild(tools);
+    paintScore(plots.filter(function(x){return x===3;}).length,n);
+  }
+
+  var ended=false;
+  function advance(){
+    if(ended) return;
+    plots[active]++;
+    Sound.blip("ok");
+    if(plots[active]<3){
+      render();
+      guide(pickPhrase(["对，就这样。","下一步啦。","很好。"]),{rate:0.95});
+      return;
+    }
+    if(active>=n-1){
+      active=n;                   /* 全部完成：让 render 走「全部发芽」分支 */
+      ended=true;                 /* 并锁住，避免重复触发 */
+      render();
+      Sound.blip("good");
+      finish("种子发芽啦，过几天就会长大。");
+      var b=document.getElementById("againBtn"); if(b) b.textContent="再种一次";
+    }else{
+      active++;
+      render();
+      guide("这块长出来了，去种下一块。",{rate:0.95});
+    }
+  }
+
+  function hint(){
+    if(active>=n) return;
+    var st=plots[active]||0;
+    guide("现在要用"+NAMES[st]+"。");
+    var g=boardEl(); if(!g) return;
+    var the=null;
+    [].forEach.call(g.querySelectorAll("button.plot"),function(p,i){ if(i===active) the=p; });
+    if(the){ the.style.boxShadow="0 0 0 5px #f0a832"; setTimeout(function(){ if(the) the.style.boxShadow=""; },1800); }
+  }
+  render();
+  return {hint:hint};
+};
+
+/* =====================================================================
+   11. 面板
+   ===================================================================== */
+function paintHud(){
+  var v=0; BUILDINGS.forEach(function(b){ if(S.visited[b.id]) v++; });
+  document.getElementById("pillStar").innerHTML=ico("star",15,"#f0a832")+"<em style='font-style:normal'>"+S.stars+"</em>";
+  document.getElementById("pillVisit").innerHTML=ico("pin",15,"#4f9e6b")+"<em style='font-style:normal'>"+v+"/"+BUILDINGS.length+"</em>";
+  BUILDINGS.forEach(function(b){
+    var bd=document.getElementById("badge-"+b.id);
+    if(bd) bd.hidden=!(S.visited[b.id]&&!S.cleared[b.id]);
+  });
+  paintSoundBtn();
+}
+
+function openPlaces(){
+  var html='<h2>去哪里</h2><p class="sub">点一下就到门口，再进屋玩。</p><div class="list">';
+  BUILDINGS.forEach(function(b){
+    var v=S.visited[b.id], c=S.cleared[b.id];
+    html+='<div class="li '+(v?"":"locked")+'">'+
+      '<div class="ic">'+ico(SIGN[b.ico]?"star":"star",20,"#c8bfae")+'</div>'+
+      '<div class="tx"><b>'+b.name+'</b> '+(c?'<span style="color:#f0a832">★</span>':'')+
+      '<p>'+(v?b.inside:"还没去过")+'</p></div>'+
+      '<button class="go" onclick="goFromList(\''+b.id+'\')">'+(v?"再去":"去")+'</button></div>';
+  });
+  html+='</div><div class="row" style="margin-top:14px"><button class="btn primary" onclick="closeSheet()">继续逛</button></div>';
+  openSheet(html);
+  setTimeout(function(){
+    var ics=document.querySelectorAll("#sheet .li .ic");
+    BUILDINGS.forEach(function(b,i){ if(ics[i]) ics[i].innerHTML=art(mapArtKey(b),26); });
+  },0);
+}
+function mapArtKey(b){
+  return {home:"apple",gong:"carrot",nai:"flower",kg:"kid1",fire:"truck",hosp:"cross",mall:"apple",park:"tree",farm:"sprout",lib:"book"}[b.id]||"star";
+}
+function goFromList(id){
+  var b=BUILDINGS.filter(function(x){return x.id===id})[0];
+  heroPose.x=b.x; heroPose.y=b.y+b.h/2+34;
+  S.hero={x:heroPose.x,y:heroPose.y}; save(); drawHero();
+  closeSheet();
+  setTimeout(function(){ enter(id); },240);
+}
+
+function openBook(){
+  var total=0; BUILDINGS.forEach(function(b){ if(S.cleared[b.id]) total++; });
+  var html='<h2>小镇图鉴</h2><p class="sub">走过的地方会留下脚印，玩过的地方会开出一朵花。<br>已经开了 <b>'+total+'</b> / '+BUILDINGS.length+' 朵。</p><div class="list">';
+  BUILDINGS.forEach(function(b){
+    var c=S.cleared[b.id]||0;
+    var cols=["#f7a5ad","#f6d365","#b9a5f7","#f78fb3","#8fd0e8"];
+    var ci=BUILDINGS.indexOf(b)%cols.length;
+    html+='<div class="li '+(c?"":"locked")+'">'+
+      '<div class="ic">'+(c?art("flower",28,{c:cols[ci]}):art("seed",24))+'</div>'+
+      '<div class="tx"><b>'+b.name+'</b><p>'+(c?("玩过 "+c+" 次 · "+SKILLS[b.game]):"还没玩过")+'</p></div></div>';
+  });
+  html+='</div><div class="note">小花只是记录你玩过什么，不比谁多。今天不玩，花也不会谢。</div>';
+  html+='<div class="row" style="margin-top:12px"><button class="btn" onclick="resetAll()">清空记录</button><button class="btn primary" onclick="closeSheet()">关上</button></div>';
+  openSheet(html);
+}
+function resetAll(){
+  if(!confirm("清空小镇记录？小花和小星星都会消失。")) return;
+  try{ localStorage.removeItem(KEY); }catch(e){}
+  S={stars:0,visited:{},cleared:{},diff:"mid",hero:{x:985,y:772},flowers:{},sound:true,voice:true,silent:{}};
+  heroPose.x=985; heroPose.y=772; drawHero(); paintHud(); closeSheet(); toast("小镇又变成新的啦");
+}
+
+function openHelp(){
+  var html='<h2>给大人看</h2>'+
+    '<p class="sub">澄澄的小镇是给 3 岁左右孩子玩的探索游戏：走一走、点一点，帮镇上的人做一件小事。</p>'+
+    '<div class="kv"><span>操作</span><span>电脑：方向键 / WASD；手机：左下摇杆；也可以点地面走</span></div>'+
+    '<div class="kv"><span>进屋</span><span>走到房子门口点一下房子</span></div>'+
+    '<div class="kv"><span>难度</span><span>小班 / 中班 / 大班，只影响任务数量，不影响规则</span></div>'+
+    '<div class="kv"><span>背景音乐</span><span>右上角喇叭按钮可以打开或关掉</span></div>'+
+    '<div class="kv"><span>语音讲解</span><span>每进一个地方会念一句引导语，说来话长时可以点「帮帮我」再听一遍</span></div>'+
+    '<div class="kv"><span>小镇居民</span><span>街上有人自己走来走去，点他们会说话；头上冒苹果说明饿了</span></div>'+
+    '<div class="kv"><span>做新朋友</span><span>顶栏「笑脸」按钮，可以给新朋友起名字、挑发型和衣服，最多 3 个</span></div>'+
+    '<div class="kv"><span>星星与商店</span><span>完成一个地方第一次给 3 颗星，重复玩给 1 颗；星星能换东西送给居民</span></div>'+
+    '<div class="note"><b>每个地方在练什么</b><br>'+
+      BUILDINGS.map(function(b){ return b.name+"："+SKILLS[b.game]; }).join("<br>")+
+    '</div>'+
+    '<div class="note">没有打卡、没有排行榜、不催上线。玩几分钟就可以关掉，进度只存在这台设备上。<br>'+
+    '本项目全部文字与图形由代码生成，不含任何外部素材。</div>'+
+    '<div class="row" style="margin-top:12px"><button class="btn primary" onclick="closeSheet()">知道啦</button></div>';
+  openSheet(html);
+}
+
+/* 顶栏图标 */
+/* =====================================================================
+   10.8 角色的动作道具（放在图标之前，用 ico/art 都没问题）
+   ---------------------------------------------------------------------
+   · 拿到气球会牵着气球走，拿到风筝会牵着风筝走，风一吹还会飘
+   · 手里的东西用"附在角色身上"的独立小元素，不破坏娃娃本身的画法
+   ===================================================================== */
+var carryEls = [];
+
+/* 澄澄手里牵着的东西 */
+function paintCarry(){
+  carryEls.forEach(function(e){ if (e.parentNode) e.parentNode.removeChild(e); });
+  carryEls = [];
+  if (!(S.bag.balloon > 0)) return;
+  var b = document.createElement("div");
+  b.className = "carry balloon";
+  b.innerHTML = art("balloon", 26);
+  world.appendChild(b);
+  carryEls.push(b);
+}
+/* 跟着主角一起动的东西（气球 / 风筝 / 小旗子）每帧更新，不用定时器 */
+function stepCarry(){
+  carryEls.forEach(function(e){
+    var sw = Math.sin(Date.now() / 900) * 3;
+    e.style.left = (heroPose.x + 22 * heroPose.face + sw) + "px";
+    e.style.top = (heroPose.y - 118) + "px";
+    e.style.zIndex = String(40 + Math.round(heroPose.y / 10));
+  });
+  folkState.forEach(function(n){
+    if (!n.carryEl) return;
+    var s2 = Math.sin(Date.now() / 800 + n.walk) * 2.6;
+    n.carryEl.style.left = (n.x + 20 * (n.face || 1) + s2) + "px";
+    n.carryEl.style.top = (n.y - 116) + "px";
+    n.carryEl.style.zIndex = String(40 + Math.round(n.y / 10));
+  });
+}
+
+/* 某个居民手里牵着的东西（气球 / 风筝） */
+function attachCarry(n){
+  if (n.carryEl && n.carryEl.parentNode) n.carryEl.parentNode.removeChild(n.carryEl);
+  n.carryEl = null;
+  if (!n.carry) return;
+  var d = document.createElement("div");
+  d.className = "carry " + n.carry;
+  d.innerHTML = art(n.carry, n.carry === "kite" ? 30 : 26);
+  world.appendChild(d);
+  n.carryEl = d;
+}
+
+var ICONS={
+  star:'<path d="M0,-9 L2.6,-2.8 L9,-2.6 L4,-1 L5.8,5.2 L0,1.6 L-5.8,5.2 L-4,-1 L-9,-2.6 L-2.6,-2.8 Z" fill="currentColor"/>',
+  home:'<path d="M-9,-1 L0,-9 L9,-1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M-6.5,0 L-6.5,8 L6.5,8 L6.5,0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><rect x="-2" y="3" width="4" height="5" rx="1" fill="currentColor"/>',
+  door:'<rect x="-6" y="-8" width="12" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.9"/><circle cx="3" cy="0" r="1.3" fill="currentColor"/>',
+  shop:'<path d="M-9,-4 L9,-4 L8,8 L-8,8 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M-9,-4 L-6.6,-8.4 L6.6,-8.4 L9,-4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M-3,-4 L-3,8 M3,-4 L3,8" stroke="currentColor" stroke-width="1.4" opacity=".55"/>',
+  bag:'<path d="M-7,-1 L7,-1 L6,8.4 L-6,8.4 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M-3.4,-1 C-3.4,-6 3.4,-6 3.4,-1" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  pin:'<path d="M0,-8 C4,-8 7,-5 7,-1.5 C7,3 0,8 0,8 C0,8 -7,3 -7,-1.5 C-7,-5 -4,-8 0,-8 Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="0" cy="-1.5" r="2.2" fill="currentColor"/>',
+  map:'<path d="M-9,-5 L-3,-7 L3,-5 L9,-7 L9,5 L3,7 L-3,5 L-9,7 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M-3,-7 L-3,5 M3,-5 L3,7" stroke="currentColor" stroke-width="1.3" opacity=".6"/>',
+  book:'<path d="M-9,-6 L-1,-4 L-1,7 L-9,5 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9,-6 L1,-4 L1,7 L9,5 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
+  face:'<circle cx="0" cy="0" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="-3" cy="-2" r="1.05" fill="currentColor"/><circle cx="3" cy="-2" r="1.05" fill="currentColor"/><path d="M-3.2,3 Q0,5.6 3.2,3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M-8,0 C-9.4,-6 -6,-9.4 0,-9.4 C6,-9.4 9.4,-6 8,0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  help:'<circle cx="0" cy="0" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="700" fill="currentColor">?</text>',
+  sound:'<path d="M-8,-4 L-4,-4 L1,-8 L1,8 L-4,4 L-8,4 Z" fill="currentColor"/><path d="M4,-4 C7,-1 7,1 4,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6.5,-6.5 C11,-2 11,2 6.5,6.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+};
+function ico(name,size,color){
+  var d=ICONS[name]||ICONS.star;
+  return '<svg viewBox="-12 -12 24 24" width="'+(size||20)+'" height="'+(size||20)+'" style="color:'+(color||"#4f9e6b")+'" aria-hidden="true">'+d+'</svg>';
+}
+
+/* =====================================================================
+   12. 启动
+   ===================================================================== */
+[].forEach.call(document.querySelectorAll(".tools button"),function(btn){
+  btn.innerHTML=ico(btn.dataset.ico,22,"#5b5548");
+});
+paintSoundBtn();
+
+load();
+/* 已经进过小镇了：从房间里回来时不再重新问一次「开始」 */
+if(S.entered){
+  var _cv=document.getElementById("cover");
+  if(_cv && _cv.parentNode) _cv.parentNode.removeChild(_cv);
+  S.sound=S.sound!==false;
+  setTimeout(function(){ if(S.sound) Sound.start(); }, 400);
+}
+buildMap();
+placeBuildings();
+heroPose.x=S.hero.x||985; heroPose.y=S.hero.y||772;
+resize();
+loadMyFolk(); loadFolk(); placeFolk(); drawFolk();
+paintCarry();
+var c0=camTarget(); cam.x=c0.x; cam.y=c0.y;
+world.style.transform="translate("+cam.x+"px,"+cam.y+"px) scale("+M.scale+")";
+drawHero();
+paintHud();
+requestAnimationFrame(loop);
+
+/* 点「开始」：解锁音频 → 淡入音乐 → 语音欢迎（注意：不能叫 startGame，
+   那是小游戏的开局函数，重名会把这里覆盖掉） */
+function beginTown(){
+  var cover=document.getElementById("cover");
+  if(!cover) return;
+  cover.classList.add("hide");
+  cover.style.pointerEvents="none";
+  cover.setAttribute("aria-hidden","true");
+  setTimeout(function(){
+    cover.style.display="none";
+    if(cover.parentNode) cover.parentNode.removeChild(cover);
+  },520);
+  S.entered=true; save();
+  S.sound=S.sound!==false;
+  if(S.sound) Sound.start();
+  Sound.blip("ok");
+  setTimeout(function(){
+    guide("欢迎来到小镇。用方向键或者摇杆，我们去找澄澄的家人吧。");
+  },300);
+  showTip("用方向键或左下摇杆走一走，走到房子门口点一下就能进屋");
+}
+</script>
+</body>
+</html>

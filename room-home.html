@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>澄澄的家 · 澄澄的小镇</title>
+<link rel="stylesheet" href="room.css">
+</head>
+<body>
+
+<div class="room-wrap">
+  <div class="stage" id="room"></div>
+</div>
+
+<div class="hud">
+  <div class="brand">
+    <h1>澄澄的家</h1>
+    <p>点一点人，听他们说话</p>
+  </div>
+  <div class="tools">
+    <button id="btnBack" title="回小镇" aria-label="回小镇">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 11 L12 4 L20 11"/><path d="M6.5 10 L6.5 19 L17.5 19 L17.5 10"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div class="room-done" id="roomDone">
+  <h2>屋子转完啦</h2>
+  <p>妈妈和奶奶都跟你说过话了，花也浇了。<br>回小镇继续逛吧。</p>
+  <button class="btn primary" onclick="location.href='index.html'">回小镇</button>
+</div>
+
+<div class="cover" id="cover">
+  <div class="box">
+    <div id="coverArt" style="display:flex;justify-content:center;gap:-10px"></div>
+    <h1>澄澄的家</h1>
+    <p>推开门，妈妈在厨房，奶奶在窗边。<br>去跟她们说说话吧。</p>
+    <button class="go" id="goBtn">进屋</button>
+    <div class="small">点「进屋」后会有轻轻的背景音乐</div>
+  </div>
+</div>
+
+<script src="room.js"></script>
+<script>
+/* 封面上的小人 */
+document.getElementById("coverArt").innerHTML =
+  '<div style="margin-right:-14px;opacity:.9;transform:scale(.86) translateY(8px)">' + Room.art("mom",150) + '</div>' +
+  '<div>' + Room.art("girl",168) + '</div>';
+
+document.getElementById("btnBack").onclick = function(){ location.href = "index.html"; };
+
+var room = Room.init({
+  id: "home",
+  name: "澄澄的家",
+  intro: "到家啦。妈妈在厨房，奶奶在窗边坐着，去跟她们说说话吧。",
+  scene: {
+    wall: "#f8ecda", floor: "#e6d2b4", base: "#d6bd9a",
+    items: [
+      /* 左侧大窗（奶奶坐在窗边） */
+      { t: "window", x: 74, y: 30, w: 22, h: 34, c1: "#f2b8bd" },
+      /* 中间墙上的挂画 */
+      { t: "frame", x: 46, y: 20, w: 12, h: 16, c2: "#d9b48f", motif: "heart" },
+      { t: "frame", x: 33, y: 24, w: 8, h: 11, c2: "#c69a72", motif: "sun" },
+      /* 顶灯 */
+      { t: "lamp", x: 16, y: 6, w: 12, h: 16 },
+      /* 沙发 */
+      { t: "sofa", x: 14, y: 68, w: 22, h: 19, c1: "#e9a0b4", c2: "#d98aa0" },
+      /* 茶几（偏左中，给人和地毯留空） */
+      { t: "table", x: 44, y: 78, w: 14, h: 12, c1: "#c69a72", c2: "#a9784f" },
+      /* 地毯（近处，人都站在地毯后面） */
+      { t: "rug", x: 50, y: 90, w: 40, h: 14, c1: "#f0c9a8", c2: "#d9a37c" },
+      /* 右侧书架 */
+      { t: "shelf", x: 90, y: 56, w: 14, h: 22, c1: "#a9784f", c2: "#8f6440" },
+      /* 墙角盆栽 */
+      { t: "plant", x: 8, y: 84, w: 10, h: 18, c1: "#a9c9a0", c2: "#b07a56" }
+    ]
+  },
+  people: [
+    {
+      id: "cheng", name: "澄澄", art: "girl", x: 62, y: 84, size: 150,
+      talk: [
+        "我回来啦！今天在镇上帮了好多人。",
+        "妈妈和奶奶都在家，家里暖暖的。",
+        "等一会儿，我要去别的房子里看看。"
+      ]
+    },
+    {
+      id: "mom", name: "妈妈", art: "mom", x: 26, y: 84,
+      talk: [
+        "回来啦，今天在镇上玩得开心吗？",
+        "锅里在煮汤，等一下就能喝了。",
+        "你帮我把花浇了，真是个好帮手。",
+        "晚上妈妈给你讲一个故事，好不好？"
+      ]
+    },
+    {
+      id: "grandma", name: "奶奶", art: "grandma", x: 86, y: 84,
+      talk: [
+        "哎哟，我的小澄澄回来啦。",
+        "奶奶在织毛衣，你看，是给你织的。",
+        "窗户外面有只小鸟，轻一点，别吓到它。",
+        "过来，奶奶抱一抱。"
+      ]
+    }
+  ],
+  things: [
+    {
+      id: "pot", name: "窗台的花", art: "pot", x: 74, y: 41, size: 76, once: true,
+      doneLine: "花已经浇过啦，开得正好。",
+      act: function(el, say){
+        /* 花盆 + 上面冒出花，叠成一张图 */
+        el.innerHTML =
+          '<svg viewBox="-24 -32 48 50" width="82" height="86" style="display:block;overflow:visible">' +
+            '<g transform="translate(0,-2)">' + Room.art.d.bloom + '</g>' +
+            '<g transform="translate(0,6)">' + Room.art.d.pot + '</g>' +
+          '</svg>';
+        say("你给花浇了水，花瓣慢慢张开了一点。");
+      }
+    },
+    {
+      id: "toys", name: "地上的玩具", art: "toy", x: 36, y: 94, size: 86, once: true,
+      doneLine: "玩具都收好啦，地上干干净净的。",
+      act: function(el, say){
+        el.classList.add("done");
+        el.style.opacity = ".55";
+        say("你把玩具一件一件收进了箱子里，地上变得好干净。");
+      }
+    },
+    {
+      id: "book", name: "书架上的书", art: "book", x: 90, y: 58, size: 74,
+      act: function(el, say){
+        say("书的封面是一只小猫。妈妈晚上会讲这本书。");
+      }
+    }
+  ]
+});
+
+/* 进屋时把音乐和语音解锁 */
+var _go=document.getElementById("goBtn");
+if(_go) _go.addEventListener("click", function(){
+  room.Sound.start();
+}, { once: true });
+</script>
+</body>
+</html>
