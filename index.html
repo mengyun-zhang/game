@@ -84,9 +84,16 @@
     background:linear-gradient(#c9bda4,#e0d6c0);transform:translateX(-50%);
   }
   @keyframes carrySway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
-  .carry.balloon{border:none;background:transparent;padding:0;cursor:pointer;
-    filter:drop-shadow(0 3px 5px rgba(60,80,55,.2))}
-  .carry.balloon:active{transform:scale(1.12)}
+  /* 能放飞的道具：热区比图大，碰到就能点着 */
+  .carry.playable{pointer-events:auto;border:none;background:transparent;cursor:pointer;
+    width:46px;height:52px;padding:8px;margin:-8px;
+    filter:drop-shadow(0 3px 5px rgba(60,80,55,.2));transition:transform .15s}
+  .carry.playable:hover{transform:scale(1.22) rotate(-4deg)}
+  .carry.playable:active{transform:scale(1.32)}
+  .carry.playable:before{content:"放";position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);
+    font-size:10px;line-height:1.4;color:#fffdf8;background:#8fbf6f;border-radius:8px;
+    padding:1px 7px;opacity:0;transition:.18s;pointer-events:none;white-space:nowrap}
+  .carry.playable:hover:before{opacity:1}
 
   /* 放飞的气球 / 泡泡 */
   .fly-layer{position:fixed;inset:0;z-index:48;pointer-events:none}
@@ -672,43 +679,43 @@ var W = 1440, H = 900;
 var BUILDINGS = [
   { id:"home", name:"澄澄的家", ico:"home", x:300, y:200, w:198, h:186, tone:"#f9d2c4", roof:"#e2896d",
     inside:"翻开小卡片，找出一样的两张。", game:"memory", by:"妈妈",
-    hello:"回家啦。妈妈买了小卡片，翻开两张一样的就收起来吧。", skill:"记忆力与观察（记住位置再配对）" },
+    hello:"@K@回家啦。妈妈买了小卡片，翻开两张一样的就收起来吧。", skill:"记忆力与观察（记住位置再配对）" },
 
   { id:"gong", name:"外公外婆家", ico:"windmill", x:700, y:180, w:206, h:196, tone:"#f0dcc0", roof:"#c98b50",
     inside:"帮外公把院子的画拼完整。", game:"puzzle", by:"外公",
-    hello:"外公画了院子，可惜少了几块，帮外公补上好不好？", skill:"观察与整体部分关系（拼图）" },
+    hello:"@K@来啦，外公画了院子，可惜少了几块，帮外公补上好不好？", skill:"观察与整体部分关系（拼图）" },
 
   { id:"nai", name:"爷爷奶奶家", ico:"tea", x:1090, y:186, w:200, h:190, tone:"#e0e4f4", roof:"#8a95c6",
     inside:"帮爷爷浇一浇门口的盆栽。", game:"water", by:"爷爷",
-    hello:"爷爷的盆栽口渴了，一盆一盆浇过去吧。", skill:"顺序与因果" },
+    hello:"@K@来啦，爷爷的盆栽口渴了，一盆一盆浇过去吧。", skill:"顺序与因果" },
 
   { id:"kg", name:"幼儿园", ico:"crayon", x:190, y:520, w:238, h:200, tone:"#ffe4ab", roof:"#f0b23f",
     inside:"把小朋友按大小排队，一起做游戏。", game:"sort", by:"李老师",
-    hello:"小朋友要排队啦，小的站前面，大的站后面。", skill:"大小比较与序列" },
+    hello:"@K@来啦，小朋友要排队啦，小的站前面，大的站后面。", skill:"大小比较与序列" },
 
   { id:"fire", name:"消防站", ico:"bell", x:560, y:520, w:210, h:206, tone:"#f9c1b2", roof:"#d9534f",
     inside:"看看消防器材，找出它的影子。", game:"shadow", by:"消防员叔叔",
-    hello:"消防员叔叔考考你：这个器材的影子是哪一个？", skill:"形状观察与配对（影子）" },
+    hello:"@K@你好呀，消防员叔叔考考你：这个器材的影子是哪一个？", skill:"形状观察与配对（影子）" },
 
   { id:"hosp", name:"医院", ico:"cross", x:930, y:520, w:200, h:200, tone:"#e6f1f7", roof:"#7fb6cb",
     inside:"找出一样的药盒，配成一盒。", game:"same", by:"护士阿姨",
-    hello:"药盒要找一样的，找出两个一样的就配好啦。", skill:"观察与配对" },
+    hello:"@K@来帮忙啦？药盒要找一样的，找出两个一样的就配好啦。", skill:"观察与配对" },
 
   { id:"mall", name:"超市", ico:"apple", x:1300, y:520, w:214, h:200, tone:"#f8e7a8", roof:"#e0a92b",
     inside:"把水果搬进筐里，苹果放苹果筐。", game:"basket", by:"理货员",
-    hello:"水果到货啦，一样的放进同一个筐里。", skill:"分类思维（按属性归组）" },
+    hello:"@K@来得正好，水果到货啦，一样的放进同一个筐里。", skill:"分类思维（按属性归组）" },
 
   { id:"park", name:"小镇公园", ico:"tree", x:300, y:778, w:200, h:168, tone:"#cbe8bd", roof:"#7fb069",
     inside:"把草地上的小路铺好，走到大树下。", game:"path", by:"大树",
-    hello:"小路断了几段，把路接上，就能走到大树下啦。", skill:"空间路径规划" },
+    hello:"@K@，小路断了几段，把路接上，就能走到大树下啦。", skill:"空间路径规划" },
 
   { id:"farm", name:"小镇农场", ico:"sprout", x:760, y:798, w:206, h:168, tone:"#dbeacb", roof:"#87b06a",
     inside:"种下小种子，浇水，等它发芽。", game:"plant", by:"农场阿姨",
-    hello:"地里空空的，先挖坑，再放种子，最后浇水。", skill:"顺序与因果（三步）" },
+    hello:"@K@来啦，地里空空的，先挖坑，再放种子，最后浇水。", skill:"顺序与因果（三步）" },
 
   { id:"lib", name:"小镇图书馆", ico:"book", x:1230, y:778, w:204, h:168, tone:"#e9dcc6", roof:"#a8804f",
     inside:"把书一本一本放回书架。", game:"harvest", by:"管理员",
-    hello:"书要回到架子上，一本一本放回去。", skill:"手眼协调与顺序" }
+    hello:"@K@来啦，书要回到架子上，一本一本放回去。", skill:"手眼协调与顺序" }
 ];
 
 var SKILLS = {
@@ -1773,7 +1780,7 @@ function enter(id){
     '</div>'+
     '<div class="note">'+b.skill+'</div>'
   );
-  guide(b.hello);
+  guide(b.hello.replace(/@K@/g, heroCall()));
   startGame(b.game);
 }
 
@@ -1907,7 +1914,7 @@ function showEnterRoom(b){
   d.innerHTML =
     '<div class="er-box">'+
       '<div class="er-icon">'+ico("home",34,"#4f9e6b")+'</div>'+
-      '<h3>'+rp.label+'的门开着</h3>'+
+      '<h3>'+bLabel(b)+'的门开着</h3>'+
       '<p>'+rp.who+'，<br>要不要进屋看看？</p>'+
       '<button class="er-go" id="erGo">进屋</button>'+
       '<button class="er-later" id="erLater">等会儿</button>'+
@@ -2642,6 +2649,12 @@ function buyItem(id){
   Sound.blip("good");
   toast("买到 " + n + " 个" + it.name + "啦，在背包里");
   Voice.say("买到" + it.name + "啦。");
+  if (id === "balloon" || id === "bubble"){
+    setTimeout(function(){
+      guide("现在" + childCall() + "身上就带着" + it.name + "，碰到它点一下，" +
+        (id === "balloon" ? "气球就飞上天啦" : "泡泡就吹出来啦") + "。");
+    }, 1200);
+  }
   if (document.getElementById("mask") && mask.classList.contains("show")) paintShopSheet();
 }
 
@@ -3594,7 +3607,7 @@ function resetAll(){
 
 function openHelp(){
   var html='<h2>给大人看</h2>'+
-    '<p class="sub">澄澄的小镇是给 3 岁左右孩子玩的探索游戏：走一走、点一点，帮镇上的人做一件小事。</p>'+
+    '<p class="sub">'+townTitle()+'是给 3 岁左右孩子玩的探索游戏：走一走、点一点，帮镇上的人做一件小事。</p>'+
     '<div class="kv"><span>操作</span><span>电脑：方向键 / WASD；手机：左下摇杆；也可以点地面走</span></div>'+
     '<div class="kv"><span>进屋</span><span>走到房子门口点一下房子</span></div>'+
     '<div class="kv"><span>难度</span><span>小班 / 中班 / 大班，只影响任务数量，不影响规则</span></div>'+
@@ -3603,6 +3616,13 @@ function openHelp(){
     '<div class="kv"><span>小镇居民</span><span>街上有人自己走来走去，点他们会说话；头上冒苹果说明饿了</span></div>'+
     '<div class="kv"><span>做新朋友</span><span>顶栏「笑脸」按钮，可以给新朋友起名字、挑发型和衣服，最多 3 个</span></div>'+
     '<div class="kv"><span>星星与商店</span><span>完成一个地方第一次给 3 颗星，重复玩给 1 颗；星星能换东西送给居民</span></div>'+
+    '<div class="kv"><span>改名字</span><span>最多 4 个字，镇上的人都会这么叫，小镇和家的名字也跟着变</span></div>'+
+    '<div class="row" style="gap:8px;margin:6px 0 4px">'+
+      '<input id="renameKid" maxlength="4" placeholder="名字最多 4 个字" value="'+(kidName()||"")+'" '+
+      'style="flex:1;min-width:0;border:1px solid #e3dcc9;border-radius:12px;padding:9px 12px;'+
+      'font-size:16px;letter-spacing:2px;font-family:inherit;background:#fff;text-align:center">'+
+      '<button class="btn primary" onclick="renameKid()" style="flex:0 0 auto">改好</button>'+
+    '</div>'+
     '<div class="note"><b>每个地方在练什么</b><br>'+
       BUILDINGS.map(function(b){ return bLabel(b)+"："+SKILLS[b.game]; }).join("<br>")+
     '</div>'+
@@ -3610,6 +3630,20 @@ function openHelp(){
     '本项目全部文字与图形由代码生成，不含任何外部素材。</div>'+
     '<div class="row" style="margin-top:12px"><button class="btn primary" onclick="closeSheet()">知道啦</button></div>';
   openSheet(html);
+}
+
+/* 大人看这里里改名字：最多 4 个字，改完立刻全站同步 */
+function renameKid(){
+  var inp=document.getElementById("renameKid");
+  if(!inp) return;
+  var nm=(inp.value||"").replace(/\s/g,"").slice(0,4);
+  if(!nm){ toast("写一个字也行呀"); return; }
+  if(nm===kidName()){ toast("还是这个名字"); return; }
+  S.kidName=nm; save();
+  applyNames(); refreshHomeSign(); paintCarry();
+  closeSheet();
+  setTimeout(function(){ toast("以后大家都叫你"+nm+"啦"); },220);
+  guide("以后镇上的人都叫你"+nm+"。");
 }
 
 /* 顶栏图标 */
@@ -3625,22 +3659,32 @@ var carryEls = [];
 function paintCarry(){
   carryEls.forEach(function(e){ if (e.parentNode) e.parentNode.removeChild(e); });
   carryEls = [];
-  if (!(S.bag.balloon > 0)) return;
-  var b = document.createElement("button");
-  b.type = "button";
-  b.className = "carry balloon";
-  b.title = "点一下放气球";
-  b.innerHTML = art("balloon", 34);
-  b.addEventListener("click", function(e){ e.stopPropagation(); playCarry("balloon"); });
-  world.appendChild(b);
-  carryEls.push(b);
+  /* 气球挂在身后，泡泡拿在手上；碰到（pointerdown）就放，不等抬手 */
+  [["balloon","点一下，气球就飞起来"],["bubble","点一下，吹出满屏泡泡"]].forEach(function(it){
+    if (!(S.bag[it[0]] > 0)) return;
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "carry playable " + it[0];
+    b.setAttribute("aria-label", it[1]);
+    b.innerHTML = art(it[0], 34);
+    b.addEventListener("pointerdown", function(e){
+      e.preventDefault(); e.stopPropagation();
+      playCarry(it[0]);
+    });
+    world.appendChild(b);
+    carryEls.push(b);
+  });
 }
 /* 跟着主角一起动的东西（气球 / 风筝 / 小旗子）每帧更新，不用定时器 */
 function stepCarry(){
-  carryEls.forEach(function(e){
-    var sw = Math.sin(Date.now() / 900) * 3;
-    e.style.left = (heroPose.x + 22 * heroPose.face + sw) + "px";
-    e.style.top = (heroPose.y - 118) + "px";
+  /* 身上可能同时有气球和泡泡：
+     气球举高在身后，泡泡拿在手边——都让开脸，别挡着孩子 */
+  var offs = [26, -34];
+  var tops = [128, 62];
+  carryEls.forEach(function(e, i){
+    var sw = Math.sin(Date.now() / 900 + i * 1.4) * 3;
+    e.style.left = (heroPose.x + offs[i % 2] * heroPose.face + sw) + "px";
+    e.style.top = (heroPose.y - tops[i % 2]) + "px";
     e.style.zIndex = String(40 + Math.round(heroPose.y / 10));
   });
   folkState.forEach(function(n){
@@ -3690,7 +3734,11 @@ function scatterSpots(n, cols, rows, padX, padTop, padBottom){
 
 var FLY_COLORS = ["#f78fb3", "#8fd0e8", "#f6d365", "#b9a5f7", "#a9e0b0", "#f7a678", "#f2a3c8"];
 
+var _lastPlay=0;
 function playCarry(id){
+  var now=Date.now();
+  if(now-_lastPlay<700) return;          /* 碰到连点，别一口气全放光 */
+  _lastPlay=now;
   if (!(S.bag[id] > 0)){
     toast(id === "balloon" ? "气球用完了，去商店再换一些" : "泡泡用完了，去商店再换一些");
     Voice.say("用完了，去商店换一些吧。");
@@ -3912,7 +3960,11 @@ function beginTown(){
   if(S.sound) Sound.start();
   Sound.blip("ok");
   setTimeout(function(){
-    guide("欢迎来到" + townTitle() + "。用方向键或者摇杆，我们去找" + childCall() + "的家人吧。");
+    var tip="欢迎来到" + townTitle() + "。用方向键或者摇杆，我们去找" + childCall() + "的家人吧。";
+    if(S.bag.balloon>0 || S.bag.bubble>0){
+      tip += " 身边的小气球点一下就飞起来，泡泡点一下就吹出来。";
+    }
+    guide(tip);
   },300);
   showTip("用方向键或左下摇杆走一走，走到房子门口点一下就能进屋");
 }

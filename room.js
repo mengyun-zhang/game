@@ -626,7 +626,27 @@
    */
   function initRoom(cfg) {
     load();
-    document.title = cfg.name + " · 澄澄的小镇";
+    /* —— 名字个性化：存档里起了名的，屋里屋外都这么叫 —— */
+    var KID = (S.kidName || "").trim() || "澄澄";
+    function P(str){ return String(str == null ? "" : str).replace(/澄澄/g, KID); }
+    cfg.name = P(cfg.name);
+    cfg.intro = P(cfg.intro);
+    (cfg.people || []).forEach(function(pp){
+      pp.name = P(pp.name);
+      pp.talk = (pp.talk || []).map(P);
+      pp.idle = (pp.idle  || []).map(P);
+    });
+    (cfg.things || []).forEach(function(t){
+      if (t.doneLine) t.doneLine = P(t.doneLine);
+      if (t.line) t.line = P(t.line);
+    });
+    document.title = cfg.name + " · " + KID + "的小镇";
+    /* 页面里写死的标题（h1）也一并替换 */
+    try {
+      document.querySelectorAll("h1, .brand p, .cover h1").forEach(function(h){
+        if (h.textContent.indexOf("澄澄") >= 0) h.textContent = P(h.textContent);
+      });
+    } catch (e2) {}
 
     var state = { talked: {}, acted: {}, busy: false };
     var saved = S.rooms[cfg.id] || {};
@@ -665,8 +685,10 @@
     }
     function vy(y) {
       if (view.squeeze === 1) return y;
-      /* 人整体平移，让脚底正好落在 FLOOR_AT 处 */
-      return projY(y) + (FLOOR_AT * 100 - projY(PERSON_BASE_Y));
+      /* 竖屏：脚底就落在场景的地板线上。
+         以前这里把人整体下移到固定 60%，地板实际只有 42%，
+         人就站到了地板下面那块空地上。 */
+      return projY(y);
     }
 
     /* 先把房间的陈设画上去（纯装饰，不可点） */
@@ -701,8 +723,142 @@
       t._el = b;
     });
 
+    /* ===================================================================
+       居民会自己在屋里过日子：走到一个地方 → 歇一会儿、冒一句闲话 →
+       再走到下一个地方。点他说话时会停下来等你，说完继续。
+       每个人有自己的活动范围（roam）和速度，小狗跑得快、范围大。
+       =================================================================== */
+    var npcs = cfg.people.map(function(p){
+      var pos = npcPos(p.x, p.y);
+      return {
+        p: p, el: p._el,
+        x: pos.x, y: pos.y,
+        tx: pos.x, ty: pos.y,
+        wait: 0.3 + Math.random() * 1.1,
+        speed: (p.art === "dog" ? 52 : 22) + Math.random() * 8,   /* px/秒 */
+        face: 1,
+        arrived: true,
+        pause: 0,
+        inner: p._el.querySelector("svg")
+      };
+    });
+    function npcPos(xPct, yPct){
+      var r = stage.getBoundingClientRect();
+      return { x: r.width * vx(xPct) / 100, y: r.height * vy(yPct) / 100 };
+    }
+    /* 目标点别落在桌子 / 消防车 / 柜子这些可点物件上，不然人像站在家具里 */
+    function npcCrowded(x, y){
+      var ths = document.querySelectorAll(".thing");
+      for (var i = 0; i < ths.length; i++){
+        var r = ths[i].getBoundingClientRect();
+        if (x > r.left - 6 && x < r.right + 6 && y > r.top - 4 && y < r.bottom + 8) return true;
+      }
+      /* 背景里画出来的桌椅也要让开（cfg.avoid 里按场景百分比写） */
+      var av = cfg.avoid || [];
+      if (av.length){
+        var st = stage.getBoundingClientRect();
+        for (var k = 0; k < av.length; k++){
+          var a = av[k];
+          var l = st.width * vx(a.x1) / 100, rr = st.width * vx(a.x2) / 100;
+          var tp = st.height * projY(a.y1) / 100, bt = st.height * projY(a.y2) / 100;
+          if (x > l && x < rr && y > tp && y < bt) return true;
+        }
+      }
+      return false;
+    }
+    function npcPickTarget(n){
+      var ro = n.p.roam || { x1: 10, x2: 90, y1: 74, y2: 91 };
+      var best = null, ok = false;
+      for (var k = 0; k < 14; k++){
+        var t = npcPos(ro.x1 + Math.random() * (ro.x2 - ro.x1),
+                       ro.y1 + Math.random() * (ro.y2 - ro.y1));
+        best = t;
+        if (npcCrowded(t.x, t.y)) continue;
+        /* 别站到别人身上：和同伴保持一个身位 */
+        var tooClose = npcs.some(function(m){
+          if (m === n) return false;
+          return Math.hypot(m.tx - t.x, m.ty - t.y) < 110 || Math.hypot(m.x - t.x, m.y - t.y) < 80;
+        });
+        if (!tooClose){ ok = true; break; }
+      }
+      if (!ok){
+        /* 活动区被家具挤满了，就退回区域里偏前的位置，至少别站在桌上 */
+        best = npcPos((ro.x1 + ro.x2) / 2, (ro.y1 + ro.y2) / 2 + (ro.y2 - ro.y1) * 0.4);
+      }
+      n.tx = best.x; n.ty = best.y;
+    }
+    /* 给自动化测试留的观察口（只读，不影响游戏） */
+    try { window.__roomNpcs = npcs; } catch (e3) {}
+
+    function npcSayIdle(n){
+      var lines = n.p.idle;
+      if (!lines || !lines.length) return;
+      var b = n.el.querySelector(".idleb");
+      if (!b){
+        b = document.createElement("span");
+        b.className = "idleb";
+        n.el.appendChild(b);
+      }
+      b.textContent = lines[Math.floor(Math.random() * lines.length)];
+      b.classList.add("show");
+      clearTimeout(n._idleHide);
+      n._idleHide = setTimeout(function(){ b.classList.remove("show"); }, 2800);
+    }
+    function npcTick(dt){
+      var now = Date.now();
+      npcs.forEach(function(n){
+        if (n.pause > 0){
+          n.pause -= dt;
+          if (n.inner) n.inner.style.transform =
+            "scaleX(" + n.face + ") translateY(" + (Math.sin(now / 700) * 1.1).toFixed(2) + "px)";
+        } else {
+          var dx = n.tx - n.x, dy = n.ty - n.y, d = Math.hypot(dx, dy);
+          if (d < 3){
+            /* 到站：站定，常常嘟囔一句，再歇一会儿去下一个地方 */
+            if (!n.arrived){
+              n.arrived = true;
+              if (Math.random() < 0.72) npcSayIdle(n);
+            }
+            n.wait -= dt;
+            if (n.inner) n.inner.style.transform =
+              "scaleX(" + n.face + ") translateY(" + (Math.sin(now / 800 + n.tx) * 1.1).toFixed(2) + "px)";
+            if (n.wait <= 0){ npcPickTarget(n); n.arrived = false; n.wait = 1.8 + Math.random() * 3.2; }
+          } else {
+            var st = n.speed * dt;
+            n.x += dx / d * st;
+            n.y += dy / d * st;
+            if (Math.abs(dx) > 1) n.face = dx > 0 ? 1 : -1;
+            var wk = now / 130 + n.tx * 0.7;
+            if (n.inner) n.inner.style.transform =
+              "scaleX(" + n.face + ") translateY(" + (Math.sin(wk * 2) * 1.8).toFixed(2) +
+              "px) rotate(" + (Math.sin(wk) * 1.6).toFixed(2) + "deg)";
+          }
+        }
+        n.el.style.left = n.x + "px";
+        n.el.style.top = n.y + "px";
+        n.el.style.zIndex = String(5 + Math.round(n.y / 24));
+      });
+    }
+    /* 一进屋就有人念叨一句，屋子里立刻有了人声（不挡玩家操作） */
+    npcs.forEach(function(n, i){
+      setTimeout(function(){ if (!state.busy) npcSayIdle(n); }, 2400 + i * 1600);
+    });
+
+    (function startRoam(){
+      var last = performance.now();
+      function frame(t){
+        var dt = Math.min(0.05, (t - last) / 1000) || 0.016;
+        last = t;
+        npcTick(dt);
+        requestAnimationFrame(frame);
+      }
+      requestAnimationFrame(frame);
+    })();
+
     function clickPerson(p, el) {
       if (state.busy) return;
+      /* 被点到的人停下来，站好说话 */
+      npcs.forEach(function(n){ if (n.p === p){ n.pause = 3.2; } });
       Sound.blip("tap");
       var i = state.talked[p.id] || 0;
       var line = p.talk[i % p.talk.length];
