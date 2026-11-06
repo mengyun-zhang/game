@@ -21,17 +21,27 @@
     S.rooms = S.rooms || {};
     S.folk = S.folk || {};
     S.bag = S.bag || {};
+    S.mathDone = S.mathDone || {};
+    S.pets = S.pets || [];
     if (typeof S.stars !== "number" || S.stars < 0) S.stars = 0;
     if (S.sound === undefined) S.sound = true;
     if (S.voice === undefined) S.voice = true;
+    return S;
   }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 
-  /* ---------------- 背景音乐：五声音阶随机漫步 ---------------- */
+  /* ---------------- 背景音乐：《小镇的早晨》（D 大调五声，3/4 拍） ----------------
+     和主页用同一首：第一拍低音、后两拍轻和声，上面一条八音盒旋律。
+     纯振荡器合成，不带任何音频文件。 */
   var Sound = (function () {
-    var ctx = null, master = null, musicGain = null, timer = null, playing = false, step = 0;
+    var ctx = null, master = null, musicGain = null, lp = null, timer = null, playing = false, step = 0;
     var SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
-    var ROOT = 261.63;
+    var ROOT = 293.66;
+    var BEAT = 470;
+    var MEL = [4,2,0, 2,4,5, 4,2,0, 2,-1,-1,
+               4,2,0, 2,4,7, 5,4,2, 0,-1,-1];
+    var BASS = [0, 5, 0, 7, 0, 5, 7, 0];
+    function fq(semi) { return ROOT * Math.pow(2, semi / 12); }
 
     function ensure() {
       if (ctx) return ctx;
@@ -42,7 +52,12 @@
         master = ctx.createGain(); master.gain.value = 0.5;
         master.connect(ctx.destination);
         musicGain = ctx.createGain(); musicGain.gain.value = 0;
-        musicGain.connect(master);
+        lp = ctx.createBiquadFilter();
+        lp.type = "lowpass"; lp.frequency.value = 2600; lp.Q.value = 0.6;
+        musicGain.connect(lp); lp.connect(master);
+        var dly = ctx.createDelay(0.6), fb = ctx.createGain(), wet = ctx.createGain();
+        dly.delayTime.value = 0.33; fb.gain.value = 0.22; wet.gain.value = 0.2;
+        lp.connect(dly); dly.connect(fb); fb.connect(dly); dly.connect(wet); wet.connect(master);
       } catch (e) { ctx = null; }
       return ctx;
     }
@@ -52,22 +67,25 @@
       o.type = type || "triangle";
       o.frequency.value = f;
       g.gain.setValueAtTime(0, when);
-      g.gain.linearRampToValueAtTime(vol, when + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      g.gain.linearRampToValueAtTime(vol, when + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0002, when + dur);
       o.connect(g); g.connect(musicGain);
       o.start(when); o.stop(when + dur + 0.05);
     }
     function tick() {
       if (!ctx || !playing) return;
-      var now = ctx.currentTime;
+      var t = ctx.currentTime + 0.03;
+      var b = step, bar = Math.floor(b / 3), inBar = b % 3;
+      var m = MEL[b % MEL.length], root = BASS[bar % BASS.length];
+      if (m >= 0) tone(fq(SCALE[m % SCALE.length]), t, 1.75, 0.072, "triangle");
+      if (inBar === 0) {
+        tone(fq(root - 12), t, 2.5, 0.058, "sine");
+      } else {
+        tone(fq(root + 7), t, 1.15, 0.026, "triangle");
+        tone(fq(root + 12), t + 0.02, 1.0, 0.02, "sine");
+      }
+      if (b % 6 === 4) tone(fq(SCALE[7] + 12), t + 0.01, 1.3, 0.026, "sine");
       step++;
-      if (step % 2 === 1) {
-        var semi = SCALE[Math.floor(Math.random() * SCALE.length)];
-        tone(ROOT * Math.pow(2, semi / 12), now, 1.6, 0.075, "triangle");
-      }
-      if (step % 8 === 0) {
-        tone(ROOT / 2 * Math.pow(2, SCALE[Math.floor(Math.random() * 5)] / 12), now, 2.4, 0.055, "sine");
-      }
     }
     return {
       start: function () {
@@ -78,7 +96,9 @@
         musicGain.gain.cancelScheduledValues(ctx.currentTime);
         musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
         musicGain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 1.6);
-        timer = setInterval(tick, 620);
+        clearInterval(timer);
+        timer = setInterval(tick, BEAT);
+        tick();
       },
       stop: function () {
         if (!playing) return;
@@ -107,11 +127,49 @@
           o.connect(g); g.connect(master);
           o.start(now + i * 0.08); o.stop(now + i * 0.08 + 0.35);
         });
+      },
+      /* 小狗不念字：用两三个短促的「汪汪」代替朗读，听起来才像狗 */
+      bark: function (times) {
+        if (!ensure() || !S.sound) return;
+        if (ctx.state === "suspended") ctx.resume();
+        var n = times || 2, t0 = ctx.currentTime;
+        for (var i = 0; i < n; i++) {
+          var o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
+          var at = t0 + i * 0.17;
+          o.type = "sawtooth";
+          o.frequency.setValueAtTime(380 - i * 20, at);
+          o.frequency.exponentialRampToValueAtTime(150, at + 0.13);
+          lp.type = "lowpass"; lp.frequency.value = 1400;
+          g.gain.setValueAtTime(0, at);
+          g.gain.linearRampToValueAtTime(0.13, at + 0.015);
+          g.gain.exponentialRampToValueAtTime(0.0008, at + 0.15);
+          o.connect(lp); lp.connect(g); g.connect(master);
+          o.start(at); o.stop(at + 0.18);
+        }
       }
     };
   })();
 
-  /* ---------------- 语音：中文 TTS，优先女声 ---------------- */
+  /* ---------------- 语音：中文 TTS，按角色调音高与语速 ----------------
+     系统只给一两个中文嗓子，所以「谁在说话」靠 pitch / rate 区分：
+     小孩亮而快、妈妈柔和、爷爷奶奶低而慢、老师清楚、小狗直接换成汪汪声。 */
+  var VOICE_CHAR = {
+    girl:    { pitch: 1.50, rate: 1.00 },   /* 澄澄 */
+    kid:     { pitch: 1.55, rate: 1.02 },   /* 小朋友 */
+    boy:     { pitch: 1.45, rate: 1.00 },
+    mom:     { pitch: 1.16, rate: 0.94 },
+    dad:     { pitch: 0.90, rate: 0.90 },
+    grandma: { pitch: 0.82, rate: 0.80 },
+    grandpa: { pitch: 0.72, rate: 0.78 },
+    teacher: { pitch: 1.20, rate: 0.88 },
+    uncle:   { pitch: 0.94, rate: 0.94 },
+    nurse:   { pitch: 1.24, rate: 0.92 },
+    clerk:   { pitch: 1.10, rate: 0.94 },
+    fireman: { pitch: 0.84, rate: 0.88 },
+    farmer:  { pitch: 1.05, rate: 0.90 },
+    dog:     { bark: true }
+  };
+
   var Voice = (function () {
     var zh = null, ready = false, lastText = "", lastAt = 0;
     function pick() {
@@ -130,6 +188,9 @@
       has: function () { return !!(window.speechSynthesis && window.SpeechSynthesisUtterance); },
       say: function (text, opts) {
         if (!text || !S.voice) return;
+        var prof = opts && opts.who ? (VOICE_CHAR[opts.who] || null) : null;
+        /* 小狗：不念字，直接汪汪两声，气泡里还是文字 */
+        if (prof && prof.bark) { Sound.bark(2); return; }
         if (!this.has()) return;
         var now = Date.now();
         if (text === lastText && now - lastAt < 2500) return;
@@ -140,8 +201,8 @@
           var u = new SpeechSynthesisUtterance(text);
           u.lang = "zh-CN";
           if (zh) u.voice = zh;
-          u.rate = (opts && opts.rate) || 0.92;
-          u.pitch = (opts && opts.pitch) || 1.15;
+          u.rate = (opts && opts.rate) || (prof && prof.rate) || 0.92;
+          u.pitch = (opts && opts.pitch) || (prof && prof.pitch) || 1.15;
           u.onstart = function () { Sound.duck(true); };
           u.onend = function () { Sound.duck(false); };
           window.speechSynthesis.speak(u);
@@ -223,6 +284,53 @@
       + '<ellipse cx="-5.4" cy="-9" rx="1.7" ry="1" fill="#f79aa5" opacity=".5"/>'
       + '<ellipse cx="5.4" cy="-9" rx="1.7" ry="1" fill="#f79aa5" opacity=".5"/>'
       + '<path d="M-1.8,-8.8 Q0,-7.4 1.8,-8.8" stroke="#c9705f" stroke-width="1.1" fill="none" stroke-linecap="round"/>',
+
+    /* 外公：花白短发、方框眼镜、白胡子、深棕马甲 */
+    grandpa: ''
+      + '<rect x="-5" y="6" width="4.4" height="8" rx="2.2" fill="#f3d3bc"/><rect x="0.6" y="6" width="4.4" height="8" rx="2.2" fill="#f3d3bc"/>'
+      + '<ellipse cx="-2.8" cy="14.6" rx="3.4" ry="2.2" fill="#5a5248"/><ellipse cx="2.8" cy="14.6" rx="3.4" ry="2.2" fill="#5a5248"/>'
+      + '<path d="M-7.6,-1 C-7.6,-4 7.6,-4 7.6,-1 L9.2,10 C5,12 -5,12 -9.2,10 Z" fill="#8a7a5e"/>'
+      + '<path d="M-4.2,-3.6 L0,-0.8 L4.2,-3.6 L4.2,-1.4 L0,1.4 L-4.2,-1.4 Z" fill="#fffdf8"/>'
+      + '<path d="M-2.2,2 L-2.2,8 M2.2,2 L2.2,8" stroke="#6f6248" stroke-width="1" opacity=".55"/>'
+      + '<rect x="-11.4" y="-1.2" width="4" height="9.6" rx="2" fill="#fbe0cf"/><rect x="7.4" y="-1.2" width="4" height="9.6" rx="2" fill="#fbe0cf"/>'
+      + '<rect x="-2" y="-6.4" width="4" height="3" fill="#f0cdb6"/>'
+      + '<circle cx="0" cy="-12.6" r="7.6" fill="#fbe0cf"/>'
+      + '<path d="M-7.6,-12.6 C-7.6,-21 7.6,-21 7.6,-12.6 C7.6,-17.4 4,-19 0,-19 C-4,-19 -7.6,-17.4 -7.6,-12.6 Z" fill="#cfcac2"/>'
+      + '<path d="M-5.6,-8.6 C-3,-5 3,-5 5.6,-8.6 C4.6,-5.4 2.4,-3.8 0,-3.8 C-2.4,-3.8 -4.6,-5.4 -5.6,-8.6 Z" fill="#e2ded6"/>'
+      + '<path d="M-1.8,-8.4 Q0,-7 1.8,-8.4" stroke="#b07f6a" stroke-width="1.1" fill="none" stroke-linecap="round"/>'
+      + '<circle cx="-2.9" cy="-12.4" r="2.5" fill="none" stroke="#9c9284" stroke-width="0.9"/>'
+      + '<circle cx="2.9" cy="-12.4" r="2.5" fill="none" stroke="#9c9284" stroke-width="0.9"/>'
+      + '<path d="M-0.4,-12.4 L0.4,-12.4" stroke="#9c9284" stroke-width="0.9"/>'
+      + '<circle cx="-2.7" cy="-12.4" r="1.1" fill="#4a3327"/><circle cx="2.7" cy="-12.4" r="1.1" fill="#4a3327"/>',
+
+    /* 爸爸：板寸、蓝衬衫、深灰长裤 */
+    dad: ''
+      + '<rect x="-5.4" y="5" width="4.8" height="9" rx="2.4" fill="#3f4a5a"/><rect x="0.6" y="5" width="4.8" height="9" rx="2.4" fill="#3f4a5a"/>'
+      + '<ellipse cx="-2.8" cy="14.6" rx="3.6" ry="2.4" fill="#2f3440"/><ellipse cx="2.8" cy="14.6" rx="3.6" ry="2.4" fill="#2f3440"/>'
+      + '<path d="M-7.6,-1 C-7.6,-4.4 7.6,-4.4 7.6,-1 L8.8,10 C4.6,12 -4.6,12 -8.8,10 Z" fill="#5f86b8"/>'
+      + '<path d="M-3.6,-3.4 L0,-0.6 L3.6,-3.4 L3.6,-1.6 L0,1.2 L-3.6,-1.6 Z" fill="#eef4fb"/>'
+      + '<rect x="-11.6" y="-1.2" width="4" height="10" rx="2" fill="#fbe0cf"/><rect x="7.6" y="-1.2" width="4" height="10" rx="2" fill="#fbe0cf"/>'
+      + '<rect x="-2.2" y="-6.6" width="4.4" height="3.2" fill="#f0cdb6"/>'
+      + '<circle cx="0" cy="-12.8" r="7.8" fill="#fbe0cf"/>'
+      + '<path d="M-8,-12.8 C-8,-21.6 8,-21.6 8,-12.8 C8,-18 4.2,-19.8 0,-19.8 C-4.2,-19.8 -8,-18 -8,-12.8 Z" fill="#33302b"/>'
+      + '<circle cx="-2.8" cy="-12.6" r="1.15" fill="#4a3327"/><circle cx="2.8" cy="-12.6" r="1.15" fill="#4a3327"/>'
+      + '<circle cx="-2.5" cy="-13" r="0.42" fill="#fff"/><circle cx="3.1" cy="-13" r="0.42" fill="#fff"/>'
+      + '<path d="M-1.9,-9.6 Q0,-8.4 1.9,-9.6" stroke="#c9705f" stroke-width="1.1" fill="none" stroke-linecap="round"/>',
+
+    /* 舅舅：棕色微卷发、绿 T 恤，年轻一点 */
+    uncle: ''
+      + '<rect x="-5" y="6" width="4.4" height="8" rx="2.2" fill="#f3d3bc"/><rect x="0.6" y="6" width="4.4" height="8" rx="2.2" fill="#f3d3bc"/>'
+      + '<ellipse cx="-2.8" cy="14.6" rx="3.4" ry="2.2" fill="#4a6a8a"/><ellipse cx="2.8" cy="14.6" rx="3.4" ry="2.2" fill="#4a6a8a"/>'
+      + '<path d="M-7.2,-1 C-7.2,-4 7.2,-4 7.2,-1 L8.6,8 C4,10 -4,10 -8.6,8 Z" fill="#7fc08a"/>'
+      + '<circle cx="0" cy="1.6" r="2.6" fill="#fffdf8" opacity=".85"/>'
+      + '<rect x="-11.2" y="-1.2" width="4" height="9.6" rx="2" fill="#fbe0cf"/><rect x="7.2" y="-1.2" width="4" height="9.6" rx="2" fill="#fbe0cf"/>'
+      + '<rect x="-2" y="-6.4" width="4" height="3" fill="#f0cdb6"/>'
+      + '<circle cx="0" cy="-12.6" r="7.6" fill="#fbe0cf"/>'
+      + '<path d="M-7.8,-12 C-8.6,-20 8.6,-20 7.8,-12 C7.8,-16.6 4,-18.6 0,-18.6 C-4,-18.6 -7.8,-16.6 -7.8,-12 Z" fill="#8a5a3a"/>'
+      + '<circle cx="-6.4" cy="-15.4" r="2.6" fill="#8a5a3a"/><circle cx="6.4" cy="-15.4" r="2.6" fill="#8a5a3a"/>'
+      + '<circle cx="-2.7" cy="-12.4" r="1.15" fill="#4a3327"/><circle cx="2.7" cy="-12.4" r="1.15" fill="#4a3327"/>'
+      + '<circle cx="-2.4" cy="-12.8" r="0.42" fill="#fff"/><circle cx="3" cy="-12.8" r="0.42" fill="#fff"/>'
+      + '<path d="M-1.8,-9.4 Q0,-7.9 1.8,-9.4" stroke="#c9705f" stroke-width="1.1" fill="none" stroke-linecap="round"/>',
 
     teacher: ''
       + '<rect x="-5" y="6" width="4.4" height="8" rx="2.2" fill="#f3d3bc"/><rect x="0.6" y="6" width="4.4" height="8" rx="2.2" fill="#f3d3bc"/>'
@@ -335,15 +443,32 @@
     cake: '<path d="M-11,4 L11,4 L9,12 L-9,12 Z" fill="#f0cd94"/><rect x="-12" y="0" width="24" height="6" rx="3" fill="#fffaf5"/><rect x="-12" y="0" width="24" height="2.6" rx="1.3" fill="#f7a8bd"/><rect x="-1" y="-9" width="2.2" height="10" fill="#f6b93b"/><circle cx="0" cy="-11" r="2.4" fill="#f0a832"/>',
     duck: '<ellipse cx="0" cy="4" rx="10" ry="7" fill="#f6d365"/><circle cx="-5" cy="-5" r="5.4" fill="#ffe08a"/><path d="M-10,-5 L-14,-3 L-10,-2 Z" fill="#f08a3c"/><circle cx="-6.6" cy="-6" r="1.1" fill="#4a3327"/><path d="M6,-2 C10,-6 12,-8 13,-7" stroke="#e8b96a" stroke-width="2" fill="none" stroke-linecap="round"/>',
     cat: '<path d="M-7,-9 L-4,-14 L-1,-9 Z" fill="#c9b79d"/><path d="M7,-9 L4,-14 L1,-9 Z" fill="#c9b79d"/><circle cx="0" cy="-4" r="7" fill="#d9c8ad"/><ellipse cx="0" cy="6" rx="8" ry="6" fill="#c9b79d"/><circle cx="-2.6" cy="-5" r="1.2" fill="#4a4438"/><circle cx="2.6" cy="-5" r="1.2" fill="#4a4438"/><path d="M-2,0 L0,-1 L2,0" stroke="#4a4438" stroke-width="1" fill="none" stroke-linecap="round"/><path d="M-9,-2 L-13,-3 M-9,0 L-13,0 M9,-2 L13,-3 M9,0 L13,0" stroke="#b8a68c" stroke-width="1" stroke-linecap="round"/>',
-    rabbit: '<ellipse cx="-3" cy="-13" rx="2.6" ry="7" fill="#f0e2d0"/><ellipse cx="3" cy="-13" rx="2.6" ry="7" fill="#f0e2d0"/><circle cx="0" cy="-4" r="7" fill="#faf4ea"/><ellipse cx="0" cy="5" rx="7.4" ry="5.6" fill="#f0e2d0"/><circle cx="-2.6" cy="-5" r="1.2" fill="#4a4438"/><circle cx="2.6" cy="-5" r="1.2" fill="#4a4438"/><ellipse cx="0" cy="-1.4" rx="1.5" ry="1.1" fill="#f78fb3"/><ellipse cx="-5.4" cy="-2" rx="1.8" ry="1.2" fill="#f9c7cf" opacity=".7"/><ellipse cx="5.4" cy="-2" rx="1.8" ry="1.2" fill="#f9c7cf" opacity=".7"/>'
+    rabbit: '<ellipse cx="-3" cy="-13" rx="2.6" ry="7" fill="#f0e2d0"/><ellipse cx="3" cy="-13" rx="2.6" ry="7" fill="#f0e2d0"/><circle cx="0" cy="-4" r="7" fill="#faf4ea"/><ellipse cx="0" cy="5" rx="7.4" ry="5.6" fill="#f0e2d0"/><circle cx="-2.6" cy="-5" r="1.2" fill="#4a4438"/><circle cx="2.6" cy="-5" r="1.2" fill="#4a4438"/><ellipse cx="0" cy="-1.4" rx="1.5" ry="1.1" fill="#f78fb3"/><ellipse cx="-5.4" cy="-2" rx="1.8" ry="1.2" fill="#f9c7cf" opacity=".7"/><ellipse cx="5.4" cy="-2" rx="1.8" ry="1.2" fill="#f9c7cf" opacity=".7"/>',
+    /* —— 农场：农作物与幼崽（和 index.html 的图形一致）—— */
+    rose: '<path d="M0,15 L0,2" stroke="#6da45f" stroke-width="2.6" stroke-linecap="round"/><path d="M0,9 C-9,9 -11,3 -7,1 C-9,7 -4,8 0,8" fill="#8fc97e"/><path d="M0,5 C9,5 11,-1 7,-3 C9,3 4,4 0,4" fill="#a9d993"/><circle cx="0" cy="-4" r="8.6" fill="#f7919f"/><circle cx="0" cy="-4" r="5.8" fill="#fbb0ba"/><circle cx="0" cy="-4" r="2.8" fill="#e4705f"/>',
+    potato: '<ellipse cx="0" cy="2" rx="11.4" ry="8.4" fill="#d9a566" transform="rotate(-14)"/><ellipse cx="-3" cy="-1" rx="4.4" ry="3" fill="#e8bb84" opacity=".7"/><circle cx="-4" cy="2" r="1.2" fill="#b8813f"/><circle cx="3" cy="5" r="1.1" fill="#b8813f"/><circle cx="5.4" cy="0" r="1" fill="#b8813f"/><circle cx="0" cy="7.4" r=".9" fill="#b8813f"/>',
+    tomato: '<circle cx="0" cy="1.4" r="10.6" fill="#e4574c"/><circle cx="-3.6" cy="-2" r="3.2" fill="#f08078" opacity=".65"/><path d="M0,-8.6 L-5,-4.6 L0,-5.8 L5,-4.6 Z" fill="#6da45f"/><path d="M0,-8.6 L-1.4,-12.4" stroke="#6da45f" stroke-width="2" stroke-linecap="round"/>',
+    corn: '<ellipse cx="0" cy="0.6" rx="6.4" ry="12.6" fill="#f2c14e"/><g stroke="#e0a92b" stroke-width="1.1" opacity=".85"><path d="M-3,-10 L-3,10"/><path d="M3,-10 L3,10"/><path d="M-5.6,-6 L5.6,-6"/><path d="M-6,-1 L6,-1"/><path d="M-5.6,4.4 L5.6,4.4"/></g><path d="M-6,-4 C-12.4,-8.4 -13.6,2 -7,6.4" fill="#8fc97e"/><path d="M6,-4 C12.4,-8.4 13.6,2 7,6.4" fill="#a9d993"/>',
+    chick: '<ellipse cx="0" cy="3.4" rx="9.6" ry="8.6" fill="#f7d35c"/><circle cx="0" cy="-6" r="6.8" fill="#fbe58a"/><path d="M-6.6,-3 C-9.6,-5 -8.6,-9 -5.6,-7.4" fill="#f7d35c"/><circle cx="-2.3" cy="-6.6" r="1.15" fill="#4a3327"/><circle cx="2.3" cy="-6.6" r="1.15" fill="#4a3327"/><circle cx="-2" cy="-7" r=".4" fill="#fff"/><circle cx="2.6" cy="-7" r=".4" fill="#fff"/><path d="M0,-4.6 L-3,-2.2 L3,-2.2 Z" fill="#f0913f"/><path d="M-3.4,11.4 L-3.4,14.4 M3.4,11.4 L3.4,14.4" stroke="#f0913f" stroke-width="2.2" stroke-linecap="round"/>',
+    pig: '<ellipse cx="0" cy="2.6" rx="11" ry="8.4" fill="#f6b8c4"/><circle cx="0" cy="-5.6" r="7.2" fill="#f9cbd4"/><path d="M-7.4,-10.6 L-4.2,-15 L-2.4,-9.8 Z" fill="#f6b8c4"/><path d="M7.4,-10.6 L4.2,-15 L2.4,-9.8 Z" fill="#f6b8c4"/><ellipse cx="0" cy="-4.4" rx="4.2" ry="3.2" fill="#f19aab"/><circle cx="-1.5" cy="-4.4" r=".9" fill="#c96d80"/><circle cx="1.5" cy="-4.4" r=".9" fill="#c96d80"/><circle cx="-4.6" cy="-7.8" r=".95" fill="#4a3327"/><circle cx="4.6" cy="-7.8" r=".95" fill="#4a3327"/><path d="M-4.2,10.4 L-4.2,13.6 M4.2,10.4 L4.2,13.6" stroke="#e890a3" stroke-width="2.4" stroke-linecap="round"/>',
+    sprout: '<path d="M0,13 L0,-1" stroke="#6da45f" stroke-width="3" stroke-linecap="round"/><path d="M0,1 C-10,1 -12,-10 -3,-8 Z" fill="#8fc97e"/><path d="M0,-3 C10,-3 12,-14 3,-12 Z" fill="#a9d993"/><ellipse cx="0" cy="13" rx="5" ry="2" fill="#b98a5c" opacity=".45"/>',
+    /* 竖直的萝卜：叶子朝上、根朝下，长在地里才顺眼 */
+    carrot: '<path d="M0,-3 C5.6,-3 7,5 0,15 C-7,5 -5.6,-3 0,-3 Z" fill="#f08a3c"/>'
+      + '<path d="M0,-5 C-6,-10 -2,-16 2,-12 C3,-16 10,-12 4,-6 Z" fill="#7fbf6f"/>'
+      + '<path d="M-2.6,1 L2.6,1 M-1.6,6 L1.6,6" stroke="#dd7a2e" stroke-width="1.4" stroke-linecap="round"/>',
+    leaf: '<path d="M-10,10 C-10,-6 4,-14 13,-9 C13,5 -1,14 -10,10 Z" fill="#7fbf6f"/><path d="M-8,9 C-3,3 4,-4 11,-8" stroke="#5f9e51" stroke-width="2" fill="none"/>',
+    flower: '<circle cx="0" cy="-8" r="5.4" fill="#f7a5ad"/><circle cx="7.4" cy="-2" r="5.4" fill="#f7a5ad"/><circle cx="5" cy="7" r="5.4" fill="#f7a5ad"/><circle cx="-5" cy="7" r="5.4" fill="#f7a5ad"/><circle cx="-7.4" cy="-2" r="5.4" fill="#f7a5ad"/><circle cx="0" cy="0" r="4.2" fill="#ffe58a"/>',
+    seedbag: '<path d="M-8,-5.6 L8,-5.6 L6,12 L-6,12 Z" fill="#f4e3c4" stroke="#d9bd8f" stroke-width="1.6" stroke-linejoin="round"/><path d="M-8.6,-5.6 Q0,-12.6 8.6,-5.6" fill="#e8d3ab" stroke="#d9bd8f" stroke-width="1.6"/><circle cx="-1.8" cy="2" r="1.9" fill="#8d6b3f"/><circle cx="2.6" cy="5.4" r="1.6" fill="#8d6b3f"/><circle cx="-2.6" cy="7.6" r="1.3" fill="#8d6b3f"/>',
   };
   /* 人物画在 -24~16 的坐标系里，道具在 ±18 里，分开两套 viewBox */
-  var TALL = { girl:1, mom:1, grandma:1, teacher:1, fireman:1, boy:1, girl2:1, dog:1 };
+  var TALL = { girl:1, mom:1, grandma:1, teacher:1, fireman:1, boy:1, girl2:1, dog:1,
+               grandpa:1, dad:1, uncle:1 };
   /* 每个图形自己的取景框，避免头顶被裁 */
   var VB = {
     girl: "-14 -24 28 42", mom: "-14 -24 28 42", grandma: "-14 -26 28 44",
     teacher: "-14 -24 28 42", fireman: "-14 -24 28 42", boy: "-14 -25 28 43",
-    girl2: "-14 -24 28 42", dog: "-16 -18 32 30"
+    girl2: "-14 -24 28 42", dog: "-16 -18 32 30",
+    grandpa: "-14 -24 28 42", dad: "-14 -24 28 42", uncle: "-14 -25 28 43"
   };
   function art(kind, size) {
     var d = ART[kind] || ART.star;
@@ -532,6 +657,24 @@
         s += '<circle cx="' + (w * 0.3) + '" cy="' + (h * 0.02) + '" r="12" fill="#f6d365"/>';
       }
 
+      /* 数学天地的黑板：一排数字，每个数字下面配同样多的点 */
+      if (it.t === "numbd") {
+        var n0 = it.n || 5;
+        s += '<rect x="' + (-w / 2) + '" y="' + (-h / 2) + '" width="' + w + '" height="' + h + '" rx="8" fill="#5f8a6f"/>';
+        s += '<rect x="' + (-w / 2) + '" y="' + (-h / 2) + '" width="' + w + '" height="' + h + '" rx="8" fill="none" stroke="' + c2 + '" stroke-width="10"/>';
+        var stepX = w * 0.86 / n0, x0 = -w * 0.43 + stepX / 2;
+        for (var q = 0; q < n0; q++) {
+          var cx0 = x0 + q * stepX;
+          s += '<text x="' + cx0 + '" y="' + (-h * 0.06) + '" text-anchor="middle" font-size="' + (h * 0.3) +
+               '" font-weight="700" fill="#fffdf8">' + (q + 1) + '</text>';
+          var dn = q + 1, sp = Math.min(stepX * 0.2, h * 0.12);
+          for (var pn = 0; pn < dn; pn++) {
+            s += '<circle cx="' + (cx0 + (pn - (dn - 1) / 2) * sp) + '" cy="' + (h * 0.26) +
+                 '" r="' + (h * 0.045) + '" fill="#ffe9a8"/>';
+          }
+        }
+      }
+
       if (it.t === "rack") {
         s += '<rect x="' + (-w / 2) + '" y="' + (-h / 2) + '" width="' + w + '" height="' + h + '" rx="8" fill="' + c1 + '" opacity=".9"/>';
         s += '<rect x="' + (-w / 2) + '" y="' + (-h * 0.1) + '" width="' + w + '" height="8" fill="' + c2 + '"/>';
@@ -702,6 +845,7 @@
       b.type = "button";
       b.style.left = vx(p.x) + "%";
       b.style.top = vy(p.y) + "%";
+      b.dataset.pid = p.id;
       b.innerHTML = '<span class="bubble" hidden></span>' + art(p.art, p.size || 120);
       b.addEventListener("click", function () { clickPerson(p, b); });
       propLayer.appendChild(b);
@@ -799,6 +943,9 @@
         b.className = "idleb";
         n.el.appendChild(b);
       }
+      /* 同时最多两句：人多的时候一起开口会糊成一片，盖住大家的脸 */
+      if (!b.classList.contains("show") &&
+          document.querySelectorAll(".idleb.show").length >= 2) return;
       b.textContent = lines[Math.floor(Math.random() * lines.length)];
       b.classList.add("show");
       clearTimeout(n._idleHide);
@@ -867,7 +1014,7 @@
       save();
       el.classList.remove("fresh");
       bounce(el);
-      say(p.name + "：" + line);
+      say(p.name + "：" + line, { who: p.voice || voiceOf(p) });
       /* 说完轮一句，下次点会换一句 */
       if (i + 1 >= p.talk.length && !p._wrapped) {
         p._wrapped = true;
@@ -875,6 +1022,14 @@
         el.querySelector(".bubble").textContent = "✓";
       }
       checkAll();
+    }
+
+    /* 没写 voice 的人物，按画法猜一个最接近的嗓音 */
+    function voiceOf(p) {
+      var m = { girl: "girl", girl2: "kid", boy: "kid", kid1: "kid", kid2: "kid", kid3: "kid",
+                mom: "mom", dad: "dad", grandma: "grandma", grandpa: "grandpa", uncle: "uncle",
+                teacher: "teacher", fireman: "fireman", dog: "dog", cat: "kid", rabbit: "kid" };
+      return m[p.art] || "teacher";
     }
 
     function clickThing(t, el) {
@@ -954,6 +1109,22 @@
       }
     });
 
+    /* 转屏：取景框是按进来那一刻的宽高比算的，横竖一换就得重排。
+       进度都存在存档里，所以直接重新载入最省事，也不会丢东西。 */
+    (function () {
+      var ar0 = window.innerWidth / Math.max(1, window.innerHeight);
+      var tmr = null;
+      function onTurn() {
+        clearTimeout(tmr);
+        tmr = setTimeout(function () {
+          var ar1 = window.innerWidth / Math.max(1, window.innerHeight);
+          if ((ar0 > 1) !== (ar1 > 1)) location.href = location.pathname + "?from=door";
+        }, 320);
+      }
+      window.addEventListener("orientationchange", onTurn);
+      window.addEventListener("resize", onTurn);
+    })();
+
     return {
       S: S, say: say, Sound: Sound, Voice: Voice, art: art,
       Say: say, Save: save,           /* 页面里买完东西要立刻存盘 */
@@ -964,5 +1135,10 @@
   }
 
   art.d = ART;   /* 暴露图形路径字典，便于页面里自己拼组合图 */
-  global.Room = { init: initRoom, art: art, Sound: Sound, Voice: Voice, load: load, save: save, KEY: KEY };
+  global.Room = {
+    init: initRoom, art: art, Sound: Sound, Voice: Voice,
+    load: load, save: save, KEY: KEY,
+    /* 页面（农场之类）不建房间、只读写同一份存档时用 */
+    get S() { return S; }
+  };
 })(window);

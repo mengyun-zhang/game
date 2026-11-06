@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <!--
-  澄澄的小镇 · 3 岁向探索式益智游戏（v0.2）
+  澄澄的小镇 · 3 岁向探索式益智游戏（v0.3）
   ---------------------------------------------------------------
   单文件、零依赖（无 CDN / 无框架 / 无外链图片 / 无外链音频）、原生 JS+CSS、localStorage 存进度、PC+移动自适应。
   音乐与语音说明：
-    · 背景音乐由 Web Audio 实时合成（五声音阶柔和琶音），不加载任何音频文件，因此断网也能响。
+    · 背景音乐《小镇的早晨》由 Web Audio 实时合成（D 大调五声、3/4 拍圆舞曲），不加载任何音频文件，因此断网也能响。
     · 引导语用浏览器内置的 speechSynthesis 中文语音朗读，无需联网下载语音包（是否可用取决于系统语音）。
   扩展示例：往 BUILDINGS 里加一条建筑数据 → 在 BUILDING_ART 里加一个造型 → 在 MINI 里加一个玩法函数。
 -->
@@ -13,6 +13,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#dff0e4">
+<link rel="icon" href="data:,">
 <title>澄澄的小镇</title>
 <style>
   :root{
@@ -21,20 +22,23 @@
     --shadow:0 6px 18px rgba(63,58,50,.10);
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{height:100%}
+  html{height:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  html,body{height:100%;min-height:100%}
+  /* iPad 上 100% 有时不给高度，补一个 -webkit-fill-available 兜底 */
+  @supports (-webkit-touch-callout:none){ html,body{min-height:-webkit-fill-available} }
   body{
     margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
     background:var(--bg);color:var(--ink);overflow:hidden;
   }
-  button{font-family:inherit;cursor:pointer}
+  button{font-family:inherit;cursor:pointer;touch-action:manipulation}
 
   /* ================= 地图舞台 ================= */
   .stage{
-    position:fixed;inset:0;overflow:hidden;touch-action:none;
+    position:fixed;top:0;right:0;bottom:0;left:0;;overflow:hidden;touch-action:none;
     background:linear-gradient(180deg,#cfeacb,#bfe2b7);
   }
   .world{position:absolute;left:0;top:0;width:1440px;height:900px;transform-origin:0 0;will-change:transform}
-  .world svg.map{display:block;position:absolute;inset:0;width:100%;height:100%}
+  .world svg.map{display:block;position:absolute;top:0;right:0;bottom:0;left:0;;width:100%;height:100%}
 
   /* 建筑 */
   .b{
@@ -96,7 +100,7 @@
   .carry.playable:hover:before{opacity:1}
 
   /* 放飞的气球 / 泡泡 */
-  .fly-layer{position:fixed;inset:0;z-index:48;pointer-events:none}
+  .fly-layer{position:fixed;top:0;right:0;bottom:0;left:0;;z-index:48;pointer-events:none}
   .flyer{position:absolute;pointer-events:auto;transition:opacity .4s;will-change:transform}
   .flyer svg{display:block;overflow:visible}
   .flyer.bubble{cursor:pointer;border-radius:50%}
@@ -133,7 +137,7 @@
 
   /* 送礼小窗 */
   .gift-box{
-    position:fixed;inset:0;z-index:65;display:grid;place-items:center;
+    position:fixed;top:0;right:0;bottom:0;left:0;;z-index:65;display:grid;place-items:center;
     background:rgba(45,52,45,.3);opacity:0;pointer-events:none;transition:.24s;
   }
   .gift-box.show{opacity:1;pointer-events:auto}
@@ -174,6 +178,19 @@
     background:#4f9e6b;color:#fff;cursor:pointer;font-family:inherit;letter-spacing:1px;
   }
   .sc-buy:disabled{background:#ddd5c6;cursor:default}
+  /* 商店分类标签 */
+  .shop-tabs{display:flex;gap:6px;margin:10px 0 6px;flex-wrap:wrap}
+  .shop-tab{
+    flex:1 1 auto;min-width:0;display:flex;align-items:center;justify-content:center;gap:4px;
+    padding:8px 6px;border-radius:13px;border:1px solid var(--line);background:#fffdf8;
+    font:inherit;font-size:12.5px;color:#7a7364;cursor:pointer;transition:transform .12s,background .15s,border-color .15s;
+  }
+  .shop-tab .tab-ico{display:flex;align-items:center}
+  .shop-tab .tab-ico svg{width:20px;height:20px}
+  .shop-tab.on{background:#eaf6ee;border-color:#8ec9a3;color:#3f7a55;font-weight:700}
+  .shop-tab:active{transform:scale(.97)}
+  .shop-cat-hint{font-size:11.5px;color:#9aa1bb;margin:2px 0 8px;text-align:center;line-height:1.5}
+  .sc-tail{font-size:10.5px;color:#5aa86e;font-weight:700;margin:-2px 0 4px}
   /* ================= 做新朋友 ================= */
   .maker{display:flex;gap:14px;align-items:flex-start}
   .mk-left{flex:0 0 116px;display:flex;flex-direction:column;gap:6px}
@@ -222,6 +239,19 @@
   }
   .bg-play:active{transform:scale(.96)}
 
+  /* 送礼面板：背包里的东西摊开来挑 */
+  .gift-grid{grid-template-columns:repeat(3,1fr);gap:10px}
+  .gift-cell{
+    position:relative;font-family:inherit;cursor:pointer;transition:.15s;
+    border-width:2px;border-color:#efe6d4;
+  }
+  .gift-cell:active{transform:scale(.95)}
+  .gift-cell:hover{border-color:#bcd9b0;background:#fbfff9}
+  .gift-cell.liked{border-color:#f6c9cf;background:#fffafa}
+  .gift-cell .lk{
+    position:absolute;right:7px;top:4px;font-style:normal;font-size:13px;color:#e4705f;
+  }
+
   /* ================= HUD ================= */
   .hud{position:fixed;left:0;right:0;top:0;z-index:20;pointer-events:none;padding:14px 16px;
     display:flex;gap:8px;align-items:flex-start;justify-content:space-between}
@@ -246,7 +276,7 @@
   .stick{position:fixed;z-index:20;left:14px;bottom:calc(14px + env(safe-area-inset-bottom));
     width:122px;height:122px;border-radius:50%;
     background:rgba(255,253,248,.42);border:2px solid rgba(255,255,255,.7);
-    backdrop-filter:blur(2px);touch-action:none}
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);touch-action:none}
   .stick .knob{position:absolute;left:50%;top:50%;width:54px;height:54px;margin:-27px 0 0 -27px;
     border-radius:50%;background:rgba(255,253,248,.95);border:1px solid #e6ddc9;
     box-shadow:0 4px 10px rgba(63,58,50,.16)}
@@ -259,8 +289,8 @@
 
   /* ================= 进屋提示 ================= */
   .enter-room{
-    position:fixed;inset:0;z-index:60;display:grid;place-items:center;padding:20px;
-    background:rgba(45,52,45,.34);backdrop-filter:blur(2px);
+    position:fixed;top:0;right:0;bottom:0;left:0;;z-index:60;display:grid;place-items:center;padding:20px;
+    background:rgba(45,52,45,.34);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
     opacity:0;pointer-events:none;transition:.28s;
   }
   .enter-room.show{opacity:1;pointer-events:auto}
@@ -288,7 +318,7 @@
   }
 
   /* ================= 弹层 ================= */
-  .mask{position:fixed;inset:0;z-index:40;background:rgba(45,52,45,.42);backdrop-filter:blur(3px);
+  .mask{position:fixed;top:0;right:0;bottom:0;left:0;z-index:40;background:rgba(45,52,45,.42);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
     display:flex;align-items:center;justify-content:center;padding:14px;
     opacity:0;pointer-events:none;transition:.22s}
   .mask.show{opacity:1;pointer-events:auto}
@@ -343,6 +373,24 @@
   .find .card.peek{border-color:#f0a832;box-shadow:0 0 0 4px rgba(240,168,50,.35)}
   .find .card .sil{display:flex;justify-content:center;align-items:center;height:100%}
   .find .card .sil svg{filter:brightness(0);opacity:.42}
+  /* 数一数 */
+  .cnt-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;padding:12px;
+    border-radius:18px;background:#f6f6fc;border:2px dashed #dbdcee;
+    min-height:92px;align-items:center}
+  .cnt-item{position:relative;width:50px;height:50px;border-radius:14px;
+    border:2px solid #e6e6f2;background:#fff;display:grid;place-items:center;
+    transition:.15s;padding:3px}
+  .cnt-item.on{border-color:#9fb2ea;background:#eef1ff;transform:translateY(-2px)}
+  .cnt-item b{position:absolute;right:-5px;top:-6px;min-width:19px;height:19px;
+    border-radius:10px;background:#7a86c8;color:#fff;font-size:11px;line-height:19px;
+    text-align:center;box-shadow:0 1px 4px rgba(60,60,110,.28);font-weight:700}
+  .cnt-item.no{animation:shake .3s;border-color:#e8a0a0}
+  .cnt-nums{display:flex;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .cnt-num{width:56px;height:56px;border-radius:16px;border:2px solid #e3ddd0;background:#fff;
+    font-size:24px;font-weight:800;color:#5a6a8f;display:grid;place-items:center;transition:.15s}
+  .cnt-num:active{transform:scale(.95)}
+  .cnt-num.yes{border-color:#8fce9a;background:#eef9ec;animation:pop .35s}
+  .cnt-num.no{animation:shake .3s;border-color:#e8a0a0}
   /* 院子拼图 */
   .pzwrap{display:flex;justify-content:center;margin:6px 0 4px}
   .pzboard{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;
@@ -370,7 +418,7 @@
   /* 路上一族（路径引导/走格子） */
   .trail-wrap{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px}
   .map-grid{display:grid;gap:5px;width:100%;background:#eef6ec;padding:8px;border-radius:18px}
-  .tg{aspect-ratio:1/1;border-radius:11px;background:#eef2ea;border:2px solid #e4eade;display:grid;place-items:center;min-height:9px;padding:2px;box-sizing:border-box}
+  .tg{aspect-ratio:1/1;border-radius:11px;background:#eef2ea;border:2px solid #e4eade;display:grid;place-items:center;min-height:34px;padding:2px;box-sizing:border-box}
   .tg.block{background:#cfe0cb;border-color:#bdd3b8}
   .tg.path{background:#fdf0cf;border-color:#f3deab}
   .tg.hole{background:#fffdf4;border:3px dashed #f0a832;animation:pulsehold 1.4s infinite}
@@ -418,7 +466,7 @@
   .kv span:last-child{text-align:right}
 
   /* 开场封面 */
-  .cover{position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:20px;
+  .cover{position:fixed;top:0;right:0;bottom:0;left:0;;z-index:70;display:grid;place-items:center;padding:20px;
     background:radial-gradient(circle at 50% 30%, #eaf7e6, #c6e3bf 70%);transition:.5s}
   .cover.hide{opacity:0 !important;pointer-events:none !important;visibility:hidden}
   .cover .box{text-align:center;max-width:380px}
@@ -469,6 +517,46 @@
     .stick{width:104px;height:104px}
     .stick .knob{width:46px;height:46px;margin:-23px 0 0 -23px}
     .tipbar{max-width:calc(100vw - 124px);font-size:10.5px}
+  }
+
+  /* ================= 平板（iPad 2019 等，短边 ≥600）=================
+     手机那一套收得太狠，平板又比电脑小，单独给一档：
+     字大一点、按钮大一圈、面板宽一点，手指点得准、眼睛看着舒服 */
+  @media (min-width:641px) and (max-width:1200px){
+    .hud{padding:12px 16px;gap:10px}
+    .brand{padding:8px 15px;border-radius:15px}
+    .brand h1{font-size:19px;letter-spacing:1px}
+    .brand p{font-size:11.5px}
+    .tools{gap:8px}
+    .tools button{width:46px;height:46px;border-radius:14px}
+    .tools button svg{width:22px;height:22px}
+    .pill span{padding:7px 13px;font-size:14px;border-radius:999px}
+    .pill span svg{width:14px;height:14px}
+    .sheet{max-width:540px;padding:22px 20px 18px;border-radius:26px;max-height:88vh}
+    .sheet h2{font-size:21px}
+    .sheet .sub{font-size:14px}
+    .board{min-height:250px}
+    .plot{min-height:96px}
+    .find{gap:12px}
+    .find .card{height:112px;border-radius:20px}
+    .find .card .q{font-size:30px}
+    .btn{padding:12px 20px;font-size:15px;border-radius:15px}
+    .tipbar{font-size:14px;bottom:18px;padding:9px 16px;border-radius:14px}
+    .note{font-size:13px}
+    .statbtn b,.stats b{font-size:18px}
+    .stick{width:132px;height:132px;left:20px;bottom:calc(20px + env(safe-area-inset-bottom))}
+    .stick .knob{width:58px;height:58px;margin:-29px 0 0 -29px}
+    .name-row input{font-size:22px;padding:14px 18px}
+    .cover h1{font-size:30px}
+    .cover .go{font-size:19px;padding:14px 44px}
+    .pzboard{width:min(300px,56vw)}
+    .pzcell{height:104px}
+    .bag-grid{grid-template-columns:repeat(4,1fr)}
+  }
+  /* 平板竖着拿：面板别贴边，留出呼吸 */
+  @media (min-width:641px) and (max-width:1200px) and (max-aspect-ratio:1/1){
+    .sheet{max-width:600px}
+    .find .card{height:104px}
   }
 </style>
 </head>
@@ -682,8 +770,8 @@ var BUILDINGS = [
     hello:"@K@回家啦。妈妈买了小卡片，翻开两张一样的就收起来吧。", skill:"记忆力与观察（记住位置再配对）" },
 
   { id:"gong", name:"外公外婆家", ico:"windmill", x:700, y:180, w:206, h:196, tone:"#f0dcc0", roof:"#c98b50",
-    inside:"帮外公把院子的画拼完整。", game:"puzzle", by:"外公",
-    hello:"@K@来啦，外公画了院子，可惜少了几块，帮外公补上好不好？", skill:"观察与整体部分关系（拼图）" },
+    inside:"外公的萝卜地被风吹散了，帮外公拼回来。", game:"puzzle", by:"外公",
+    hello:"@K@来啦，外公种了一地萝卜，画儿被风吹散了几块，帮外公拼回来好不好？", skill:"观察与整体部分关系（拼图）" },
 
   { id:"nai", name:"爷爷奶奶家", ico:"tea", x:1090, y:186, w:200, h:190, tone:"#e0e4f4", roof:"#8a95c6",
     inside:"帮爷爷浇一浇门口的盆栽。", game:"water", by:"爷爷",
@@ -715,7 +803,12 @@ var BUILDINGS = [
 
   { id:"lib", name:"小镇图书馆", ico:"book", x:1230, y:778, w:204, h:168, tone:"#e9dcc6", roof:"#a8804f",
     inside:"把书一本一本放回书架。", game:"harvest", by:"管理员",
-    hello:"@K@来啦，书要回到架子上，一本一本放回去。", skill:"手眼协调与顺序" }
+    hello:"@K@来啦，书要回到架子上，一本一本放回去。", skill:"手眼协调与顺序" },
+
+  /* 数学天地：屋子里是四种不同类型的数学小游戏（在 shuxue.html 里） */
+  { id:"math", name:"数学天地", ico:"num", x:520, y:786, w:196, h:172, tone:"#dfe3f7", roof:"#7a86c8",
+    inside:"数一数这里有几个，选出对的数字。", game:"count", by:"数数老师",
+    hello:"@K@来啦，数数老师考考你：数一数有几个，再挑出对的数字。", skill:"数数与数量对应（1—10）" }
 ];
 
 var SKILLS = {
@@ -728,7 +821,8 @@ var SKILLS = {
   plant:"顺序与因果（三步任务）",
   memory:"记忆力（记住卡片位置再配对）",
   shadow:"形状观察与配对",
-  puzzle:"观察与整体部分关系"
+  puzzle:"观察与整体部分关系",
+  count:"数数与数量对应（点一个数一个，1—10）"
 };
 
 /* =====================================================================
@@ -745,6 +839,8 @@ var S = {
   folk:{},         // 镇上居民的当前位置与心情
   myfolk:[],       // 自己做的小朋友（名字、配色、家在哪）
   bag:{},          // 背包：{ 物品id: 数量 }
+  pets:[],         // 从农场带回来的小伙伴，会一直跟着孩子走
+  farm:null,       // 农场里的田与窝（farm.html 写，这里只负责保留）
   entered:false    // 是否已经点过「开始」进过小镇
 };
 var START_STARS = 88;   /* 第一次进小镇先给 88 颗星星，能直接去商店换东西 */
@@ -779,10 +875,19 @@ function heroCall(){ return kidName() || "小朋友"; }
    2. 声音：背景音乐（Web Audio 实时合成）+ 语音（speechSynthesis）
    ===================================================================== */
 var Sound = (function(){
-  var ctx=null, master=null, musicGain=null, timer=null, playing=false, step=0;
-  /* 五声音阶（C 大调宫调式），听感柔和、不吵 */
-  var SCALE=[0,2,4,7,9,12,14,16,19,21];
-  var ROOT=261.63;      // C4
+  var ctx=null, master=null, musicGain=null, lp=null, timer=null, playing=false, step=0;
+  /* —— 曲子：《小镇的早晨》，D 大调五声音阶的慢圆舞曲 ——
+     3/4 拍，每小节「咚—恰—恰」：第一拍的低音像脚步，
+     后两拍是很轻的和声，上面一条八音盒似的旋律慢慢转。
+     全部用振荡器实时合成，不加载任何音频文件。 */
+  var SCALE=[0,2,4,7,9,12,14,16,19,21];   /* 相对 D 的五声音阶 */
+  var ROOT=293.66;                        /* D4 */
+  var BEAT=470;                           /* 一拍多少毫秒 */
+  /* 旋律：24 拍（8 小节），-1 表示这一拍不弹 */
+  var MEL=[4,2,0, 2,4,5, 4,2,0, 2,-1,-1,
+           4,2,0, 2,4,7, 5,4,2, 0,-1,-1];
+  /* 每小节的和弦根音（相对 D 的半音数）：D G D A / D G A D */
+  var BASS=[0,5,0,7, 0,5,7,0];
   function freq(semi){ return ROOT*Math.pow(2,semi/12); }
 
   function ensure(){
@@ -792,11 +897,15 @@ var Sound = (function(){
       if(!AC) return null;
       ctx = new AC();
       master = ctx.createGain(); master.gain.value=0.9; master.connect(ctx.destination);
-      musicGain = ctx.createGain(); musicGain.gain.value=0.0; musicGain.connect(master);
-      /* 一点点混响感：延迟反馈 */
+      musicGain = ctx.createGain(); musicGain.gain.value=0.0;
+      /* 一层低通，把高处的毛刺削掉，听感更软 */
+      lp = ctx.createBiquadFilter();
+      lp.type = "lowpass"; lp.frequency.value = 2600; lp.Q.value = 0.6;
+      musicGain.connect(lp); lp.connect(master);
+      /* 一点点空间感：短延迟 + 反馈 */
       var dly=ctx.createDelay(0.6), fb=ctx.createGain(), wet=ctx.createGain();
-      dly.delayTime.value=0.28; fb.gain.value=0.26; wet.gain.value=0.24;
-      musicGain.connect(dly); dly.connect(fb); fb.connect(dly); dly.connect(wet); wet.connect(master);
+      dly.delayTime.value=0.33; fb.gain.value=0.22; wet.gain.value=0.2;
+      lp.connect(dly); dly.connect(fb); fb.connect(dly); dly.connect(wet); wet.connect(master);
     }catch(e){ ctx=null; }
     return ctx;
   }
@@ -814,15 +923,28 @@ var Sound = (function(){
     o.start(when); o.stop(when+dur+0.05);
   }
 
-  /* 每 8 拍一个循环的琶音，配一个很轻的低音 */
-  var MELODY=[0,4,2,5, 4,7,5,2, 0,4,2,5, 7,4,2,0];
+  /* 每一拍排一次音：低音 / 和声 / 旋律，各走各的音量 */
   function tick(){
-    if(!ctx) return;
-    var t=ctx.currentTime+0.02;
-    var n=MELODY[step%MELODY.length];
-    tone(freq(SCALE[n%SCALE.length]), t, 1.5, 0.085, "triangle");
-    if(step%4===0) tone(freq(SCALE[0]-12), t, 2.4, 0.055, "sine");
-    if(step%8===4) tone(freq(SCALE[3]-12), t, 2.0, 0.038, "sine");
+    if(!ctx||!playing) return;
+    var t=ctx.currentTime+0.03;
+    var b=step, bar=Math.floor(b/3), inBar=b%3;
+    var m=MEL[b%MEL.length];
+    var root=BASS[bar%BASS.length];
+
+    /* 旋律：八音盒一样的三角波，短促、带一点尾巴 */
+    if(m>=0) tone(freq(SCALE[m%SCALE.length]), t, 1.75, 0.072, "triangle");
+
+    if(inBar===0){
+      /* 第一拍：低音，轻轻的“咚” */
+      tone(freq(root-12), t, 2.5, 0.058, "sine");
+    } else {
+      /* 第二、三拍：和声的两个音，比低音更轻 */
+      tone(freq(root+7),  t,       1.15, 0.026, "triangle");
+      tone(freq(root+12), t+0.02,  1.0,  0.02,  "sine");
+    }
+    /* 每两小节飘一颗高音小星星 */
+    if(b%6===4) tone(freq(SCALE[7]+12), t+0.01, 1.3, 0.026, "sine");
+
     step++;
   }
 
@@ -838,7 +960,7 @@ var Sound = (function(){
       musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
       musicGain.gain.linearRampToValueAtTime(0.5, ctx.currentTime+2.5);
       clearInterval(timer);
-      timer=setInterval(tick, 620);
+      timer=setInterval(tick, BEAT);
       tick();
     },
     stop:function(){
@@ -848,6 +970,26 @@ var Sound = (function(){
       musicGain.gain.cancelScheduledValues(ctx.currentTime);
       musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
       musicGain.gain.linearRampToValueAtTime(0, ctx.currentTime+0.8);
+    },
+    /* 小狗的「汪汪」：短促、下滑、带低通，才不会像电子音 */
+    bark:function(times){
+      if(!S.sound) return;
+      ensure(); if(!ctx) return;
+      if(ctx.state==="suspended") ctx.resume();
+      var n=times||2, t0=ctx.currentTime;
+      for(var i=0;i<n;i++){
+        var o=ctx.createOscillator(), g=ctx.createGain(), lp=ctx.createBiquadFilter();
+        var at=t0+i*0.17;
+        o.type="sawtooth";
+        o.frequency.setValueAtTime(380-i*20,at);
+        o.frequency.exponentialRampToValueAtTime(150,at+0.13);
+        lp.type="lowpass"; lp.frequency.value=1400;
+        g.gain.setValueAtTime(0,at);
+        g.gain.linearRampToValueAtTime(0.13,at+0.015);
+        g.gain.exponentialRampToValueAtTime(0.0008,at+0.15);
+        o.connect(lp); lp.connect(g); g.connect(master);
+        o.start(at); o.stop(at+0.18);
+      }
     },
     /* 语音播放时把音乐压低，说完再抬起来 */
     duck:function(on){
@@ -881,6 +1023,24 @@ var Sound = (function(){
 })();
 
 /* --------- 语音 --------- */
+/* 系统只给一两个中文嗓子，所以「谁在说话」靠音高和语速区分：
+   小孩亮而快、妈妈柔和、爷爷奶奶低而慢、老师清楚、小狗直接换成汪汪声。 */
+var VOICE_CHAR = {
+  girl:    { pitch:1.50, rate:1.00 },   /* 澄澄、小女孩 */
+  kid:     { pitch:1.55, rate:1.02 },   /* 小朋友 */
+  boy:     { pitch:1.45, rate:1.00 },
+  mom:     { pitch:1.16, rate:0.94 },
+  dad:     { pitch:0.90, rate:0.90 },
+  grandma: { pitch:0.82, rate:0.80 },
+  grandpa: { pitch:0.72, rate:0.78 },
+  teacher: { pitch:1.20, rate:0.88 },
+  uncle:   { pitch:0.94, rate:0.94 },
+  nurse:   { pitch:1.24, rate:0.92 },
+  clerk:   { pitch:1.10, rate:0.94 },
+  fireman: { pitch:0.84, rate:0.88 },
+  farmer:  { pitch:1.05, rate:0.90 },
+  dog:     { bark:true }
+};
 var Voice = (function(){
   var zh=null, ready=false, lastText="", lastAt=0;
   function pick(){
@@ -905,6 +1065,9 @@ var Voice = (function(){
   return {
     say:function(text,opts){
       if(!S.voice || !text) return;
+      var prof = (opts && opts.who && VOICE_CHAR[opts.who]) || null;
+      /* 小狗：不念字，换成两短声「汪汪」，气泡里照常显示文字 */
+      if(prof && prof.bark){ Sound.bark(2); return; }
       if(!("speechSynthesis" in window)) return;
       var now=Date.now();
       if(text===lastText && now-lastAt<2500) return;   // 同一句不连续重复
@@ -914,8 +1077,8 @@ var Voice = (function(){
         var u=new SpeechSynthesisUtterance(text);
         u.lang="zh-CN";
         if(zh) u.voice=zh;
-        u.rate=(opts&&opts.rate)||0.92;      // 略慢，适合 3 岁
-        u.pitch=(opts&&opts.pitch)||1.15;    // 略高，更柔和
+        u.rate=(opts&&opts.rate)||(prof&&prof.rate)||0.92;      // 略慢，适合 3 岁
+        u.pitch=(opts&&opts.pitch)||(prof&&prof.pitch)||1.15;    // 略高，更柔和
         u.volume=0.95;
         u.onstart=function(){ Sound.duck(true); };
         u.onend=function(){ Sound.duck(false); };
@@ -992,8 +1155,10 @@ function viewH(){ return window.innerHeight; }
 
 function resize(){
   var vw=viewW(), vh=viewH(), s;
-  if(vw>=vh) s = Math.max(vw/W*0.98, vh/H*0.98);   // 电脑/横屏：整镇入画
-  else s = vw/660;                                  // 手机竖屏：视野约 660 世界单位宽
+  /* 短边 ≥600 的是平板：竖着拿时别把画面放得太大，看得到半个小镇才好玩 */
+  var shortSide=Math.min(vw,vh);
+  if(vw>=vh) s = Math.max(vw/W*0.985, vh/H*0.985);  // 电脑/横屏：整镇入画
+  else s = vw/(shortSide>=600?940:660);             // 竖屏：手机约 660、平板约 940 世界单位宽
   s=Math.min(s,1.6);
   M.scale=s;
   world.style.width=W+"px"; world.style.height=H+"px";
@@ -1002,6 +1167,13 @@ function resize(){
   drawHero();
 }
 window.addEventListener("resize",resize);
+/* iPad 转屏时 Safari 报的尺寸偶尔还是旧的，晚一点再量一次 */
+window.addEventListener("orientationchange",function(){
+  setTimeout(resize,120); setTimeout(resize,420);
+});
+if(window.visualViewport){
+  window.visualViewport.addEventListener("resize",function(){ setTimeout(resize,80); });
+}
 
 var NS="http://www.w3.org/2000/svg";
 function E(name,attrs,parent){
@@ -1430,6 +1602,40 @@ ART.lib=function(g,s){
   E("rect",{x:60,y:174,width:80,height:8,rx:4,fill:"#e4dac6"},g);
 };
 
+/* 数学天地：蓝紫小楼，屋顶挂着三张「点数卡片」（1 点 / 2 点 / 3 点） */
+ART.math=function(g,s){
+  E("ellipse",{cx:100,cy:190,rx:80,ry:11,fill:"rgba(70,90,60,.15)"},g);
+  /* 门前小院子 */
+  E("rect",{x:22,y:158,width:156,height:32,rx:14,fill:"#d7e1f6"},g);
+  /* 墙 */
+  E("rect",{x:42,y:96,width:116,height:72,rx:10,fill:"#dfe3f7"},g);
+  E("rect",{x:42,y:96,width:116,height:72,rx:10,fill:"rgba(255,255,255,.28)"},g);
+  /* 屋顶：折线 */
+  E("path",{d:"M32,100 L62,60 L138,60 L168,100 Z",fill:"#7a86c8"},g);
+  E("path",{d:"M32,100 L62,60 L100,60 L100,100 Z",fill:"rgba(255,255,255,.16)"},g);
+  E("rect",{x:28,y:96,width:144,height:9,rx:4.5,fill:"#6874b4"},g);
+  /* 屋顶上的三张点数卡：一个点、两个点、三个点 */
+  [[72,1,"#e4705f"],[93,2,"#f0b23f"],[114,3,"#7fb6e0"]].forEach(function(t){
+    E("rect",{x:t[0],y:32,width:17,height:22,rx:5,fill:"#fffdf8",stroke:t[2],"stroke-width":"2.2"},g);
+    for(var i=0;i<t[1];i++){
+      E("circle",{cx:t[0]+8.5,cy:43+(i-(t[1]-1)/2)*5.6,r:2,fill:t[2]},g);
+    }
+  });
+  /* 门与窗 */
+  gDoor(g,100,166,30,44,"#a9784f");
+  gWindows(g,42,112,116,20,2);
+  /* 门口摆着三块数字积木 */
+  [[66,"#e4705f"],[80,"#f0b23f"],[112,"#8fc97e"]].forEach(function(bk){
+    E("rect",{x:bk[0],y:172,width:14,height:14,rx:3,fill:"#fffdf8",stroke:bk[1],"stroke-width":"2.2"},g);
+  });
+  E("circle",{cx:73,cy:179,r:2.2,fill:"#e4705f"},g);
+  E("circle",{cx:84,cy:176,r:2.2,fill:"#f0b23f"},g);
+  E("circle",{cx:89,cy:182,r:2.2,fill:"#f0b23f"},g);
+  E("circle",{cx:116,cy:177,r:2.2,fill:"#8fc97e"},g);
+  E("circle",{cx:122,cy:177,r:2.2,fill:"#8fc97e"},g);
+  E("circle",{cx:119,cy:183,r:2.2,fill:"#8fc97e"},g);
+};
+
 function buildingSvg(b){
   var s=E("svg",{viewBox:"0 0 200 200"});
   var g=E("g",{},s);
@@ -1449,7 +1655,9 @@ var SIGN={
   apple:  {x:100,y:0,sy:10,bg:"#fffdf8",d:'<circle cx="0" cy="2" r="8" fill="#e4705f"/><path d="M0,-6 C0,-10 3,-11 4,-11" stroke="#7d5b3a" stroke-width="2" fill="none"/><path d="M2,-8 C6,-12 10,-10 9,-7 C7,-5 3,-6 2,-8 Z" fill="#7fbf6f"/>'},
   tree:   {x:100,y:0,sy:10,bg:"#fffdf8",d:'<circle cx="0" cy="-1" r="7" fill="#7fb96f"/><rect x="-1.6" y="5" width="3.2" height="6" rx="1.5" fill="#a9784f"/>'},
   sprout: {x:100,y:0,sy:10,bg:"#fffdf8",d:'<path d="M0,9 L0,-4" stroke="#6da45f" stroke-width="2.4"/><path d="M0,-2 C-9,-2 -10,-11 -2,-9 Z" fill="#8fc97e"/><path d="M0,-5 C9,-5 10,-13 2,-11 Z" fill="#a9d993"/>'},
-  book:   {x:100,y:0,sy:10,bg:"#fffdf8",d:'<rect x="-8" y="-6" width="6" height="12" rx="1.5" fill="#a8804f"/><rect x="-1" y="-7" width="6" height="14" rx="1.5" fill="#c99a62"/><rect x="6" y="-6" width="4" height="12" rx="1.5" fill="#8f9ec9"/>'}
+  book:   {x:100,y:0,sy:10,bg:"#fffdf8",d:'<rect x="-8" y="-6" width="6" height="12" rx="1.5" fill="#a8804f"/><rect x="-1" y="-7" width="6" height="14" rx="1.5" fill="#c99a62"/><rect x="6" y="-6" width="4" height="12" rx="1.5" fill="#8f9ec9"/>'},
+  /* 算盘：一眼就知道是算数的地方 */
+  num:    {x:100,y:0,sy:10,bg:"#fffdf8",d:'<rect x="-10" y="-8" width="20" height="16" rx="3" fill="none" stroke="#7a86c8" stroke-width="2.2"/><path d="M-10,-1 L10,-1" stroke="#7a86c8" stroke-width="1.6"/><circle cx="-5" cy="-4.4" r="2.4" fill="#e4705f"/><circle cx="1" cy="-4.4" r="2.4" fill="#f0b23f"/><circle cx="6" cy="3.6" r="2.4" fill="#7fb6e0"/><circle cx="-1" cy="3.6" r="2.4" fill="#8fc97e"/>'}
 };
 /* 招牌直接画进建筑 SVG 里：天然跟着屋顶走，不会错位 */
 function drawSign(g,b){
@@ -1672,7 +1880,8 @@ function loop(t){
     heroInner.style.transform=faceT+"translateY("+(Math.sin(Date.now()/900)*0.9).toFixed(2)+"px)";
   }
   if(moving){ S.hero.x=heroPose.x; S.hero.y=heroPose.y; saveThrottled(); }
-  drawHero(); stepFolk(dt); stepCarry(); stepFly(dt); updateCamera(dt); updateNearest();
+  drawHero(); stepFolk(dt); stepPendingFolk(); stepPets(dt); stepCarry(); stepFly(dt);
+  updateCamera(dt); updateNearest();
   requestAnimationFrame(loop);
 }
 
@@ -1780,7 +1989,7 @@ function enter(id){
     '</div>'+
     '<div class="note">'+b.skill+'</div>'
   );
-  guide(b.hello.replace(/@K@/g, heroCall()));
+  guide(b.hello.replace(/@K@/g, heroCall()), { who: byVoice(b.by) });
   startGame(b.game);
 }
 
@@ -1894,7 +2103,10 @@ var ROOM_PAGES = {
   home: { file:"room-home.html", label:"澄澄的家",  who:"妈妈和奶奶在屋里" },
   kg:   { file:"room-kg.html",   label:"幼儿园",    who:"李老师和小朋友在教室" },
   fire: { file:"room-fire.html", label:"消防站",    who:"消防员叔叔在擦头盔" },
-  mall: { file:"room-shop.html", label:"超市",      who:"理货员阿姨在整理货架" }
+  mall: { file:"room-shop.html", label:"超市",      who:"理货员阿姨在整理货架" },
+  math: { file:"shuxue.html",    label:"数学天地",  who:"数数老师在摆数字卡片" },
+  gong: { file:"gradefaterhome.html", label:"外公外婆家", who:"外公在厨房熬萝卜汤" },
+  farm: { file:"farm.html",      label:"小镇农场",  who:"农场阿姨在地头浇水" }
 };
 
 /* 有些地方不用先玩游戏，进去就是能逛的房间（超市） */
@@ -2062,7 +2274,7 @@ function bindFolkEl(n){
   b.type = "button";
   b.id = "folk-" + n.cfg.id;
   b.innerHTML = '<span class="fbubble" hidden></span>' + folkSvg(n.cfg.kind, 92, n.cfg.look);
-  b.addEventListener("click", function(e){ e.stopPropagation(); talkFolk(n); });
+  b.addEventListener("click", function(e){ e.stopPropagation(); onFolkClick(n); });
   world.appendChild(b);
   n.el = b;
   n.inner = b.querySelector("svg");
@@ -2106,6 +2318,79 @@ function drawFolk(){
     var tilt = n.pause > 0 ? 0 : Math.sin(n.walk) * 1.4;
     n.inner.style.transform =
       "scaleX(" + n.face + ") translateY(" + bob.toFixed(2) + "px) rotate(" + tilt.toFixed(2) + "deg)";
+  });
+}
+
+/* =====================================================================
+   8.6 宠物：从农场带回来的小动物，会一直跟在后面走
+   ---------------------------------------------------------------------
+   · 记一串主角走过的位置，宠物踩在「几十帧之前」的点上，看起来像排队跟着
+   · 站着不动时它们停在左右两侧，不会和主角叠在一起
+   ===================================================================== */
+var PET_ART = { pet_chick:"chick", pet_pig:"pig", pet_duck:"duck" };
+var petEls = [];
+var petTrail = [];
+
+function petArtKey(id){ return PET_ART[id] || "chick"; }
+
+function loadPets(){
+  petEls.forEach(function(p){ if(p.el && p.el.parentNode) p.el.parentNode.removeChild(p.el); });
+  petEls = []; petTrail = [];
+  (S.pets || []).forEach(function(pt, i){
+    var b = document.createElement("button");
+    b.className = "folk pet";
+    b.type = "button";
+    b.id = "pet-" + i;
+    b.innerHTML = '<span class="fbubble" hidden></span>' + folkSvg(petArtKey(pt.id), 64);
+    b.addEventListener("click", function(e){ e.stopPropagation(); petTalk(pt, b); });
+    world.appendChild(b);
+    petEls.push({ cfg:pt, el:b, x:heroPose.x - 30, y:heroPose.y + 12, face:1 });
+  });
+}
+
+function petTalk(pt, el){
+  Sound.blip("tap");
+  var lines = {
+    pet_chick:["叽叽！","（它跟在你脚边，啄了两下地面）","（它抬头看你，等着你说走）"],
+    pet_pig:["哼哧哼哧……","（它把鼻子凑到你手上）","（它一屁股坐下，要歇一会儿）"],
+    pet_duck:["嘎嘎！","（它摇摇摆摆转了个圈）","（它用扁嘴巴理了理翅膀）"]
+  };
+  var arr = lines[pt.id] || lines.pet_chick;
+  var txt = arr[Math.floor(Math.random() * arr.length)];
+  var b = el.querySelector(".fbubble");
+  if(b){
+    b.hidden = false; b.textContent = txt;
+    clearTimeout(el._bt);
+    el._bt = setTimeout(function(){ b.hidden = true; }, 2800);
+  }
+  Sound.blip("ok");
+  Voice.say(pt.name + "：" + txt.replace(/（.*?）/g, ""), { who:"kid", rate:1.0 });
+}
+
+function stepPets(dt){
+  if(!petEls.length) return;
+  petTrail.push({ x: heroPose.x, y: heroPose.y });
+  if(petTrail.length > 120) petTrail.shift();
+
+  petEls.forEach(function(p, i){
+    var lag = 18 + i * 13;
+    var t = petTrail[Math.max(0, petTrail.length - 1 - lag)] || { x: heroPose.x, y: heroPose.y };
+    var offX = (i % 2 === 0 ? -1 : 1) * (27 + i * 4);
+    var tx = t.x + offX, ty = t.y + 14;
+    var k = Math.min(1, dt * 4.2);
+    var px = p.x, py = p.y;
+    p.x += (tx - p.x) * k;
+    p.y += (ty - p.y) * k;
+    if(Math.abs(p.x - px) > 0.35) p.face = p.x > px ? 1 : -1;
+
+    p.el.style.left = (p.x - 17) + "px";
+    p.el.style.top = (p.y - 56) + "px";
+    p.el.style.zIndex = String(10 + Math.round((p.y + 2) / 10));
+    var inner = p.el.querySelector("svg");
+    if(inner){
+      var hop = Math.abs(tx - p.x) > 1.5 ? Math.abs(Math.sin(Date.now() / 120 + i)) * 3 : 0;
+      inner.style.transform = "scaleX(" + p.face + ") translateY(" + (-hop).toFixed(2) + "px)";
+    }
   });
 }
 
@@ -2275,6 +2560,52 @@ function stepFolk(dt){
 }
 
 /* 点一个居民 */
+/* 站到多远算「身边」：再远就先走过去 */
+var NEAR_FOLK = 96;
+var pendingFolk = null;
+
+/* 点一个居民：太远就先走过去，走到了再说话 */
+function onFolkClick(n){
+  var d = Math.hypot(heroPose.x - n.x, heroPose.y - n.y);
+  if (d <= NEAR_FOLK){ pendingFolk = null; talkFolk(n); return; }
+  /* 走到他身边 46px 的地方，别站到人身上 */
+  var dx = heroPose.x - n.x, dy = heroPose.y - n.y;
+  var len = Math.hypot(dx, dy) || 1;
+  pendingFolk = n;
+  walkTo = { x: clampX(n.x + dx / len * 46), y: clampY(n.y + dy / len * 26) };
+  Sound.blip("tap");
+  showTip("走近" + n.cfg.name + "，再点一下");
+  sayFolk(n, "过来呀。", 1.4);
+  /* 万一走不过去（被房子挡住），几秒后放开，别一直卡着 */
+  var started = Date.now();
+  var guard = setInterval(function(){
+    if (pendingFolk !== n){ clearInterval(guard); return; }
+    if (Date.now() - started > 7000){
+      clearInterval(guard);
+      pendingFolk = null; walkTo = null;
+      toast("绕一下，走到" + n.cfg.name + "旁边再点");
+    }
+  }, 500);
+}
+
+/* 到身边了没有：主循环每帧看一眼（对方会走动，所以要一直跟） */
+function stepPendingFolk(){
+  if (!pendingFolk) return;
+  var n = pendingFolk;
+  var d = Math.hypot(heroPose.x - n.x, heroPose.y - n.y);
+  if (d <= NEAR_FOLK){
+    pendingFolk = null;
+    walkTo = null;
+    talkFolk(n);
+    return;
+  }
+  if (!walkTo){
+    var dx = heroPose.x - n.x, dy = heroPose.y - n.y;
+    var len = Math.hypot(dx, dy) || 1;
+    walkTo = { x: clampX(n.x + dx / len * 46), y: clampY(n.y + dy / len * 26) };
+  }
+}
+
 function talkFolk(n){
   Sound.blip("tap");
   var line;
@@ -2283,16 +2614,89 @@ function talkFolk(n){
   else line = pickPhrase(n.cfg.talks);
 
   sayFolk(n, line, 3.2);
-  Voice.say(line.replace(/（.*?）/g, ""));
+  Voice.say(line.replace(/（.*?）/g, ""), { who: folkVoice(n.cfg) });
 
-  /* 如果背包里有它喜欢的，顺手就能送 */
-  var like = n.cfg.like;
-  if ((S.bag[like] || 0) > 0){
-    setTimeout(function(){ offerGift(n, like); }, 700);
+  /* 说话的同时把背包摊开：想送就点，不想送就关掉 */
+  var ids = Object.keys(S.bag || {}).filter(function(id){ return S.bag[id] > 0; });
+  if (ids.length){
+    setTimeout(function(){ openGift(n); }, 760);
+  } else {
+    setTimeout(function(){
+      if (Math.random() < 0.45) guide("背包还是空的。去商店用星星换点东西，就能送给" + n.cfg.name + "了。");
+    }, 1200);
   }
 }
 
+/* 谁在说话：小狗汪汪，小朋友亮一点，其余按画法给个最接近的嗓音 */
+function folkVoice(cfg){
+  if(!cfg) return "kid";
+  if(cfg.kind === "dog") return "dog";
+  if(cfg.kind === "girl2") return "kid";
+  if(cfg.kind === "boy" || cfg.kind === "kid") return "kid";
+  return "kid";
+}
+/* 「去哪里」里的每个地点是谁在招呼：按 by 的名字给音色 */
+function byVoice(by){
+  by = by || "";
+  if(/外公/.test(by)) return "grandpa";
+  if(/爷爷/.test(by)) return "grandpa";
+  if(/外婆/.test(by)) return "grandma";
+  if(/奶奶/.test(by)) return "grandma";
+  if(/妈妈/.test(by)) return "mom";
+  if(/爸爸/.test(by)) return "dad";
+  if(/舅舅/.test(by)) return "uncle";
+  if(/消防/.test(by)) return "fireman";
+  if(/护士/.test(by)) return "nurse";
+  if(/理货/.test(by)) return "clerk";
+  if(/农场/.test(by)) return "farmer";
+  if(/老师|管理员|大树/.test(by)) return "teacher";
+  return "teacher";
+}
+
 /* 送礼小窗：点了「送给它」才真的送出 */
+/* 真的把东西送出去：扣背包、影响心情、做个开心的小动作 */
+function doGift(n, itemId){
+  if (!(S.bag[itemId] > 0)) return false;
+  var it = SHOP_ITEMS.filter(function(x){ return x.id === itemId; })[0];
+  if (!it) return false;
+
+  S.bag[itemId] = (S.bag[itemId] || 0) - 1;
+  if (S.bag[itemId] <= 0) delete S.bag[itemId];
+  n.mood = "happy"; n.justFed = 20; n.moodT = 20 + Math.random() * 8;
+  /* 气球和风筝是拿在手里玩的，送出去以后它会一直牵着 */
+  if (itemId === "balloon" || itemId === "kite"){
+    n.carry = itemId;
+    n.cfg.carry = itemId;
+    attachCarry(n);
+    saveFolk();
+  }
+  save(); paintHud(); paintCarry();
+  closeGift();
+  Sound.blip("good");
+
+  /* 先把庆祝的小动作收住，不然会把话盖掉 */
+  n.act = null; n.actT = 0; n.pause = 3;
+  var cheer = "给我的吗？谢谢你！";
+  if (itemId === "balloon") cheer = "气球！我牵着它走。";
+  else if (itemId === "kite") cheer = "风筝！等下就去放。";
+  else if (itemId === "teddy") cheer = "我可以抱着它睡午觉。";
+  else if (itemId === "apple" || itemId === "bread" || itemId === "candy") cheer = "好吃的！我正好饿了。";
+  else if (itemId === "bubble") cheer = "哇，可以吹泡泡啦。";
+  sayFolk(n, cheer, 3.2);
+  Voice.say(cheer);
+  n.inner.style.transition = "transform .18s ease";
+  var t0 = Date.now();
+  var iv = setInterval(function(){
+    var k = (Date.now() - t0) / 120;
+    n.inner.style.transform = "scaleX(" + n.face + ") translateY(" + (-Math.abs(Math.sin(k)) * 14).toFixed(1) + "px)";
+    if (Date.now() - t0 > 900){ clearInterval(iv); n.inner.style.transform = "scaleX(" + n.face + ")"; }
+  }, 60);
+  heartBurst(n);
+  toast("送给" + n.cfg.name + "一个" + it.name);
+  return true;
+}
+
+/* 送礼小窗：点了「送给它」才真的送出（喂它爱吃的东西时用） */
 function offerGift(n, itemId){
   var it = SHOP_ITEMS.filter(function(x){ return x.id === itemId; })[0];
   if (!it) return;
@@ -2309,40 +2713,45 @@ function offerGift(n, itemId){
     '</div>';
   document.body.appendChild(d);
   requestAnimationFrame(function(){ d.classList.add("show"); });
-
-  document.getElementById("gbYes").onclick = function(){
-    S.bag[itemId] = (S.bag[itemId] || 0) - 1;
-    if (S.bag[itemId] <= 0) delete S.bag[itemId];
-    n.mood = "happy"; n.justFed = 20; n.moodT = 20 + Math.random() * 8;
-    /* 气球和风筝是拿在手里玩的，送出去以后它会一直牵着 */
-    if (itemId === "balloon" || itemId === "kite"){
-      n.carry = itemId;
-      n.cfg.carry = itemId;
-      attachCarry(n);
-      saveFolk();
-    }
-    save(); paintHud(); paintCarry();
-    closeGift();
-    Sound.blip("good");
-    /* 先把庆祝的小动作收住，不然会把话盖掉 */
-    n.act = null; n.actT = 0; n.pause = 3;
-    var cheer = "给我的吗？谢谢你！";
-    if (itemId === "balloon") cheer = "气球！我牵着它走。";
-    else if (itemId === "kite") cheer = "风筝！等下就去放。";
-    else if (itemId === "teddy") cheer = "我可以抱着它睡午觉。";
-    sayFolk(n, cheer, 3.2);
-    Voice.say(cheer);
-    n.inner.style.transition = "transform .18s ease";
-    var t0 = Date.now();
-    var iv = setInterval(function(){
-      var k = (Date.now() - t0) / 120;
-      n.inner.style.transform = "scaleX(" + n.face + ") translateY(" + (-Math.abs(Math.sin(k)) * 14).toFixed(1) + "px)";
-      if (Date.now() - t0 > 900){ clearInterval(iv); n.inner.style.transform = "scaleX(" + n.face + ")"; }
-    }, 60);
-    heartBurst(n);
-    toast("送给" + n.cfg.name + "一个" + it.name);
-  };
+  document.getElementById("gbYes").onclick = function(){ doGift(n, itemId); };
   document.getElementById("gbNo").onclick = function(){ closeGift(); };
+}
+
+/* 送礼面板：走到谁身边点一下，就把背包摊开来挑 */
+var giftTarget = null;
+function openGift(n){
+  n = n || giftTarget;
+  if (!n) return;
+  giftTarget = n;
+  var ids = Object.keys(S.bag || {}).filter(function(id){ return S.bag[id] > 0; });
+  var html = '<h2>送给' + n.cfg.name + '</h2>' +
+    '<p class="sub">' + (ids.length
+      ? '从背包里挑一样吧。' + (n.cfg.like ? '带小爱心的，是' + n.cfg.name + '最喜欢的。' : '')
+      : '背包还是空的。去商店用星星换点东西，再拿来送人吧。') + '</p>';
+  if (ids.length){
+    html += '<div class="bag-grid gift-grid">';
+    ids.forEach(function(id){
+      var it = SHOP_ITEMS.filter(function(x){ return x.id === id; })[0];
+      if (!it) return;
+      var liked = (n.cfg.like === id);
+      html += '<button class="bag-cell gift-cell' + (liked ? ' liked' : '') + '" onclick="giveTo(\'' + id + '\')">' +
+                (liked ? '<i class="lk">♥</i>' : '') +
+                '<div class="bg-ico">' + art(id, 54) + '</div>' +
+                '<b>' + it.name + '</b><span>× ' + S.bag[id] + '</span>' +
+              '</button>';
+    });
+    html += '</div>';
+  }
+  html += '<div class="row" style="margin-top:14px">' +
+            '<button class="btn" onclick="closeSheet()">先不送</button>' +
+            (ids.length ? '' : '<button class="btn primary" onclick="closeSheet();openShop()">去商店</button>') +
+          '</div>';
+  openSheet(html);
+  Sound.blip("tap");
+}
+function giveTo(itemId){
+  if (!giftTarget) return;
+  doGift(giftTarget, itemId);
 }
 function closeGift(){
   var d = document.getElementById("giftBox");
@@ -2623,15 +3032,45 @@ function toggleMine(id){
 /* =====================================================================
    8.6 商店与背包
    ===================================================================== */
-var SHOP_ITEMS = [
-  { id:"apple",  name:"苹果",  cost:2, line:"红红的苹果，脆脆的。" },
-  { id:"bread",  name:"面包",  cost:2, line:"刚烤好的面包，香香的。" },
-  { id:"candy",  name:"糖果",  cost:3, line:"甜甜的糖，只能吃一颗。" },
-  { id:"balloon",name:"气球",  cost:3, per:3, line:"一次给 3 只，点一下就能放飞。" },
-  { id:"bubble", name:"泡泡",  cost:2, per:1, line:"点一下，满屏都会飘起泡泡。" },
-  { id:"teddy",  name:"小熊",  cost:5, line:"软软的小熊，可以抱着睡。" },
-  { id:"kite",   name:"风筝",  cost:6, line:"有风的时候，风筝会飞很高。" }
+/* 商店分成四类：吃的、玩的、农作物（种子）、幼崽 */
+var SHOP_CATS = [
+  { id:"food", name:"吃的",   ico:"apple",   hint:"买来可以送人" },
+  { id:"toy",  name:"玩的",   ico:"balloon", hint:"拿在手里，点一下就玩" },
+  { id:"seed", name:"农作物", ico:"seedbag", hint:"种到农场，三步长成，卖掉能得三倍星星" },
+  { id:"pet",  name:"幼崽",   ico:"chick",   hint:"养大能当宠物，也可以送给小镇上的人" }
 ];
+
+var SHOP_ITEMS = [
+  { id:"apple",  name:"苹果",  cost:2, cat:"food", line:"红红的苹果，脆脆的。" },
+  { id:"bread",  name:"面包",  cost:2, cat:"food", line:"刚烤好的面包，香香的。" },
+  { id:"candy",  name:"糖果",  cost:3, cat:"food", line:"甜甜的糖，只能吃一颗。" },
+  { id:"balloon",name:"气球",  cost:3, per:3, cat:"toy", line:"一次给 3 只，点一下就能放飞。" },
+  { id:"bubble", name:"泡泡",  cost:2, per:1, cat:"toy", line:"点一下，满屏都会飘起泡泡。" },
+  { id:"teddy",  name:"小熊",  cost:5, cat:"toy", line:"软软的小熊，可以抱着睡。" },
+  { id:"kite",   name:"风筝",  cost:6, cat:"toy", line:"有风的时候，风筝会飞很高。" },
+  /* —— 农作物种子：种到农场，浇水两步就成熟，卖价是买价的三倍 —— */
+  { id:"seed_rose",   name:"玫瑰花种子", cost:3, cat:"seed", grow:"rose",   line:"种在农场里，能开出一朵玫瑰花。" },
+  { id:"seed_potato", name:"土豆种子",   cost:2, cat:"seed", grow:"potato", line:"土豆最好养，浇浇水就长。" },
+  { id:"seed_carrot", name:"萝卜种子",   cost:2, cat:"seed", grow:"carrot", line:"外公最爱种萝卜，长得最快。" },
+  { id:"seed_tomato", name:"番茄种子",   cost:3, cat:"seed", grow:"tomato", line:"熟了红红的，酸酸甜甜。" },
+  { id:"seed_corn",   name:"玉米种子",   cost:4, cat:"seed", grow:"corn",   line:"玉米长得高，得多浇一次水。" },
+  /* —— 幼崽：养大能当宠物带出农场，也能送给小镇上的人 —— */
+  { id:"pet_chick", name:"小鸡", cost:4, cat:"pet", grow:"chick", line:"毛茸茸的小鸡，会跟着你走。" },
+  { id:"pet_pig",   name:"小猪", cost:5, cat:"pet", grow:"pig",   line:"圆圆的小猪，爱吃也爱睡。" },
+  { id:"pet_duck",  name:"小鸭", cost:4, cat:"pet", grow:"duck",  line:"小鸭走路一摇一摆的。" }
+];
+
+/* 种子／幼崽的图形用「长成以后的样子」，孩子一眼就认得出 */
+function itemArt(it, size){
+  if (!it) return art("star", size);
+  return art(it.grow || it.id, size);
+}
+function itemById(id){
+  return SHOP_ITEMS.filter(function(x){ return x.id === id; })[0] || null;
+}
+/* 种子买价的三倍，幼崽送人的五倍 */
+function sellPrice(it){ return Math.round((it.cost || 1) * 3); }
+function petGiftPrice(it){ return Math.round((it.cost || 1) * 5); }
 
 function buyItem(id){
   var it = SHOP_ITEMS.filter(function(x){ return x.id === id; })[0];
@@ -2655,6 +3094,13 @@ function buyItem(id){
         (id === "balloon" ? "气球就飞上天啦" : "泡泡就吹出来啦") + "。");
     }, 1200);
   }
+  if (it.cat === "seed" || it.cat === "pet"){
+    setTimeout(function(){
+      guide(it.cat === "seed"
+        ? "种子买好啦。走到小镇农场，把它种到地里，浇两次水就长熟了。"
+        : "幼崽买好啦。走到小镇农场，把它放进小窝里，喂两次就长大了。");
+    }, 1300);
+  }
   if (document.getElementById("mask") && mask.classList.contains("show")) paintShopSheet();
 }
 
@@ -2662,21 +3108,41 @@ function buyItem(id){
 function openShop(){
   paintShopSheet();
 }
-function paintShopSheet(){
-  var html = '<h2>小镇商店</h2><p class="sub">玩小游戏攒的星星，可以换东西。吃的可以送人；气球和泡泡在自己身上点一下就能放。</p>';
+function paintShopSheet(catId){
+  if (!catId) catId = S.shopCat || "food";
+  S.shopCat = catId;
+  var cur = SHOP_CATS.filter(function(c){ return c.id === catId; })[0] || SHOP_CATS[0];
+
+  var html = '<h2>小镇商店</h2><p class="sub">玩小游戏攒的星星，可以换东西。</p>';
   html += '<div class="shop-wallet">' + ico("star", 16, "#f0a832") + ' <b>' + S.stars + '</b> 颗星星可以花</div>';
+
+  /* 分类标签 */
+  html += '<div class="shop-tabs">';
+  SHOP_CATS.forEach(function(c){
+    html += '<button class="shop-tab' + (c.id === cur.id ? " on" : "") + '" ' +
+            'onclick="paintShopSheet(\'' + c.id + '\')">' +
+              '<span class="tab-ico">' + art(c.ico, 22) + '</span>' + c.name +
+            '</button>';
+  });
+  html += '</div>';
+  html += '<div class="shop-cat-hint">' + cur.hint + '</div>';
+
   html += '<div class="shop-grid">';
-  SHOP_ITEMS.forEach(function(it){
+  SHOP_ITEMS.filter(function(x){ return x.cat === cur.id; }).forEach(function(it){
     var can = S.stars >= it.cost;
+    var tail = it.cat === "seed" ? ("卖出 " + sellPrice(it) + " 星") :
+               (it.cat === "pet" ? ("送人 " + petGiftPrice(it) + " 星") : "");
     html += '<div class="shop-cell' + (can ? "" : " poor") + '">' +
-              '<div class="sc-ico">' + art(it.id, 62) + '</div>' +
+              '<div class="sc-ico">' + itemArt(it, 62) + '</div>' +
               '<b>' + it.name + '</b>' +
               '<div class="sc-cost">' + ico("star", 13, "#f0a832") + ' ' + it.cost + '</div>' +
+              (tail ? '<div class="sc-tail">' + tail + '</div>' : '') +
               '<button class="sc-buy" ' + (can ? 'onclick="buyItem(\'' + it.id + '\')"' : 'disabled') + '>' +
                 (can ? "换" : "还差") + '</button>' +
             '</div>';
   });
   html += '</div>';
+
   html += '<div class="row" style="margin-top:14px"><button class="btn" onclick="openBag()">看看背包</button>' +
           '<button class="btn primary" onclick="closeSheet()">继续逛</button></div>';
   openSheet(html);
@@ -2692,7 +3158,7 @@ function openBag(){
       var it = SHOP_ITEMS.filter(function(x){ return x.id === id; })[0];
       if (!it) return;
       var playable = (id === "balloon" || id === "bubble");
-      html += '<div class="bag-cell"><div class="bg-ico">' + art(id, 58) + '</div>' +
+      html += '<div class="bag-cell"><div class="bg-ico">' + itemArt(it, 58) + '</div>' +
               '<b>' + it.name + '</b><span>× ' + S.bag[id] + '</span>' +
               (playable ? '<button class="bg-play" onclick="closeSheet();playCarry(\'' + id + '\')">放</button>' : '') +
               '</div>';
@@ -2747,7 +3213,49 @@ function art(kind,size,opt){
     truck:'<rect x="-12" y="-4" width="16" height="10" rx="3" fill="#d9534f"/><path d="M4,0 L9,0 L13,6 L13,6 L4,6 Z" fill="#e8887f"/><rect x="-9" y="-1" width="9" height="3" rx="1.5" fill="#fff" opacity=".7"/><circle cx="-7" cy="7" r="3.4" fill="#4a4438"/><circle cx="7" cy="7" r="3.4" fill="#4a4438"/>',
     ball:'<circle r="11" fill="#7fb6e0"/><path d="M-11,0 A11,11 0 0,0 11,0" fill="#f7a5ad"/><path d="M-8,-6 C-2,-2 -2,2 -8,6" stroke="#fff" stroke-width="2" fill="none"/>',
     book:'<rect x="-10" y="-8" width="9" height="16" rx="2" fill="#a8804f"/><rect x="-1" y="-9" width="9" height="18" rx="2" fill="#c99a62"/><rect x="8" y="-8" width="4" height="16" rx="2" fill="#8f9ec9"/>',
+    abacus:'<rect x="-13" y="-9.6" width="26" height="19.2" rx="3.4" fill="#fffdf8" stroke="#7a86c8" stroke-width="2.2"/><path d="M-13,-1.6 L13,-1.6" stroke="#7a86c8" stroke-width="1.6"/><circle cx="-6.6" cy="-5.4" r="2.8" fill="#e4705f"/><circle cx="0" cy="-5.4" r="2.8" fill="#f0b23f"/><circle cx="6.6" cy="-5.4" r="2.8" fill="#8fc97e"/><circle cx="-3.4" cy="3.6" r="2.8" fill="#7fb6e0"/><circle cx="3.6" cy="3.6" r="2.8" fill="#a9d993"/>',
     carrot2:'<path d="M0,-4 L9,14 L-9,14 Z" fill="#f08a3c" transform="translate(0,-4)"/><path d="M0,-6 C-6,-12 -2,-16 2,-12 C3,-16 9,-13 4,-7 Z" fill="#7fbf6f"/>',
+
+    /* —— 农作物与幼崽（农场／商店用）—— */
+    rose:'<path d="M0,15 L0,2" stroke="#6da45f" stroke-width="2.6" stroke-linecap="round"/>'
+      +'<path d="M0,9 C-9,9 -11,3 -7,1 C-9,7 -4,8 0,8" fill="#8fc97e"/>'
+      +'<path d="M0,5 C9,5 11,-1 7,-3 C9,3 4,4 0,4" fill="#a9d993"/>'
+      +'<circle cx="0" cy="-4" r="8.6" fill="#f7919f"/><circle cx="0" cy="-4" r="5.8" fill="#fbb0ba"/>'
+      +'<circle cx="0" cy="-4" r="2.8" fill="#e4705f"/>',
+    potato:'<ellipse cx="0" cy="2" rx="11.4" ry="8.4" fill="#d9a566" transform="rotate(-14)"/>'
+      +'<ellipse cx="-3" cy="-1" rx="4.4" ry="3" fill="#e8bb84" opacity=".7"/>'
+      +'<circle cx="-4" cy="2" r="1.2" fill="#b8813f"/><circle cx="3" cy="5" r="1.1" fill="#b8813f"/>'
+      +'<circle cx="5.4" cy="0" r="1" fill="#b8813f"/><circle cx="0" cy="7.4" r=".9" fill="#b8813f"/>',
+    tomato:'<circle cx="0" cy="1.4" r="10.6" fill="#e4574c"/>'
+      +'<circle cx="-3.6" cy="-2" r="3.2" fill="#f08078" opacity=".65"/>'
+      +'<path d="M0,-8.6 L-5,-4.6 L0,-5.8 L5,-4.6 Z" fill="#6da45f"/>'
+      +'<path d="M0,-8.6 L-1.4,-12.4" stroke="#6da45f" stroke-width="2" stroke-linecap="round"/>',
+    corn:'<ellipse cx="0" cy="0.6" rx="6.4" ry="12.6" fill="#f2c14e"/>'
+      +'<g stroke="#e0a92b" stroke-width="1.1" opacity=".85">'
+      +'<path d="M-3,-10 L-3,10"/><path d="M3,-10 L3,10"/><path d="M-5.6,-6 L5.6,-6"/>'
+      +'<path d="M-6,-1 L6,-1"/><path d="M-5.6,4.4 L5.6,4.4"/></g>'
+      +'<path d="M-6,-4 C-12.4,-8.4 -13.6,2 -7,6.4" fill="#8fc97e"/>'
+      +'<path d="M6,-4 C12.4,-8.4 13.6,2 7,6.4" fill="#a9d993"/>',
+    chick:'<ellipse cx="0" cy="3.4" rx="9.6" ry="8.6" fill="#f7d35c"/>'
+      +'<circle cx="0" cy="-6" r="6.8" fill="#fbe58a"/>'
+      +'<path d="M-6.6,-3 C-9.6,-5 -8.6,-9 -5.6,-7.4" fill="#f7d35c"/>'
+      +'<circle cx="-2.3" cy="-6.6" r="1.15" fill="#4a3327"/><circle cx="2.3" cy="-6.6" r="1.15" fill="#4a3327"/>'
+      +'<circle cx="-2" cy="-7" r=".4" fill="#fff"/><circle cx="2.6" cy="-7" r=".4" fill="#fff"/>'
+      +'<path d="M0,-4.6 L-3,-2.2 L3,-2.2 Z" fill="#f0913f"/>'
+      +'<path d="M-3.4,11.4 L-3.4,14.4 M3.4,11.4 L3.4,14.4" stroke="#f0913f" stroke-width="2.2" stroke-linecap="round"/>',
+    pig:'<ellipse cx="0" cy="2.6" rx="11" ry="8.4" fill="#f6b8c4"/>'
+      +'<circle cx="0" cy="-5.6" r="7.2" fill="#f9cbd4"/>'
+      +'<path d="M-7.4,-10.6 L-4.2,-15 L-2.4,-9.8 Z" fill="#f6b8c4"/>'
+      +'<path d="M7.4,-10.6 L4.2,-15 L2.4,-9.8 Z" fill="#f6b8c4"/>'
+      +'<ellipse cx="0" cy="-4.4" rx="4.2" ry="3.2" fill="#f19aab"/>'
+      +'<circle cx="-1.5" cy="-4.4" r=".9" fill="#c96d80"/><circle cx="1.5" cy="-4.4" r=".9" fill="#c96d80"/>'
+      +'<circle cx="-4.6" cy="-7.8" r=".95" fill="#4a3327"/><circle cx="4.6" cy="-7.8" r=".95" fill="#4a3327"/>'
+      +'<path d="M-4.2,10.4 L-4.2,13.6 M4.2,10.4 L4.2,13.6" stroke="#e890a3" stroke-width="2.4" stroke-linecap="round"/>',
+    duck:'<ellipse cx="0" cy="4" rx="10" ry="7" fill="#f6d365"/><circle cx="-5" cy="-5" r="5.4" fill="#ffe08a"/><path d="M-10,-5 L-14,-3 L-10,-2 Z" fill="#f08a3c"/><circle cx="-6.6" cy="-6" r="1.1" fill="#4a3327"/><path d="M6,-2 C10,-6 12,-8 13,-7" stroke="#e8b96a" stroke-width="2" fill="none" stroke-linecap="round"/>',
+    seedbag:'<path d="M-8,-5.6 L8,-5.6 L6,12 L-6,12 Z" fill="#f4e3c4" stroke="#d9bd8f" stroke-width="1.6" stroke-linejoin="round"/>'
+      +'<path d="M-8.6,-5.6 Q0,-12.6 8.6,-5.6" fill="#e8d3ab" stroke="#d9bd8f" stroke-width="1.6"/>'
+      +'<circle cx="-1.8" cy="2" r="1.9" fill="#8d6b3f"/><circle cx="2.6" cy="5.4" r="1.6" fill="#8d6b3f"/>'
+      +'<circle cx="-2.6" cy="7.6" r="1.3" fill="#8d6b3f"/>',
     /* —— 人物 —— */
     girl:'<circle cx="0" cy="-6" r="8" fill="#fbe0cf"/><path d="M-8,-6 C-8,-16 8,-16 8,-6 C8,-11 4,-13 0,-13 C-4,-13 -8,-11 -8,-6 Z" fill="#6b4630"/><path d="M-8,-5 C-14,-2 -14,6 -9,7 C-11,3 -10,0 -7,-2 Z" fill="#6b4630"/><path d="M8,-5 C14,-2 14,6 9,7 C11,3 10,0 7,-2 Z" fill="#6b4630"/><path d="M-7,4 C-7,1 7,1 7,4 L9,13 C4,15 -4,15 -9,13 Z" fill="#f7a8bd"/><circle cx="-2.6" cy="-6" r="1.1" fill="#4a3327"/><circle cx="2.6" cy="-6" r="1.1" fill="#4a3327"/>',
     kid1:'<circle cx="0" cy="-4" r="7.5" fill="#fbe0cf"/><path d="M-7.5,-4 C-7.5,-13 7.5,-13 7.5,-4 C7.5,-9 3,-11 0,-11 C-3,-11 -7.5,-9 -7.5,-4 Z" fill="#3f3a32"/><path d="M-6,5 C-6,2 6,2 6,5 L8,14 C3,16 -3,16 -8,14 Z" fill="#7fb6e0"/><circle cx="-2.4" cy="-4" r="1" fill="#3f3a32"/><circle cx="2.4" cy="-4" r="1" fill="#3f3a32"/>',
@@ -3407,6 +3915,137 @@ MINI.puzzle=function(){
   return {hint:hint};
 };
 
+/* ---------- 10.11 数一数：点一个数一个，再挑出对的数字（1—10） ---------- */
+MINI.count=function(){
+  /* 三种难度：小班数到 5，中班到 8，大班到 10；一共 4 关 */
+  var CAP = S.diff==="easy"?5:(S.diff==="mid"?8:10);
+  var LOW = S.diff==="easy"?1:(S.diff==="mid"?2:4);
+  var ROUNDS = 4;
+  var kinds=["apple","star","flower","candy","carrot","ball","truck","basket","leaf","balloon","bread","berry"];
+
+  var round=0;          /* 已经过几关 */
+  var n=0;              /* 这一关有几个东西 */
+  var kind="";          /* 这一关是什么东西 */
+  var counted=0;        /* 数到第几个 */
+  var opts=[];          /* 三个数字选项 */
+  var solved=false;     /* 这一关是否答对 */
+  var lock=false;
+
+  function newRound(){
+    var span = CAP - LOW + 1;
+    /* 别连着出同样的数目，孩子会觉得没变化 */
+    var t = LOW + Math.floor(Math.random()*span);
+    if (t === n && span > 1) t = LOW + ((t - LOW + 1) % span);
+    n = t;
+    kind = kinds[Math.floor(Math.random()*kinds.length)];
+    counted = 0; solved = false; lock = false;
+    /* 选项：正确答案 + 两个挨得近的数（1 和 10 的时候别越界） */
+    var set = [n];
+    var guard = 0;
+    while (set.length < 3 && guard++ < 40){
+      var d = Math.random() < 0.5 ? -1 : 1;
+      var c = n + d * (1 + Math.floor(Math.random()*2));
+      if (c >= 1 && c <= 10 && set.indexOf(c) < 0) set.push(c);
+    }
+    while (set.length < 3){
+      var f = 1 + Math.floor(Math.random()*10);
+      if (set.indexOf(f) < 0) set.push(f);
+    }
+    opts = shuffle(set);
+  }
+
+  function render(){
+    var g=boardEl(); if(!g) return; g.innerHTML="";
+    g.innerHTML='<div class="hintline">点一下，帮你一个一个数出来</div>';
+
+    var grid=document.createElement("div"); grid.className="cnt-grid";
+    for (var i=0;i<n;i++){
+      var d=document.createElement("button");
+      d.type="button";
+      d.className="cnt-item"+((i<counted)?" on":"");
+      d.innerHTML=art(kind,34)+(i<counted ? "<b>"+(i+1)+"</b>" : "");
+      (function(i,d){
+        d.onclick=function(){
+          if (gameDone||solved) return;
+          /* 必须按顺序点：手指落到还没数的那个上才算一次 */
+          if (i===counted){
+            counted++; Sound.blip("pop");
+            Voice.say(String(counted), {rate:0.95});
+            render();
+            if (counted===n) guide("一共 "+n+" 个，是哪个数字呢？");
+          } else if (i<counted){
+            guide("这个数过啦，找还没数的。");
+          } else {
+            guide("一个一个来，先点前面那个。");
+            d.classList.add("no");
+            setTimeout(function(){ d.classList.remove("no"); },300);
+          }
+        };
+      })(i,d);
+      grid.appendChild(d);
+    }
+    g.appendChild(grid);
+
+    var nums=document.createElement("div"); nums.className="cnt-nums";
+    opts.forEach(function(v){
+      var b=document.createElement("button");
+      b.type="button"; b.className="cnt-num"; b.textContent=v;
+      b.onclick=function(){ pick(v,b); };
+      nums.appendChild(b);
+    });
+    g.appendChild(nums);
+    paintScore(round, ROUNDS);
+  }
+
+  function pick(v,el){
+    if (gameDone||solved||lock) return;
+    if (v===n){
+      solved=true; lock=true;
+      el.classList.add("yes"); Sound.blip("ok");
+      round++;
+      paintScore(round, ROUNDS);
+      if (round>=ROUNDS){
+        Sound.blip("good");
+        finish("四个都数对啦，数得又准又稳。");
+      } else {
+        guide(pickPhrase(["对，就是 "+n+" 个。","数对啦，再来一次。","没错，是 "+n+" 个。"]));
+        setTimeout(function(){ newRound(); render(); }, 780);
+      }
+    } else {
+      el.classList.add("no");
+      setTimeout(function(){ el.classList.remove("no"); },340);
+      Sound.blip("soft");
+      if (counted < n){
+        guide("先一个一个点着数，数完再选。");
+      } else {
+        guide("再数一遍试试，一个一个点。");
+      }
+    }
+  }
+
+  /* 「帮帮我」：把这一堆从头点数一遍，边点边报数 */
+  function hint(){
+    if (!boardEl()) return;
+    var items=document.querySelectorAll(".cnt-item");
+    if (!items.length) return;
+    var k=0;
+    (function tick(){
+      if (k>=n){
+        guide("数完啦，一共 "+n+" 个。");
+        return;
+      }
+      var it=items[k];
+      if (it){ it.click(); }
+      k++;
+      setTimeout(tick, 520);
+    })();
+  }
+
+  newRound();
+  render();
+  return {hint:hint};
+};
+
 /* ---------- 10.7 种地：挖坑 → 放种子 → 浇水（三步任务） ---------- */
 MINI.plant=function(){
   var n = S.diff==="easy"?1:(S.diff==="mid"?2:3);
@@ -3573,7 +4212,7 @@ function openPlaces(){
   },0);
 }
 function mapArtKey(b){
-  return {home:"apple",gong:"carrot",nai:"flower",kg:"kid1",fire:"truck",hosp:"cross",mall:"apple",park:"tree",farm:"sprout",lib:"book"}[b.id]||"star";
+  return {home:"apple",gong:"carrot",nai:"flower",kg:"kid1",fire:"truck",hosp:"cross",mall:"apple",park:"tree",farm:"sprout",lib:"book",math:"abacus"}[b.id]||"star";
 }
 function goFromList(id){
   var b=BUILDINGS.filter(function(x){return x.id===id})[0];
@@ -3923,12 +4562,27 @@ placeBuildings();
 heroPose.x=S.hero.x||985; heroPose.y=S.hero.y||772;
 resize();
 loadMyFolk(); loadFolk(); placeFolk(); drawFolk();
+S.pets = S.pets || []; loadPets();
 paintCarry();
 var c0=camTarget(); cam.x=c0.x; cam.y=c0.y;
 world.style.transform="translate("+cam.x+"px,"+cam.y+"px) scale("+M.scale+")";
 drawHero();
 paintHud();
 requestAnimationFrame(loop);
+
+/* 兜底：老版本 iPad Safari 万一没认出场地的尺寸（页面一片空白），
+   这里自己补上固定定位 + 100vw/100vh，再重新量一次，别让孩子对着空屏 */
+setTimeout(function(){
+  try{
+    var r=stage.getBoundingClientRect();
+    if(r.width<10||r.height<10){
+      stage.style.position="fixed";
+      stage.style.top="0"; stage.style.left="0";
+      stage.style.width="100vw"; stage.style.height="100vh";
+      resize();
+    }
+  }catch(e){}
+},1200);
 
 /* 点「开始」：解锁音频 → 淡入音乐 → 语音欢迎（注意：不能叫 startGame，
    那是小游戏的开局函数，重名会把这里覆盖掉） */
@@ -3967,6 +4621,18 @@ function beginTown(){
     guide(tip);
   },300);
   showTip("用方向键或左下摇杆走一走，走到房子门口点一下就能进屋");
+
+  /* 从农场点「去商店」过来的：进门直接把商店开到对应分类 */
+  try{
+    var mm = /[?&]shop=([a-z]+)/.exec(location.search);
+    if(mm){
+      var cat = mm[1];
+      setTimeout(function(){
+        openShop();
+        paintShopSheet(cat === "pet" ? "pet" : (cat === "seed" ? "seed" : cat));
+      }, 700);
+    }
+  }catch(e){}
 }
 </script>
 </body>

@@ -6,7 +6,10 @@
   --wall:#f6e7d2;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
+button{touch-action:manipulation}
+html{height:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{height:100%;min-height:100%}
+@supports (-webkit-touch-callout:none){ html,body{min-height:-webkit-fill-available} }
 body{
   margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
   background:var(--bg);color:var(--ink);overflow:hidden;
@@ -14,7 +17,7 @@ body{
 }
 
 /* ---------- 房间舞台 ---------- */
-.room-wrap{position:fixed;inset:0;display:grid;place-items:center;padding:0}
+.room-wrap{position:fixed;top:0;right:0;bottom:0;left:0;display:grid;place-items:center;padding:0}
 .stage{
   position:relative;width:100%;height:100%;max-width:1100px;
   background:
@@ -23,7 +26,7 @@ body{
 }
 /* 墙面细纹 */
 .stage:before{
-  content:"";position:absolute;inset:0;pointer-events:none;
+  content:"";position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;
   background-image:repeating-linear-gradient(90deg,rgba(180,150,110,.07) 0 2px,transparent 2px 26px);
   opacity:.7;
 }
@@ -142,7 +145,7 @@ body{
 
 /* ---------- 开场封面 ---------- */
 .cover{
-  position:fixed;inset:0;z-index:70;display:grid;place-items:center;padding:20px;
+  position:fixed;top:0;right:0;bottom:0;left:0;;z-index:70;display:grid;place-items:center;padding:20px;
   background:radial-gradient(circle at 50% 30%,#fdf6e8,#f0e0c8 72%);
   transition:.46s;text-align:center;
 }
@@ -174,7 +177,7 @@ body{
 
 /* ---------- 房间陈设背景 ---------- */
 .scene{
-  position:absolute;inset:0;width:100%;height:100%;display:block;
+  position:absolute;top:0;right:0;bottom:0;left:0;;width:100%;height:100%;display:block;
   pointer-events:none;z-index:1;
 }
 /* 竖屏：舞台固定 1000:700 贴在上方（整间屋子一点不裁），
@@ -183,4 +186,56 @@ body{
   .room-wrap{align-items:stretch}
   .stage{width:100%;height:100%;max-width:none;aspect-ratio:auto}
 }
-.props{position:absolute;inset:0;z-index:6}
+.props{position:absolute;top:0;right:0;bottom:0;left:0;;z-index:6}
+
+
+/* ---------- 房间里的弹层（背包 / 数学游戏）----------
+   room-shop.html 的背包一直缺这套样式，顺手补上 */
+.mask{
+  position:fixed;top:0;right:0;bottom:0;left:0;z-index:40;
+  background:rgba(45,52,45,.42);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+  display:flex;align-items:center;justify-content:center;padding:18px;
+  opacity:0;pointer-events:none;transition:opacity .22s;
+}
+.mask.show{opacity:1;pointer-events:auto}
+.sheet{
+  position:relative;width:100%;max-width:470px;max-height:88vh;overflow:auto;
+  background:var(--card);border-radius:24px;padding:22px 20px 18px;
+  box-shadow:0 18px 44px rgba(30,40,32,.24);
+  transform:translateY(10px);transition:transform .22s;
+}
+.mask.show .sheet{transform:none}
+.sheet .close{
+  position:absolute;right:12px;top:12px;width:32px;height:32px;border:none;
+  border-radius:10px;background:#f1ece0;color:#8a8272;font-size:15px;line-height:1;
+}
+.sheet .close:active{transform:scale(.94)}
+.sheet h2{margin:0 0 6px;font-size:20px}
+.sheet .sub{margin:0 0 14px;font-size:13px;color:var(--muted);line-height:1.65;padding-right:28px}
+.row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.bag-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.bag-cell{
+  background:#fff;border:2px solid var(--line);border-radius:16px;padding:10px 6px;
+  display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;color:#6b6152;
+}
+.bag-cell b{font-size:13px;color:var(--ink)}
+.bag-cell span{color:var(--muted)}
+
+/* ---------- 平板（iPad 2019 等）----------
+   比手机宽、比电脑小，字和按钮各放大一档，手指点得准 */
+@media (min-width:641px) and (max-width:1200px){
+  .brand{padding:8px 15px;border-radius:15px}
+  .brand h1{font-size:20px}
+  .brand p{font-size:12px}
+  .tools button{width:46px;height:46px;border-radius:14px}
+  .tools button svg{width:22px;height:22px}
+  .speech{font-size:17px;padding:14px 20px;border-radius:17px;max-width:78vw;bottom:calc(20px + env(safe-area-inset-bottom))}
+  .cover h1{font-size:30px}
+  .cover p{font-size:15px}
+  .cover .go{font-size:19px;padding:14px 44px}
+  .room-done{padding:30px 28px 24px}
+  .room-done h2{font-size:23px}
+  .room-done p{font-size:15px}
+  .peep .idleb{font-size:13px;padding:5px 12px}
+}

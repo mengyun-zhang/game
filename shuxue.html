@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>数学天地 · 澄澄的小镇</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="room.css">
+<style>
+  /* ================= 数学游戏面板 ================= */
+  .m-guide{display:flex;align-items:center;gap:8px;background:#eef1fb;border-radius:14px;
+    padding:9px 12px;font-size:13px;color:#5b6486;line-height:1.55;margin-bottom:12px}
+  .m-guide b{background:#7a86c8;color:#fff;border-radius:9px;padding:2px 8px;font-size:12px;
+    white-space:nowrap;flex:0 0 auto}
+  .m-guide.ready{background:#fff6e3;color:#8a6a2f}
+  .m-guide.ready b{background:#e8a72a}
+  .m-guide.done{background:#eaf8ea;color:#4a7a58}
+  .m-guide.done b{background:#5aa86e}
+
+  /* 数一数 */
+  .m-count{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;padding:12px;
+    background:#f8f8fd;border:2px dashed #dcdff0;border-radius:16px;min-height:96px;align-items:center}
+  .m-item{position:relative;width:48px;height:48px;border-radius:14px;background:#fff;
+    border:2px solid #e7e8f4;display:grid;place-items:center;transition:.14s;padding:2px}
+  .m-item.on{border-color:#9fb2ea;background:#eef1ff;transform:translateY(-2px)}
+  .m-item b{position:absolute;right:-6px;top:-7px;min-width:19px;height:19px;border-radius:10px;
+    background:#7a86c8;color:#fff;font-size:11px;line-height:19px;text-align:center;font-weight:700;
+    box-shadow:0 1px 4px rgba(60,60,110,.3)}
+  .m-item.next{border-color:#f0b23f;animation:pulse 1.2s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(240,178,63,.55)}50%{box-shadow:0 0 0 8px rgba(240,178,63,0)}}
+
+  /* 数字卡 */
+  .m-nums{display:flex;justify-content:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+  .m-num{width:58px;height:58px;border-radius:17px;border:2px solid #e3ddd0;background:#fff;
+    font-size:25px;font-weight:800;color:#5a6a8f;display:grid;place-items:center;transition:.15s}
+  .m-num:active{transform:scale(.95)}
+  .m-num.ready{border-color:#f0b23f;background:#fffaf0;box-shadow:0 0 0 4px rgba(240,178,63,.22)}
+  .m-num.yes{border-color:#8fce9a;background:#eef9ec;color:#4f8f63;animation:m-pop .35s}
+  .m-num.no{animation:m-shake .3s;border-color:#e8a0a0}
+  @keyframes m-pop{0%{transform:scale(1)}50%{transform:scale(1.1)}100%{transform:scale(1)}}
+  @keyframes m-shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+  /* 比多少 */
+  .m-two{display:flex;gap:12px;justify-content:center;align-items:stretch}
+  .m-pile{flex:1 1 0;max-width:220px;border-radius:18px;border:2px solid #e7e8f4;background:#fff;
+    padding:14px 10px 22px;display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-content:center;
+    min-height:132px;transition:.15s;position:relative}
+  .m-pile:active{transform:scale(.98)}
+  .m-pile.yes{border-color:#8fce9a;background:#f1fbf0}
+  .m-pile.no{animation:m-shake .3s;border-color:#e8a0a0}
+  .m-pile .m-side{position:absolute;left:0;right:0;bottom:6px;text-align:center;
+    font-size:11px;color:#b3b9cf}
+
+  /* 数字排队 */
+  .m-train{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin-top:4px}
+  .m-car{width:44px;height:44px;border-radius:12px;border:2px dashed #d8dcee;display:grid;
+    place-items:center;font-size:19px;font-weight:800;color:#c2c7dd;background:#fafbff}
+  .m-car.on{border-style:solid;border-color:#8fce9a;background:#eef9ec;color:#4f8f63;animation:m-pop .3s}
+  .m-hand{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
+  .m-hand .m-num{width:52px;height:52px;font-size:22px}
+
+  /* 配对 */
+  .m-pair{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .m-pcard{width:62px;height:62px;border-radius:16px;border:2px solid #e3ddd0;background:#fff;
+    display:grid;place-items:center;transition:.15s;position:relative}
+  .m-pcard.num{font-size:24px;font-weight:800;color:#5a6a8f}
+  .m-pcard.sel{border-color:#f0b23f;box-shadow:0 0 0 4px rgba(240,178,63,.24);transform:translateY(-2px)}
+  .m-pcard.done{border-color:#8fce9a;background:#f1fbf0;opacity:.72}
+  .m-pcard.no{animation:m-shake .3s;border-color:#e8a0a0}
+  .m-pcard .dots{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;
+    gap:4px;width:36px;height:36px}
+  .m-pcard .dots i{width:7px;height:7px;border-radius:50%;background:#7a86c8;display:block}
+  .m-row{margin:12px 0 4px;font-size:12px;color:#9aa1bb;text-align:center}
+  .m-stars{text-align:center;font-size:15px;color:#5aa86e;font-weight:700;margin-top:10px;
+    animation:m-pop .4s}
+  @media (max-width:520px){
+    .m-item{width:42px;height:42px}
+    .m-num{width:50px;height:50px;font-size:21px}
+    .m-pcard{width:54px;height:54px}
+    .m-car{width:38px;height:38px;font-size:17px}
+  }
+
+  /* ---------- 四样教具：横屏放大，竖屏收一点 ---------- */
+  /* room.css 里 .thing 是 translate(-50%,-100%)（底边对齐 y），这里只叠一层缩放 */
+  .thing{transform:translate(-50%,-100%) scale(1.32)}
+  .thing:hover{transform:translate(-50%,-101%) scale(1.4)}
+  .thing:active{transform:translate(-50%,-99%) scale(1.26)}
+  .thing.pop{animation:m-pop2 .34s ease}
+  @keyframes m-pop2{
+    0%{transform:translate(-50%,-100%) scale(1.32)}
+    45%{transform:translate(-50%,-104%) scale(1.44)}
+    100%{transform:translate(-50%,-100%) scale(1.32)}
+  }
+  @media (max-aspect-ratio:1/1){
+    .thing{transform:translate(-50%,-100%) scale(1.04)}
+    .thing:hover{transform:translate(-50%,-101%) scale(1.1)}
+    .thing:active{transform:translate(-50%,-99%) scale(1)}
+    .thing.pop{animation:m-pop2b .34s ease}
+    @keyframes m-pop2b{
+      0%{transform:translate(-50%,-100%) scale(1.04)}
+      45%{transform:translate(-50%,-104%) scale(1.14)}
+      100%{transform:translate(-50%,-100%) scale(1.04)}
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="room-wrap">
+  <div class="stage" id="room"></div>
+</div>
+
+<div class="hud">
+  <div class="brand">
+    <h1>数学天地</h1>
+    <p>点墙上的教具，一起玩数学</p>
+  </div>
+  <div class="tools">
+    <button id="btnStar" title="我的星星" aria-label="我的星星"
+      style="width:auto;padding:0 12px;display:flex;align-items:center;gap:5px">
+      <svg width="17" height="17" viewBox="-12 -12 24 24" aria-hidden="true">
+        <path d="M0,-9 L2.6,-2.8 L9,-2.6 L4,-1 L5.8,5.2 L0,1.6 L-5.8,5.2 L-4,-1 L-9,-2.6 L-2.6,-2.8 Z"
+          fill="#f0a832"/>
+      </svg>
+      <span id="starNum" style="font-size:15px;font-weight:700;color:#e09a24">0</span>
+    </button>
+    <button id="btnBack" title="回小镇" aria-label="回小镇">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 11 L12 4 L20 11"/><path d="M6.5 10 L6.5 19 L17.5 19 L17.5 10"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div class="room-done" id="roomDone">
+  <h2>四个数学游戏都玩过啦</h2>
+  <p>数一数、比多少、排排队、配一配，<br>下次来还能再玩。</p>
+  <button class="btn primary" onclick="location.href='index.html'">回小镇</button>
+</div>
+
+<div class="cover" id="cover">
+  <div class="box">
+    <div id="coverArt" style="display:flex;justify-content:center;align-items:flex-end;gap:2px"></div>
+    <h1>数学天地</h1>
+    <p>数一数、比一比、排一排、配一配，<br>屋子里有四个数学小游戏。</p>
+    <button class="go" id="goBtn">进去看看</button>
+    <div class="small">点「进去看看」后会有轻轻的背景音乐</div>
+  </div>
+</div>
+
+<script src="room.js"></script>
+<script>
+/* ===================================================================
+   数学天地
+   -------------------------------------------------------------------
+   屋子里有四个可以点的教具，四个不同类型的数学游戏：
+     数字卡片 → 数一数（引导型：一个数一个，1 数到 10）
+     天平     → 比多少（数量比较）
+     小火车   → 数字排队（数序 1—8）
+     点子罐   → 数字配对（数字 ↔ 点数，数与量对应）
+   =================================================================== */
+
+document.getElementById("coverArt").innerHTML =
+  Room.art("teacher", 152) + Room.art("girl", 138);
+
+document.getElementById("btnBack").onclick = function(){ location.href = "index.html"; };
+
+/* ---------------- 四个教具的图形 ---------------- */
+function svgBox(inner, vb, w, h){
+  return '<svg viewBox="' + vb + '" width="' + w + '" height="' + h +
+         '" style="display:block;overflow:visible" aria-hidden="true">' + inner + '</svg>';
+}
+/* 数字卡片扇 */
+var ART_CARDS = svgBox(
+  '<g transform="translate(-15,2) rotate(-13)">' +
+    '<rect x="-10" y="-15" width="20" height="30" rx="4" fill="#fffdf8" stroke="#e4705f" stroke-width="2.4"/>' +
+    '<text x="0" y="5" text-anchor="middle" font-size="15" font-weight="700" fill="#e4705f">1</text></g>' +
+  '<g transform="translate(0,-1)">' +
+    '<rect x="-10" y="-15" width="20" height="30" rx="4" fill="#fffdf8" stroke="#f0b23f" stroke-width="2.4"/>' +
+    '<text x="0" y="5" text-anchor="middle" font-size="15" font-weight="700" fill="#e8a72a">2</text></g>' +
+  '<g transform="translate(15,2) rotate(13)">' +
+    '<rect x="-10" y="-15" width="20" height="30" rx="4" fill="#fffdf8" stroke="#7fb6e0" stroke-width="2.4"/>' +
+    '<text x="0" y="5" text-anchor="middle" font-size="15" font-weight="700" fill="#5f9ecb">3</text></g>',
+  "-30 -22 60 44", 92, 68);
+
+/* 天平 */
+var ART_SCALE = svgBox(
+  '<path d="M0,-17 L0,13" stroke="#8d97d0" stroke-width="3" stroke-linecap="round"/>' +
+  '<rect x="-11" y="12" width="22" height="6" rx="3" fill="#6c76b4"/>' +
+  '<path d="M-15,-15 L15,-15" stroke="#8d97d0" stroke-width="3" stroke-linecap="round"/>' +
+  '<circle cx="0" cy="-15" r="3.4" fill="#6c76b4"/>' +
+  '<path d="M-15,-15 L-21,0 M-15,-15 L-9,0" stroke="#a7b0dd" stroke-width="1.6"/>' +
+  '<path d="M-23,0 L-7,0 L-10,8 L-20,8 Z" fill="#f0b23f"/>' +
+  '<path d="M15,-15 L9,0 M15,-15 L21,0" stroke="#a7b0dd" stroke-width="1.6"/>' +
+  '<path d="M7,0 L23,0 L20,8 L10,8 Z" fill="#7fb6e0"/>' +
+  '<circle cx="-15" cy="3.4" r="2.6" fill="#e4705f"/><circle cx="-11" cy="4.4" r="2.6" fill="#8fc97e"/>' +
+  '<circle cx="15" cy="3.6" r="2.4" fill="#f78fb3"/>',
+  "-27 -22 54 44", 88, 72);
+
+/* 数字小火车 */
+var ART_TRAIN = svgBox(
+  '<rect x="-38" y="-4" width="18" height="15" rx="3" fill="#7a86c8"/>' +
+  '<rect x="-34" y="-10" width="8" height="7" rx="2" fill="#9aa6dd"/>' +
+  '<circle cx="-34" cy="12" r="4" fill="#4a4438"/><circle cx="-24" cy="12" r="4" fill="#4a4438"/>' +
+  '<rect x="-40" y="-1" width="22" height="4" fill="#fffdf8" opacity=".6"/>' +
+  '<rect x="-18" y="0" width="16" height="12" rx="3" fill="#f0b23f"/>' +
+  '<circle cx="-14" cy="12" r="3.4" fill="#4a4438"/><circle cx="-6" cy="12" r="3.4" fill="#4a4438"/>' +
+  '<rect x="0" y="0" width="16" height="12" rx="3" fill="#8fc97e"/>' +
+  '<circle cx="4" cy="12" r="3.4" fill="#4a4438"/><circle cx="12" cy="12" r="3.4" fill="#4a4438"/>' +
+  '<rect x="18" y="0" width="16" height="12" rx="3" fill="#f78fb3"/>' +
+  '<circle cx="22" cy="12" r="3.4" fill="#4a4438"/><circle cx="30" cy="12" r="3.4" fill="#4a4438"/>',
+  "-42 -18 84 36", 104, 46);
+
+/* 点子罐 */
+function jarSvg(n){
+  var dots = "", i;
+  for (i = 0; i < n; i++){
+    var col = i % 3, row = Math.floor(i / 3);
+    dots += '<circle cx="' + (-10 + col * 10) + '" cy="' + (-6 + row * 10) + '" r="3.4" fill="#7a86c8"/>';
+  }
+  return svgBox(
+    '<rect x="-16" y="-13" width="32" height="34" rx="9" fill="#eef3fd" stroke="#9fb2ea" stroke-width="2.2"/>' +
+    '<rect x="-11" y="-19" width="22" height="7" rx="3.5" fill="#c9d3ea"/>' +
+    '<rect x="-16" y="-13" width="32" height="8" fill="#ffffff" opacity=".5"/>' + dots,
+    "-22 -25 44 50", 80, 92);
+}
+var ART_JAR = jarSvg(5);
+
+/* ---------------- 房间 ---------------- */
+/* 竖屏时场景会被横向压到 0.62，东西的「中心」往中间靠、但宽度不变，
+   所以墙上这几件要按横竖屏分别排，不然会互相压住 */
+var NAR = (window.innerWidth / Math.max(1, window.innerHeight)) < 1;
+var SC_BOARD = NAR ? 30 : 36;      /* 黑板宽度 */
+var SC_FL = NAR ? 11 : 22;         /* 左挂画 */
+var SC_FR = NAR ? 89 : 78;         /* 右挂画 */
+var SC_WX = NAR ? 90 : 86;         /* 窗：竖屏要躲开黑板右沿，横屏要留出右边距 */
+var SC_WW = NAR ? 13 : 14;
+var SC_WY = 38;                    /* 窗：抬高一点，别和下面的点子罐、上面的画框打架 */
+
+var room = Room.init({
+  id: "math",
+  name: "数学天地",
+  avoid: [{ x1: 4, x2: 96, y1: 54, y2: 74 }],
+  intro: "这里就是数学天地。黑板上有数字，地上摆着四样教具，想玩哪个就点哪个。",
+  scene: {
+    wall: "#eef1fb", floor: "#dfe6f7", base: "#c6d0ea",
+    items: [
+      /* 挂着数字的黑板 */
+      { t: "numbd", x: 50, y: 26, w: SC_BOARD, h: 26, c2: "#dbe3f7" },
+      { t: "frame", x: SC_FL, y: 20, w: 10, h: 13, c2: "#9aa6dd", motif: "sun" },
+      { t: "frame", x: SC_FR, y: 16, w: 10, h: 13, c2: "#9aa6dd", motif: "heart" },
+      { t: "window", x: SC_WX, y: SC_WY, w: SC_WW, h: 24, c1: "#cdd8f2" },
+      /* 地上的大拼色地毯：四个人物/教具都站在这条线上 */
+      { t: "rug", x: 50, y: 95, w: 62, h: 12, c1: "#e4e2f7", c2: "#c9c4e6" }
+    ]
+  },
+  people: [
+    {
+      id: "shushu", name: "数数老师", art: "teacher", x: 29, y: 93, size: 118,
+      roam: { x1: 14, x2: 40, y1: 90, y2: 95 },
+      talk: [
+        "欢迎来到数学天地，这里的每一样东西都能点。",
+        "数数的时候，一个一个点，手指点一个，嘴里数一个。",
+        "数完了，再去找和它一样多的数字。",
+        "比多少不用数得很快，看清楚哪边一多就够啦。"
+      ],
+      idle: [
+        "卡片要按 1、2、3 排好。",
+        "圆点要摆得整整齐齐。",
+        "今天谁来和我一起数一数？"
+      ]
+    },
+    {
+      id: "lele", name: "乐乐", art: "boy", x: 71, y: 94, size: 112,
+      roam: { x1: 60, x2: 86, y1: 91, y2: 96 },
+      talk: [
+        "我在数地上的格子，一格、两格、三格……",
+        "我最喜欢玩比多少，一眼就看出来。",
+        "你也来试试那个点子罐吧。"
+      ],
+      idle: [
+        "一、二、三、四……",
+        "这个数字我认识！",
+        "再玩一次好不好？"
+      ]
+    }
+  ],
+  things: [
+    /* 四样教具在地板线上排成一条：横屏均匀铺开，竖屏压缩后仍互不重叠 */
+    { id: "cards", name: "数字卡片", html: ART_CARDS, x: 12, y: 66, once: false,
+      doneLine: "卡片还是摆在这儿，想玩随时点。",
+      act: function(el, say){ say("来数一数吧。一个一个点，点一个数一个。"); openCount(); } },
+
+    { id: "scale", name: "天平", html: ART_SCALE, x: 37, y: 66, once: false,
+      doneLine: "天平还在这儿等着你比一比。",
+      act: function(el, say){ say("天平两边谁更重呢？看看哪边的东西多。"); openMore(); } },
+
+    { id: "train", name: "数字小火车", html: ART_TRAIN, x: 62, y: 66, once: false,
+      doneLine: "小火车停在站台上，随时能开。",
+      act: function(el, say){ say("小火车要按 1、2、3 的顺序上车，来排一排。"); openOrder(); } },
+
+    { id: "jar", name: "点子罐", html: ART_JAR, x: 87, y: 66, once: false,
+      doneLine: "罐子里的点子还在，随时可以数。",
+      act: function(el, say){ say("罐子里有几颗点子？把它和数字配成一对。"); openPair(); } }
+  ]
+});
+
+/* ---------------- 星星 ---------------- */
+function paintStar(){
+  var n = document.getElementById("starNum");
+  if (n) n.textContent = room.S.stars || 0;
+}
+paintStar();
+
+/* 完成一个游戏给星星：第一次 2 颗，之后每次 1 颗 */
+function award(gameId){
+  var key = "g_" + gameId;
+  var first = !room.S.mathDone;
+  if (!room.S.mathDone) room.S.mathDone = {};
+  var isNew = !room.S.mathDone[key];
+  room.S.mathDone[key] = 1;
+  var n = isNew ? 2 : 1;
+  room.S.stars = (room.S.stars || 0) + n;
+  room.Save();
+  paintStar();
+  if (isNew) room.Sound.blip("good");
+  checkAllDone();
+  return n;
+}
+function allDone(){
+  var m = room.S.mathDone || {};
+  return m.g_count && m.g_more && m.g_order && m.g_pair;
+}
+function checkAllDone(){
+  if (!allDone()) return;
+  setTimeout(function(){
+    var d = document.getElementById("roomDone");
+    if (d) d.classList.add("show");
+  }, 900);
+}
+
+/* ---------------- 面板：打开 / 关闭 ---------------- */
+var mask = null, sheet = null;
+function ensureMask(){
+  if (mask) return;
+  mask = document.createElement("div");
+  mask.id = "mask";
+  mask.className = "mask";
+  mask.innerHTML = '<div class="sheet" id="sheet"></div>';
+  document.body.appendChild(mask);
+  sheet = document.getElementById("sheet");
+  mask.addEventListener("click", function(e){ if (e.target === mask) closeMath(); });
+}
+function closeMath(){
+  panelSeq++;
+  if (mask) mask.classList.remove("show");
+  room.Voice.stop();
+  curHint = null;
+}
+var curHint = null;
+/* 每次开面板都换一个号；延时回调先对号，避免上一个游戏的收尾写进新面板 */
+var panelSeq = 0;
+function mathHint(){
+  if (curHint) curHint();
+  else room.Say("先点一点上面那些东西。");
+}
+
+function openPanel(title, sub, withHint){
+  ensureMask();
+  panelSeq++;
+  sheet.innerHTML =
+    '<button class="close" onclick="closeMath()" aria-label="关上">✕</button>' +
+    '<h2>' + title + '</h2>' +
+    '<p class="sub">' + sub + '</p>' +
+    '<div id="mBody"></div>' +
+    '<div class="row" style="margin-top:16px">' +
+      (withHint === false ? "" : '<button class="btn" onclick="mathHint()">帮帮我</button>') +
+      '<button class="btn primary" onclick="closeMath()">' + (withHint === false ? "好" : "先不玩") + '</button>' +
+    '</div>';
+  mask.classList.add("show");
+  return document.getElementById("mBody");
+}
+
+/* ===================================================================
+   游戏一 · 数一数（引导型）
+   -------------------------------------------------------------------
+   从 1 数到 10，一关一个数。每一关都：
+     ① 告诉孩子「数出几个」
+     ② 一个一个点，点过的打上序号，嘴里跟着念
+     ③ 数完了，从三个数字里挑出这个数
+     ④ 对了才往下走，错了就再数一遍
+   =================================================================== */
+var COUNT_ICONS = ["apple", "star", "candy", "balloon", "teddy", "duck", "cake", "rabbit"];
+var C = { step: 1, counted: 0, opts: [], kind: "apple", locked: false, doneRound: false };
+
+function openCount(){
+  var body = openPanel("数一数", "一个一个点，点一个数一个。数完了，再挑出这个数字。");
+  C.counted = 0; C.locked = false; C.doneRound = false;
+  newCountStep(body);
+  curHint = function(){ hintCount(); };
+}
+
+function newCountStep(body){
+  body = body || document.getElementById("mBody");
+  if (!body) return;
+  var n = C.step;
+  C.counted = 0; C.locked = false; C.doneRound = false;
+  C.kind = COUNT_ICONS[(n - 1) % COUNT_ICONS.length];
+
+  /* 三个数字选项：对的 + 两个挨得近的 */
+  var set = [n], guard = 0;
+  while (set.length < 3 && guard++ < 40){
+    var c = n + (Math.random() < 0.5 ? -1 : 1) * (1 + Math.floor(Math.random() * 2));
+    if (c >= 1 && c <= 10 && set.indexOf(c) < 0) set.push(c);
+  }
+  while (set.length < 3){
+    var f = 1 + Math.floor(Math.random() * 10);
+    if (set.indexOf(f) < 0) set.push(f);
+  }
+  for (var i = set.length - 1; i > 0; i--){
+    var j = Math.floor(Math.random() * (i + 1)), t = set[i]; set[i] = set[j]; set[j] = t;
+  }
+  C.opts = set;
+
+  body.innerHTML =
+    '<div class="m-guide" id="mGuide"><b>第 ' + n + ' 关</b><span id="mGuideTxt">' +
+      '点一点，数出 ' + n + ' 个' + '</span></div>' +
+    '<div class="m-count" id="mCount"></div>' +
+    '<div class="m-nums" id="mNums"></div>';
+
+  var box = document.getElementById("mCount");
+  for (var k = 0; k < n; k++){
+    var d = document.createElement("button");
+    d.type = "button";
+    d.className = "m-item";
+    d.dataset.i = k;
+    d.innerHTML = Room.art(C.kind, 34);
+    d.onclick = (function(k, d){ return function(){ tapItem(k, d); }; })(k, d);
+    box.appendChild(d);
+  }
+
+  var nums = document.getElementById("mNums");
+  C.opts.forEach(function(v){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "m-num"; b.textContent = v;
+    b.onclick = function(){ pickNum(v, b); };
+    nums.appendChild(b);
+  });
+
+  /* 第一关给一点指路：把第一个圈出来 */
+  if (n === 1) markNext();
+  room.Say("数出 " + n + " 个。一个一个点。", { rate: 0.9 });
+}
+
+function markNext(){
+  var items = document.querySelectorAll(".m-item");
+  for (var i = 0; i < items.length; i++) items[i].classList.remove("next");
+  if (items[C.counted]) items[C.counted].classList.add("next");
+}
+
+function tapItem(i, el){
+  if (C.locked || C.doneRound) return;
+  if (i === C.counted){
+    C.counted++;
+    el.classList.add("on");
+    var badge = document.createElement("b");
+    badge.textContent = C.counted;
+    el.appendChild(badge);
+    el.classList.remove("next");
+    room.Sound.blip("pop");
+    room.Voice.say(String(C.counted), { rate: 0.95 });
+    if (C.counted >= C.step){
+      var g = document.getElementById("mGuide");
+      var t = document.getElementById("mGuideTxt");
+      if (g) g.className = "m-guide ready";
+      if (t) t.textContent = "一共 " + C.step + " 个，挑出数字 " + C.step;
+      var cards = document.querySelectorAll(".m-num");
+      for (var k = 0; k < cards.length; k++){
+        if (Number(cards[k].textContent) === C.step) cards[k].classList.add("ready");
+      }
+      room.Say("一共 " + C.step + " 个。是哪张数字卡呢？");
+    } else {
+      markNext();
+    }
+  } else if (i < C.counted){
+    room.Say("这个数过啦，找还没数的。");
+  } else {
+    el.classList.add("no");
+    setTimeout(function(){ el.classList.remove("no"); }, 300);
+    room.Say("一个一个来，先点前面那个。");
+  }
+}
+
+function pickNum(v, el){
+  if (C.locked) return;
+  if (v === C.step){
+    C.locked = true; C.doneRound = true;
+    el.classList.add("yes");
+    room.Sound.blip("ok");
+    var n = C.step;
+    var g = document.getElementById("mGuide");
+    var t = document.getElementById("mGuideTxt");
+    if (g) g.className = "m-guide done";
+    if (t) t.textContent = "对啦！" + n + " 个就是 " + n;
+    var body = document.getElementById("mBody");
+    var tip = document.createElement("div");
+    tip.className = "m-stars";
+    tip.textContent = (n === 5 ? "数到 5 啦，真棒！" : (n === 10 ? "一直数到 10，太厉害了！" : "答对一次 ★"));
+    body.appendChild(tip);
+
+    if (n >= 10){
+      var got = award("count");
+      var seq = panelSeq;
+      room.Say("你从 1 一直数到 10，真了不起。");
+      setTimeout(function(){
+        if (seq !== panelSeq) return;
+        var b2 = document.getElementById("mBody");
+        if (!b2) return;
+        b2.innerHTML =
+          '<div class="m-guide done"><b>全部通关</b><span>1 到 10 都会数啦</span></div>' +
+          '<div class="m-stars" style="font-size:17px;margin:26px 0">＋ ' + got + ' 颗星星</div>' +
+          '<div class="row"><button class="btn primary" onclick="restartCount()">再从 1 数一次</button></div>';
+        curHint = null;
+      }, 1400);
+      return;
+    }
+    setTimeout(function(){
+      C.step = n + 1;
+      newCountStep();
+    }, 1250);
+  } else {
+    el.classList.add("no");
+    setTimeout(function(){ el.classList.remove("no"); }, 340);
+    room.Sound.blip("soft");
+    room.Say(C.counted < C.step ? "先一个一个数完，再来选。" : "再数一遍试试看。");
+  }
+}
+
+function restartCount(){
+  C.step = 1;
+  openCount();
+}
+
+/* 「帮帮我」：按顺序把这堆点一遍，边点边数 */
+function hintCount(){
+  var items = document.querySelectorAll(".m-item");
+  if (!items.length) return;
+  if (C.counted < C.step){
+    items[C.counted].classList.add("next");
+    room.Say("下一个点这个亮起来的。");
+    return;
+  }
+  var cards = document.querySelectorAll(".m-num");
+  for (var i = 0; i < cards.length; i++){
+    if (Number(cards[i].textContent) === C.step){
+      cards[i].classList.add("ready");
+      room.Say("数完了，一共 " + C.step + " 个，是这个数字。");
+      return;
+    }
+  }
+}
+
+/* ===================================================================
+   游戏二 · 比多少：两堆东西，点出多的那一边
+   =================================================================== */
+var M = { round: 0, total: 3, left: 0, right: 0, kind: "apple", locked: false };
+var KIND_NAME = { apple:"苹果", star:"星星", candy:"糖果", balloon:"气球", duck:"小鸭", cake:"蛋糕", ball:"皮球" };
+
+function openMore(){
+  var body = openPanel("比多少", "看看两边，哪边的东西更多？点那一边。");
+  M.round = 0; M.locked = false;
+  newMoreRound(body);
+  curHint = function(){
+    var more = Math.max(M.left, M.right);
+    room.Say(more === M.left ? "先看左边，一个一个数过去。" : "先看右边，一个一个数过去。");
+  };
+}
+
+function newMoreRound(body){
+  body = body || document.getElementById("mBody");
+  if (!body) return;
+  M.locked = false;
+  /* 差距随难度收窄：小班差 3—4，中班差 2—3，大班差 1—2 */
+  var gap = 3 + Math.floor(Math.random() * 2);
+  var base = 2 + Math.floor(Math.random() * 3);
+  if (M.round >= 2) gap = Math.max(1, gap - 1);
+  var a = base, b = base + gap;
+  if (Math.random() < 0.5){ var t = a; a = b; b = t; }
+  M.left = a; M.right = b;
+  M.kind = ["apple", "star", "candy", "balloon", "duck", "cake", "ball"][Math.floor(Math.random() * 7)];
+
+  body.innerHTML =
+    '<div class="m-guide" id="mGuide"><b>第 ' + (M.round + 1) + ' 题</b>' +
+      '<span>哪边的' + KIND_NAME[M.kind] + '更多？点一下那一边</span></div>' +
+    '<div class="m-two">' +
+      '<div class="m-pile" id="mLeft" role="button"></div>' +
+      '<div class="m-pile" id="mRight" role="button"></div>' +
+    '</div>';
+
+  [[M.left, "mLeft", "左边"], [M.right, "mRight", "右边"]].forEach(function(side){
+    var box = document.getElementById(side[1]);
+    for (var i = 0; i < side[0]; i++){
+      var d = document.createElement("span");
+      d.style.display = "block";
+      d.innerHTML = Room.art(M.kind, 34);
+      box.appendChild(d);
+    }
+    var lab = document.createElement("span");
+    lab.className = "m-side";
+    lab.textContent = side[2];
+    box.appendChild(lab);
+    box.onclick = function(){ pickSide(side[1]); };
+  });
+  room.Say("哪边更多呢？看一看，再点。");
+}
+
+function pickSide(which){
+  if (M.locked) return;
+  var leftIsMore = M.left > M.right;
+  var pickedLeft = which === "mLeft";
+  var el = document.getElementById(which);
+  if (leftIsMore === pickedLeft){
+    M.locked = true;
+    el.classList.add("yes");
+    room.Sound.blip("ok");
+    M.round++;
+    if (M.round >= M.total){
+      var got = award("more");
+      var seq = panelSeq;
+      room.Say("三题都看对啦，多和少你分得很清楚。");
+      setTimeout(function(){
+        if (seq !== panelSeq) return;
+        var b2 = document.getElementById("mBody");
+        if (!b2) return;
+        b2.innerHTML =
+          '<div class="m-guide done"><b>全部通关</b><span>多和少，一眼就看得出来</span></div>' +
+          '<div class="m-stars" style="font-size:17px;margin:26px 0">＋ ' + got + ' 颗星星</div>' +
+          '<div class="row"><button class="btn primary" onclick="openMore()">再比一次</button></div>';
+        curHint = null;
+      }, 1200);
+      return;
+    }
+    setTimeout(function(){ newMoreRound(); }, 900);
+  } else {
+    el.classList.add("no");
+    setTimeout(function(){ el.classList.remove("no"); }, 340);
+    room.Sound.blip("soft");
+    room.Say("再数一数两边，哪边数到后面还没数完？");
+  }
+}
+
+/* ===================================================================
+   游戏三 · 数字排队：按 1、2、3 的顺序点，一节点一节车厢
+   =================================================================== */
+var O = { total: 5, need: 1, pool: [], locked: false };
+
+function openOrder(){
+  var body = openPanel("数字排队", "小火车要按 1、2、3 的顺序坐好。先点最小的那个数。");
+  O.total = 5;
+  O.need = 1; O.locked = false;
+  newOrderRound(body);
+  curHint = function(){
+    room.Say("下一个要找的是 " + O.need + "，看看哪一个数字是它。");
+    var pool = document.querySelectorAll(".m-hand .m-num");
+    for (var i = 0; i < pool.length; i++){
+      if (Number(pool[i].textContent) === O.need){
+        pool[i].classList.add("ready");
+        setTimeout(function(){ pool[i].classList.remove("ready"); }, 2200);
+        break;
+      }
+    }
+  };
+}
+
+function newOrderRound(body){
+  body = body || document.getElementById("mBody");
+  if (!body) return;
+  O.need = 1; O.locked = false;
+  var nums = [];
+  for (var i = 1; i <= O.total; i++) nums.push(i);
+  for (var j = nums.length - 1; j > 0; j--){
+    var k = Math.floor(Math.random() * (j + 1)), t = nums[j]; nums[j] = nums[k]; nums[k] = t;
+  }
+  O.pool = nums;
+
+  body.innerHTML =
+    '<div class="m-guide" id="mGuide"><b>任务</b><span id="mGuideTxt">从 1 开始，按顺序点上小火车</span></div>' +
+    '<div class="m-train" id="mTrain"></div>' +
+    '<div class="m-row">下面这些数字，一个一个请上车</div>' +
+    '<div class="m-hand" id="mHand"></div>';
+
+  var train = document.getElementById("mTrain");
+  for (var c = 0; c < O.total; c++){
+    var car = document.createElement("div");
+    car.className = "m-car"; car.id = "car" + c;
+    car.textContent = "?";
+    train.appendChild(car);
+  }
+  var hand = document.getElementById("mHand");
+  nums.forEach(function(v){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "m-num"; b.textContent = v;
+    b.onclick = function(){ pickOrder(v, b); };
+    hand.appendChild(b);
+  });
+  room.Say("先找 1。");
+}
+
+function pickOrder(v, el){
+  if (O.locked) return;
+  if (v === O.need){
+    el.classList.add("yes");
+    room.Sound.blip("ok");
+    var car = document.getElementById("car" + (O.need - 1));
+    if (car){ car.classList.add("on"); car.textContent = O.need; }
+    setTimeout(function(){ el.style.visibility = "hidden"; }, 260);
+    O.need++;
+    if (O.need > O.total){
+      O.locked = true;
+      var got = award("order");
+      var seq = panelSeq;
+      room.Say("全上车啦，1 到 " + O.total + " 排得真好。");
+      var t = document.getElementById("mGuideTxt");
+      var g = document.getElementById("mGuide");
+      if (g) g.className = "m-guide done";
+      if (t) t.textContent = "排好啦！";
+      setTimeout(function(){
+        if (seq !== panelSeq) return;
+        var b2 = document.getElementById("mBody");
+        if (!b2) return;
+        b2.innerHTML =
+          '<div class="m-guide done"><b>全部通关</b><span>1 到 ' + O.total + ' 的顺序记住了</span></div>' +
+          '<div class="m-stars" style="font-size:17px;margin:26px 0">＋ ' + got + ' 颗星星</div>' +
+          '<div class="row"><button class="btn primary" onclick="openOrder()">再排一次</button></div>';
+        curHint = null;
+      }, 1300);
+      return;
+    }
+    var txt = document.getElementById("mGuideTxt");
+    if (txt) txt.textContent = "下一个是 " + O.need;
+    room.Voice.say(String(O.need - 1) + "，对！", { rate: 0.95 });
+  } else {
+    el.classList.add("no");
+    setTimeout(function(){ el.classList.remove("no"); }, 340);
+    room.Sound.blip("soft");
+    room.Say("现在要找 " + O.need + "，再找找看。");
+  }
+}
+
+/* ===================================================================
+   游戏四 · 数字配对：数字卡 ↔ 点子卡，点一个数字再点一张点子
+   =================================================================== */
+var P = { nums: [], dots: [], picked: null, left: 5, locked: false, total: 5 };
+
+function openPair(){
+  var body = openPanel("数字配对", "先点一张数字卡，再点有一样多圆点的卡片。");
+  P.total = 5;
+  P.picked = null; P.locked = false;
+  newPairRound(body);
+  curHint = function(){
+    if (P.picked === null) room.Say("先点一张数字卡，看清上面是几。");
+    else room.Say("你选的是 " + P.picked + "，找有 " + P.picked + " 个点的那张卡。");
+  };
+}
+
+function dotsCard(n){
+  var g = '<span class="dots">';
+  for (var i = 0; i < n; i++) g += "<i></i>";
+  return g + "</span>";
+}
+
+function newPairRound(body){
+  body = body || document.getElementById("mBody");
+  if (!body) return;
+  P.picked = null; P.locked = false; P.left = P.total;
+
+  var nums = [], dots = [];
+  for (var i = 1; i <= P.total; i++){ nums.push(i); dots.push(i); }
+  var sh1 = nums.slice().sort(function(){ return Math.random() - 0.5; });
+  var sh2 = dots.slice().sort(function(){ return Math.random() - 0.5; });
+
+  body.innerHTML =
+    '<div class="m-guide" id="mGuide"><b>任务</b><span id="mGuideTxt">数字和圆点，配成一样多的一对</span></div>' +
+    '<div class="m-row">数字</div>' +
+    '<div class="m-pair" id="pNums"></div>' +
+    '<div class="m-row">圆点</div>' +
+    '<div class="m-pair" id="pDots"></div>';
+
+  var bn = document.getElementById("pNums");
+  sh1.forEach(function(v){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "m-pcard num"; b.textContent = v;
+    b.dataset.v = v;
+    b.onclick = function(){ pickCard(v, b); };
+    bn.appendChild(b);
+  });
+  var bd = document.getElementById("pDots");
+  sh2.forEach(function(v){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "m-pcard"; b.dataset.v = v;
+    b.innerHTML = dotsCard(v);
+    b.onclick = function(){ pickDots(v, b); };
+    bd.appendChild(b);
+  });
+  room.Say("先点一张数字卡。");
+}
+
+function pickCard(v, el){
+  if (P.locked) return;
+  if (el.classList.contains("done")) return;
+  var prev = document.querySelector(".m-pcard.sel");
+  if (prev) prev.classList.remove("sel");
+  el.classList.add("sel");
+  P.picked = v;
+  room.Sound.blip("tap");
+  room.Voice.say(v + "，找 " + v + " 个点", { rate: 0.95 });
+}
+
+function pickDots(v, el){
+  if (P.locked) return;
+  if (el.classList.contains("done")) return;
+  if (P.picked === null){
+    room.Say("先点上面的数字卡，再点这里。");
+    el.classList.add("no");
+    setTimeout(function(){ el.classList.remove("no"); }, 300);
+    return;
+  }
+  if (v === P.picked){
+    el.classList.add("done");
+    var numEl = document.querySelector(".m-pcard.num.sel");
+    if (numEl) numEl.classList.add("done");
+    if (numEl) numEl.classList.remove("sel");
+    P.picked = null;
+    P.left--;
+    room.Sound.blip("ok");
+    if (P.left <= 0){
+      P.locked = true;
+      var got = award("pair");
+      var seq = panelSeq;
+      var t = document.getElementById("mGuideTxt");
+      var g = document.getElementById("mGuide");
+      if (g) g.className = "m-guide done";
+      if (t) t.textContent = "全配对啦！";
+      room.Say("全部配成对了，数字和圆点你都认出来啦。");
+      setTimeout(function(){
+        if (seq !== panelSeq) return;
+        var b2 = document.getElementById("mBody");
+        if (!b2) return;
+        b2.innerHTML =
+          '<div class="m-guide done"><b>全部通关</b><span>数字和它的圆点，一一对上</span></div>' +
+          '<div class="m-stars" style="font-size:17px;margin:26px 0">＋ ' + got + ' 颗星星</div>' +
+          '<div class="row"><button class="btn primary" onclick="openPair()">再配一次</button></div>';
+        curHint = null;
+      }, 1300);
+    } else {
+      room.Say("配好啦，再找一对。");
+    }
+  } else {
+    el.classList.add("no");
+    setTimeout(function(){ el.classList.remove("no"); }, 340);
+    room.Sound.blip("soft");
+    room.Say("数一数这张有几个点，一个一个数。");
+  }
+}
+
+/* ---------------- 进屋 ---------------- */
+var _go = document.getElementById("goBtn");
+if (_go) _go.addEventListener("click", function(){ room.Sound.start(); }, { once: true });
+
+/* 玩过的游戏标个记号，方便老师看看还剩哪个没玩 */
+if (allDone()) setTimeout(checkAllDone, 1600);
+</script>
+</body>
+</html>

@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>小镇农场 · 澄澄的小镇</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="room.css">
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;overflow:hidden;
+    font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",system-ui,sans-serif;
+    -webkit-text-size-adjust:100%;text-size-adjust:100%;
+    -webkit-tap-highlight-color:transparent}
+  @supports (-webkit-touch-callout:none){ html,body{min-height:-webkit-fill-available} }
+  button{font:inherit;touch-action:manipulation}
+
+  /* ---------- 户外场景 ---------- */
+  #scene{position:fixed;top:0;right:0;bottom:0;left:0;display:flex;flex-direction:column}
+  .sky{
+    position:relative;flex:0 0 44%;min-height:120px;
+    background:linear-gradient(#a9daf5 0%, #cfeafd 55%, #eaf6ff 100%);
+    overflow:hidden;
+  }
+  .grass{
+    position:relative;flex:1;min-height:0;
+    background:linear-gradient(#a6d996 0%, #93cd82 22%, #86c274 52%, #79b568 100%);
+    box-shadow:inset 0 8px 14px -8px rgba(80,120,60,.45);
+    display:flex;flex-direction:column;justify-content:center;
+    gap:clamp(8px,2.2vh,20px);
+    padding:clamp(10px,2.4vh,26px) clamp(12px,3vw,40px) clamp(54px,9vh,86px);
+    overflow:hidden;
+  }
+  /* 地平线上的远山 */
+  .hills{position:absolute;left:0;right:0;bottom:-4px;width:100%;height:64%;pointer-events:none;display:block}
+  .sun{position:absolute;right:8%;top:12%;width:clamp(44px,7vw,78px);height:clamp(44px,7vw,78px)}
+  .cloud{position:absolute;opacity:.95}
+  .c1{left:8%;top:16%;width:clamp(64px,11vw,120px)}
+  .c2{left:44%;top:8%;width:clamp(48px,8vw,92px)}
+  .c3{right:26%;top:26%;width:clamp(40px,7vw,78px)}
+
+  /* 篱笆 */
+  .fence{position:absolute;left:0;right:0;bottom:-2px;width:100%;height:26px;pointer-events:none;opacity:.95;display:block}
+
+  .row-title{
+    position:relative;display:flex;align-items:center;gap:8px;
+    font-size:clamp(12px,1.5vh,15px);font-weight:700;color:#3f6a34;
+    text-shadow:0 1px 0 rgba(255,255,255,.6);
+  }
+  .row-title .dot{width:8px;height:8px;border-radius:50%;background:#fffdf8;box-shadow:0 0 0 2px rgba(63,106,52,.25)}
+
+  /* ---------- 田与窝 ---------- */
+  .field-row,.pen-row{position:relative;display:grid;gap:clamp(8px,1.6vw,18px)}
+  .field-row{grid-template-columns:repeat(4,1fr)}
+  .pen-row{grid-template-columns:repeat(3,1fr)}
+
+  .plot{
+    position:relative;border:none;cursor:pointer;padding:0;background:transparent;
+    display:flex;align-items:flex-end;justify-content:center;
+    height:clamp(96px,20vh,168px);
+    transition:transform .14s ease;
+  }
+  .plot:active{transform:translateY(2px) scale(.985)}
+
+  /* 土块本体 */
+  .soil{
+    position:absolute;left:0;right:0;bottom:0;height:62%;
+    border-radius:16px 16px 12px 12px;
+    background:linear-gradient(#a97a4e,#8d6039);
+    box-shadow:inset 0 -6px 0 rgba(0,0,0,.09), inset 0 5px 0 rgba(255,255,255,.14), 0 6px 12px rgba(60,45,25,.18);
+    overflow:hidden;
+  }
+  .soil:before{
+    content:"";position:absolute;left:8%;right:8%;top:26%;height:6px;
+    border-radius:4px;
+    background:
+      radial-gradient(circle at 12% 50%, rgba(255,255,255,.26) 0 2px, transparent 2px),
+      radial-gradient(circle at 34% 20%, rgba(0,0,0,.12) 0 2.6px, transparent 2.6px),
+      radial-gradient(circle at 58% 70%, rgba(255,255,255,.2) 0 2px, transparent 2px),
+      radial-gradient(circle at 78% 30%, rgba(0,0,0,.1) 0 2.2px, transparent 2.2px),
+      radial-gradient(circle at 92% 60%, rgba(255,255,255,.22) 0 1.8px, transparent 1.8px);
+    opacity:.9;
+  }
+  .plot.empty .soil{background:linear-gradient(#b98a5c,#a1734a)}
+  .plot.empty .soil:after{
+    content:"＋";position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);
+    font-size:clamp(22px,3.4vh,30px);color:rgba(255,255,255,.72);font-weight:300;
+  }
+  .plot.ripe .soil{
+    background:linear-gradient(#b9772f,#96601f);
+    box-shadow:inset 0 -6px 0 rgba(0,0,0,.1), 0 0 0 3px rgba(255,214,120,.85), 0 6px 16px rgba(150,96,31,.35);
+  }
+  /* 窝 */
+  .plot.pen .soil{
+    height:66%;border-radius:50% 50% 14px 14px;
+    background:linear-gradient(#e8d3a8,#d8bd8a);
+    box-shadow:inset 0 -6px 0 rgba(0,0,0,.07), inset 0 5px 0 rgba(255,255,255,.3), 0 6px 12px rgba(90,70,40,.16);
+  }
+  .plot.pen .soil:before{background:rgba(160,130,85,.25);box-shadow:0 8px 0 rgba(160,130,85,.18)}
+  .plot.pen.empty .soil:after{content:"＋";color:rgba(120,95,60,.5)}
+
+  /* 作物 / 动物 */
+  .crop{
+    position:relative;z-index:2;display:flex;align-items:flex-end;justify-content:center;
+    transform-origin:50% 100%;
+    transition:transform .5s cubic-bezier(.34,1.56,.64,1);
+    filter:drop-shadow(0 4px 5px rgba(50,40,20,.22));
+    /* 底部压进土块 20 来像素，看起来才是从土里长出来的 */
+    margin-bottom:clamp(6px,1.4vh,14px);
+  }
+  .crop.s1{transform:scale(.58)}
+  .crop.s2{transform:scale(.82)}
+  .crop.s3{transform:scale(1.02)}
+  .plot.ripe .crop{animation:ripePulse 1.6s ease-in-out infinite}
+  @keyframes ripePulse{0%,100%{transform:scale(1.02) translateY(0)}50%{transform:scale(1.06) translateY(-4px)}}
+
+  /* 状态角标 */
+  .badge{
+    position:absolute;z-index:3;left:50%;top:-2px;transform:translate(-50%,0);
+    display:flex;align-items:center;gap:3px;
+    padding:2px 8px;border-radius:10px;font-size:11px;font-weight:700;
+    background:rgba(255,253,248,.95);color:#7a6a4a;box-shadow:0 2px 6px rgba(60,45,25,.16);
+    white-space:nowrap;
+  }
+  .badge.ready{background:#ffe9b8;color:#a06a12}
+  .badge.drop{animation:badgeDrop .5s cubic-bezier(.34,1.56,.64,1)}
+  @keyframes badgeDrop{0%{transform:translate(-50%,-14px);opacity:0}100%{transform:translate(-50%,0);opacity:1}}
+  .sparkle{position:absolute;z-index:3;font-size:15px;pointer-events:none;animation:spk .8s ease-out forwards}
+  @keyframes spk{0%{opacity:1;transform:translateY(0) scale(.6)}100%{opacity:0;transform:translateY(-26px) scale(1.15)}}
+
+  /* ---------- 顶部 ---------- */
+  .hud{
+    position:fixed;left:0;right:0;top:0;z-index:30;padding:12px 14px;
+    display:flex;align-items:flex-start;justify-content:space-between;gap:10px;pointer-events:none;
+  }
+  .hud>*{pointer-events:auto}
+  .brand{
+    background:rgba(255,253,248,.96);border:1px solid var(--line);border-radius:16px;
+    padding:8px 14px;box-shadow:var(--shadow);
+  }
+  .brand h1{margin:0;font-size:17px;letter-spacing:.5px;color:#3f4a3a}
+  .brand p{margin:2px 0 0;font-size:11.5px;color:#8a8b7a}
+  .tools{display:flex;gap:8px}
+  .tools button{
+    width:44px;height:44px;border-radius:15px;border:1px solid var(--line);
+    background:rgba(255,253,248,.96);display:flex;align-items:center;justify-content:center;
+    cursor:pointer;box-shadow:var(--shadow);color:#5f6557;
+  }
+  .tools button:active{transform:scale(.95)}
+  .tools .wallet{width:auto;min-width:72px;padding:0 12px;gap:5px}
+  .tools .wallet b{font-size:15px;color:#e09a24}
+
+  /* ---------- 底部提示 ---------- */
+  .tips{
+    position:fixed;left:50%;bottom:calc(14px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+    z-index:26;max-width:min(660px,92vw);
+    background:rgba(255,253,248,.97);border:1px solid var(--line);border-radius:16px;
+    padding:10px 16px;box-shadow:0 8px 22px rgba(60,50,30,.14);
+    font-size:13.5px;line-height:1.55;color:#5a5347;text-align:center;
+  }
+  .tips b{color:#3f7a55}
+
+  /* ---------- 面板 ---------- */
+  .mask{position:fixed;top:0;right:0;bottom:0;left:0;z-index:40;background:rgba(45,52,45,.42);
+    -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+    display:flex;align-items:center;justify-content:center;padding:18px;
+    opacity:0;pointer-events:none;transition:opacity .22s}
+  .mask.show{opacity:1;pointer-events:auto}
+  .sheet{
+    position:relative;width:100%;max-width:460px;max-height:88vh;overflow:auto;
+    background:var(--paper);border-radius:22px;padding:20px 18px 18px;
+    box-shadow:0 18px 50px rgba(40,35,25,.3);
+    transform:translateY(10px) scale(.98);transition:transform .22s;
+  }
+  .mask.show .sheet{transform:none}
+  .sheet h2{margin:0 0 4px;font-size:18px;color:#3f4a3a}
+  .sheet .sub{margin:0 0 12px;font-size:12.5px;color:#8a8b7a;line-height:1.6}
+  .sheet .close{
+    position:absolute;right:10px;top:8px;width:34px;height:34px;border-radius:50%;
+    border:none;background:transparent;font-size:19px;color:#a9a294;cursor:pointer;
+  }
+
+  .pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  @media (max-width:420px){ .pick-grid{grid-template-columns:repeat(2,1fr)} }
+  .pick{
+    border:1px solid var(--line);background:#fffdf8;border-radius:15px;padding:9px 6px 7px;
+    display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;
+    transition:transform .12s,background .15s,border-color .15s;
+  }
+  .pick:active{transform:scale(.97)}
+  .pick b{font-size:12.5px;color:#4a4438}
+  .pick span{font-size:11px;color:#9aa1bb}
+  .pick .pv{display:flex;align-items:center;justify-content:center;height:52px}
+  .pick .price{font-size:11px;color:#5aa86e;font-weight:700}
+
+  .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:14px}
+  .btn{
+    border:1px solid var(--line);background:#fffdf8;border-radius:14px;padding:10px 18px;
+    font-size:14px;color:#5a5347;cursor:pointer;box-shadow:0 2px 8px rgba(60,50,30,.08);
+    transition:transform .12s;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn.primary{background:#5fa87a;border-color:#4f9668;color:#fff;font-weight:700}
+  .btn.warm{background:#f2b23f;border-color:#dfa02f;color:#fff;font-weight:700}
+  .btn.ghost{background:#fff}
+
+  .big-ico{display:flex;justify-content:center;margin:6px 0 10px}
+  .who-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+  .who{
+    display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:#fffdf8;
+    border-radius:14px;padding:8px 10px;cursor:pointer;text-align:left;
+  }
+  .who:active{transform:scale(.98)}
+  .who b{font-size:13px;color:#4a4438}
+  .who small{display:block;font-size:10.5px;color:#9aa1bb}
+
+  .fly{
+    position:fixed;z-index:60;pointer-events:none;font-size:15px;font-weight:800;color:#e8a020;
+    text-shadow:0 1px 0 #fff;animation:flyUp 1.1s ease-out forwards;
+  }
+  @keyframes flyUp{0%{opacity:0;transform:translate(-50%,0) scale(.7)}
+    22%{opacity:1;transform:translate(-50%,-14px) scale(1.1)}
+    100%{opacity:0;transform:translate(-50%,-70px) scale(1)}}
+
+  /* ---------- 手机竖屏：田地 2×2 ---------- */
+  @media (max-width:560px){
+    /* 手机上天空别占太多，把地方留给田 */
+    .sky{flex:0 0 28%}
+    .field-row{grid-template-columns:repeat(2,1fr)}
+    .grass{padding-bottom:clamp(86px,13vh,112px);gap:clamp(6px,1.7vh,14px)}
+    .plot{height:clamp(92px,16vh,132px)}
+    .brand h1{font-size:15.5px}
+    .brand p{font-size:10.5px}
+    .tools button{width:40px;height:40px;border-radius:13px}
+    .tips{font-size:12.5px;padding:8px 12px}
+  }
+  /* ---------- 平板 ---------- */
+  @media (min-width:641px) and (max-width:1200px){
+    .brand h1{font-size:20px}
+    .brand p{font-size:12.5px}
+    .tools button{width:46px;height:46px}
+    .tips{font-size:14.5px;padding:11px 18px}
+    .plot{height:clamp(110px,19vh,170px)}
+  }
+</style>
+</head>
+<body>
+
+<div id="scene">
+  <div class="sky">
+    <svg class="sun" viewBox="0 0 80 80" aria-hidden="true">
+      <circle cx="40" cy="40" r="22" fill="#ffd75e"/>
+      <g stroke="#ffd75e" stroke-width="5" stroke-linecap="round">
+        <path d="M40 6 L40 15"/><path d="M40 65 L40 74"/><path d="M6 40 L15 40"/><path d="M65 40 L74 40"/>
+        <path d="M16 16 L23 23"/><path d="M57 57 L64 64"/><path d="M64 16 L57 23"/><path d="M23 57 L16 64"/>
+      </g>
+    </svg>
+    <svg class="cloud c1" viewBox="0 0 120 54" aria-hidden="true"><path d="M22 46 C6 46 6 26 22 26 C26 12 48 10 56 24 C72 18 86 28 82 40 C94 42 94 46 84 46 Z" fill="#fff"/></svg>
+    <svg class="cloud c2" viewBox="0 0 120 54" aria-hidden="true"><path d="M22 46 C6 46 6 26 22 26 C26 12 48 10 56 24 C72 18 86 28 82 40 C94 42 94 46 84 46 Z" fill="#fff" opacity=".85"/></svg>
+    <svg class="cloud c3" viewBox="0 0 120 54" aria-hidden="true"><path d="M22 46 C6 46 6 26 22 26 C26 12 48 10 56 24 C72 18 86 28 82 40 C94 42 94 46 84 46 Z" fill="#fff" opacity=".75"/></svg>
+    <svg class="hills" viewBox="0 0 400 120" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0 120 L0 70 C40 40 78 42 110 66 C140 34 186 30 216 62 C250 34 300 40 330 68 C360 50 384 56 400 66 L400 120 Z" fill="#a7d79a"/>
+      <path d="M0 120 L0 92 C50 70 96 74 132 92 C170 66 214 70 246 92 C286 68 336 74 368 94 C382 100 392 100 400 96 L400 120 Z" fill="#8fc97e"/>
+    </svg>
+    <svg class="fence" viewBox="0 0 400 22" preserveAspectRatio="none" aria-hidden="true">
+      <g fill="#e8d3a8" stroke="#cbb083" stroke-width="1.2">
+        <rect x="0" y="4" width="400" height="4" rx="2"/>
+        <rect x="0" y="13" width="400" height="4" rx="2"/>
+        <rect x="14" y="0" width="7" height="22" rx="2"/>
+        <rect x="74" y="0" width="7" height="22" rx="2"/>
+        <rect x="134" y="0" width="7" height="22" rx="2"/>
+        <rect x="194" y="0" width="7" height="22" rx="2"/>
+        <rect x="254" y="0" width="7" height="22" rx="2"/>
+        <rect x="314" y="0" width="7" height="22" rx="2"/>
+        <rect x="374" y="0" width="7" height="22" rx="2"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="grass">
+    <div class="pen-row" id="penRow"></div>
+    <div class="field-row" id="fieldRow"></div>
+  </div>
+</div>
+
+<div class="hud">
+  <div class="brand">
+    <h1>小镇农场</h1>
+    <p>种下去，浇两次水，就长熟啦</p>
+  </div>
+  <div class="tools">
+    <button class="wallet" id="btnWallet" title="我的星星" aria-label="我的星星">
+      <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 L14.6 9.4 L21.5 10 L16.3 14.5 L17.9 21.2 L12 17.6 L6.1 21.2 L7.7 14.5 L2.5 10 L9.4 9.4 Z" fill="#f0b23f"/></svg>
+      <b id="starNum">0</b>
+    </button>
+    <button id="btnBag" title="我的背包" aria-label="我的背包">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 8 L19 8 L18 20 L6 20 Z"/><path d="M9 8 C9 3 15 3 15 8"/>
+      </svg>
+    </button>
+    <button id="btnBack" title="回小镇" aria-label="回小镇">
+      <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 11 L12 4 L20 11"/><path d="M6.5 10 L6.5 19 L17.5 19 L17.5 10"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div class="tips" id="tips">点一块空地，把买来的种子种下去。</div>
+
+<div class="mask" id="mask"><div class="sheet" id="sheet"></div></div>
+
+<script src="room.js"></script>
+<script>
+(function(){
+  var Room = window.Room;
+  var S = Room.load();
+
+  /* ---------------- 商品表（和 index.html 保持一致） ---------------- */
+  var ITEMS = [
+    { id:"apple",  name:"苹果", cost:2, cat:"food" },
+    { id:"bread",  name:"面包", cost:2, cat:"food" },
+    { id:"candy",  name:"糖果", cost:3, cat:"food" },
+    { id:"balloon",name:"气球", cost:3, cat:"toy" },
+    { id:"bubble", name:"泡泡", cost:2, cat:"toy" },
+    { id:"teddy",  name:"小熊", cost:5, cat:"toy" },
+    { id:"kite",   name:"风筝", cost:6, cat:"toy" },
+    { id:"seed_rose",   name:"玫瑰花种子", cost:3, cat:"seed", grow:"rose",   short:"玫瑰" },
+    { id:"seed_potato", name:"土豆种子",   cost:2, cat:"seed", grow:"potato", short:"土豆" },
+    { id:"seed_carrot", name:"萝卜种子",   cost:2, cat:"seed", grow:"carrot", short:"萝卜" },
+    { id:"seed_tomato", name:"番茄种子",   cost:3, cat:"seed", grow:"tomato", short:"番茄" },
+    { id:"seed_corn",   name:"玉米种子",   cost:4, cat:"seed", grow:"corn",   short:"玉米" },
+    { id:"pet_chick", name:"小鸡", cost:4, cat:"pet", grow:"chick", short:"小鸡" },
+    { id:"pet_pig",   name:"小猪", cost:5, cat:"pet", grow:"pig",   short:"小猪" },
+    { id:"pet_duck",  name:"小鸭", cost:4, cat:"pet", grow:"duck",  short:"小鸭" }
+  ];
+  function byId(id){ for (var i=0;i<ITEMS.length;i++) if (ITEMS[i].id===id) return ITEMS[i]; return null; }
+  function sellPrice(it){ return Math.round(it.cost * 3); }
+  function giftPrice(it){ return Math.round(it.cost * 5); }
+  function itemArt(it, size){ return it && it.grow ? Room.art(it.grow, size) : Room.art(it ? it.id : "star", size); }
+
+  /* ---------------- 存档 ---------------- */
+  S.farm = S.farm || { plots: [] };
+  if (!S.farm.plots || S.farm.plots.length !== 7) S.farm.plots = [null,null,null,null,null,null,null];
+  S.pets = S.pets || [];
+  S.bag = S.bag || {};
+  var PLOTS = S.farm.plots;
+
+  var FIELD_N = 4;                    /* 前 4 格是田，后 3 格是窝 */
+  function isPen(i){ return i >= FIELD_N; }
+
+  /* ---------------- 声音与说话 ---------------- */
+  var Sound = Room.Sound, Voice = Room.Voice;
+  var sayTimer = null;
+  function say(text, opts){
+    var el = document.getElementById("tips");
+    if (el){ el.textContent = text; el.classList.remove("pop"); void el.offsetWidth; }
+    Voice.say(text, opts || { who:"teacher", rate:0.94 });
+    clearTimeout(sayTimer);
+  }
+
+  function paintStars(){
+    var n = document.getElementById("starNum");
+    if (n) n.textContent = S.stars || 0;
+  }
+
+  /* ---------------- 画田和窝 ---------------- */
+  var fieldRow = document.getElementById("fieldRow");
+  var penRow = document.getElementById("penRow");
+
+  function plotHTML(i){
+    var p = PLOTS[i];
+    var pen = isPen(i);
+    var cls = "plot" + (pen ? " pen" : "");
+    var inner = '<div class="soil"></div>';
+    var badge = "";
+    if (p){
+      var it = byId(p.id);
+      var artK = it ? (it.grow || it.id) : "sprout";
+      var step = p.step || 1;
+      var showArt, size;
+      if (pen){
+        /* 幼崽：越长越大 */
+        showArt = artK;
+        size = step === 1 ? 66 : (step === 2 ? 86 : 110);
+      } else {
+        /* 作物：第 1 步是小芽，第 2 步是长高的苗，第 3 步才是果实 */
+        showArt = step === 3 ? artK : "sprout";
+        size = step === 1 ? 58 : (step === 2 ? 84 : 110);
+      }
+      inner += '<div class="crop s' + step + '" data-art="1">' + Room.art(showArt, size) + '</div>';
+      if (step >= 3){
+        cls += " ripe";
+        badge = '<div class="badge ready">' + (pen ? "长大了" : "熟啦") + '</div>';
+      } else {
+        badge = '<div class="badge">' + (pen ? "第 " + step + " 步 · 还要喂" : "第 " + step + " 步 · 还要浇水") + '</div>';
+      }
+    } else {
+      cls += " empty";
+    }
+    return '<button class="' + cls + '" type="button" data-i="' + i + '">' + inner + badge + '</button>';
+  }
+
+  function render(){
+    var fh = "", ph = "";
+    for (var i = 0; i < FIELD_N; i++) fh += plotHTML(i);
+    for (var j = FIELD_N; j < 7; j++) ph += plotHTML(j);
+    /* 只有内容变化才重建，避免每帧闪烁 */
+    if (fieldRow.dataset.sig !== fh){ fieldRow.innerHTML = fh; fieldRow.dataset.sig = fh; }
+    if (penRow.dataset.sig !== ph){ penRow.innerHTML = ph; penRow.dataset.sig = ph; }
+    paintStars();
+  }
+
+  /* 点击整行（事件委托，省得每次重建都要重绑） */
+  function onPlotClick(e){
+    var b = e.target.closest ? e.target.closest(".plot") : null;
+    if (!b) return;
+    var i = Number(b.dataset.i);
+    tapPlot(i, b);
+  }
+  fieldRow.addEventListener("click", onPlotClick);
+  penRow.addEventListener("click", onPlotClick);
+
+  /* ---------------- 面板 ---------------- */
+  var mask = document.getElementById("mask");
+  var sheet = document.getElementById("sheet");
+  function openSheet(html){
+    sheet.innerHTML = '<button class="close" id="shClose">✕</button>' + html;
+    mask.classList.add("show");
+    var x = document.getElementById("shClose");
+    if (x) x.onclick = closeSheet;
+    mask.onclick = function(ev){ if (ev.target === mask) closeSheet(); };
+  }
+  function closeSheet(){ mask.classList.remove("show"); }
+
+  /* 背包里还有几个种子／幼崽 */
+  function bagCount(cat){
+    var n = 0;
+    Object.keys(S.bag).forEach(function(id){
+      var it = byId(id);
+      if (it && it.cat === cat) n += S.bag[id];
+    });
+    return n;
+  }
+
+  /* ---------------- 格子点击 ---------------- */
+  function tapPlot(i, el){
+    var p = PLOTS[i];
+    var pen = isPen(i);
+    if (!p){ openPick(i); return; }
+    if (p.step < 3){ care(i, el); return; }
+    openHarvest(i);
+  }
+
+  /* 第 1 步：选种子 / 选幼崽 */
+  function openPick(i){
+    var pen = isPen(i);
+    var cat = pen ? "pet" : "seed";
+    var list = ITEMS.filter(function(x){ return x.cat === cat && (S.bag[x.id] || 0) > 0; });
+    var title = pen ? "把小动物放进窝里" : "把种子种到地里";
+    var sub = pen ? "窝里的幼崽喂两次就长大了。" : "种下去以后浇两次水，就长熟了。";
+
+    if (!list.length){
+      openSheet(
+        '<h2>' + title + '</h2>' +
+        '<p class="sub">' + (pen
+          ? "背包里还没有幼崽。到商店的「幼崽」里挑一只吧。"
+          : "背包里还没有种子。到商店的「农作物」里挑一包吧。") + '</p>' +
+        '<div class="big-ico">' + Room.art(pen ? "chick" : "seedbag", 82) + '</div>' +
+        '<div class="row">' +
+          '<button class="btn warm" onclick="location.href=\'index.html?shop=' + (pen ? 'pet' : 'seed') + '\'">去商店看看</button>' +
+          '<button class="btn" id="pkCancel">等会儿</button>' +
+        '</div>'
+      );
+      document.getElementById("pkCancel").onclick = closeSheet;
+      Voice.say(pen ? "背包里还没有幼崽，先去商店挑一只吧。" : "背包里还没有种子，先去商店挑一包吧。");
+      return;
+    }
+
+    var html = '<h2>' + title + '</h2><p class="sub">' + sub + '</p><div class="pick-grid">';
+    list.forEach(function(it){
+      html += '<button class="pick" data-id="' + it.id + '">' +
+                '<div class="pv">' + itemArt(it, 52) + '</div>' +
+                '<b>' + it.name + '</b>' +
+                '<span>还有 ' + S.bag[it.id] + ' 个</span>' +
+                '<div class="price">' + (pen ? "送人 " + giftPrice(it) + " 星" : "卖出 " + sellPrice(it) + " 星") + '</div>' +
+              '</button>';
+    });
+    html += '</div><div class="row"><button class="btn" id="pkCancel">再想想</button></div>';
+    openSheet(html);
+
+    sheet.querySelectorAll(".pick").forEach(function(b){
+      b.onclick = function(){ plant(i, b.dataset.id); };
+    });
+    document.getElementById("pkCancel").onclick = closeSheet;
+    Voice.say(pen ? "挑一只放到窝里吧。" : "挑一包种子种下去吧。");
+  }
+
+  /* 种下去 / 放进去 */
+  function plant(i, itemId){
+    var it = byId(itemId);
+    if (!it || !(S.bag[itemId] > 0)) return;
+    S.bag[itemId] -= 1;
+    if (S.bag[itemId] <= 0) delete S.bag[itemId];
+    PLOTS[i] = { kind: it.cat, id: itemId, step: 1, t: Date.now() };
+    Room.save(); closeSheet(); render();
+    Sound.blip("ok");
+    var pen = isPen(i);
+    say(pen ? (it.short + "住进小窝啦。喂两次，它就长大了。")
+            : (it.short + "种下去啦。浇两次水，它就长熟了。"));
+    setTimeout(function(){ sparkleAt(i); }, 120);
+  }
+
+  /* 第 2、3 步：浇水 / 喂食 */
+  function care(i, el){
+    var p = PLOTS[i];
+    var pen = isPen(i);
+    var it = byId(p.id);
+    p.step += 1;
+    PLOTS[i] = p;
+    Room.save();
+    render();
+    Sound.blip("good");
+    sparkleAt(i);
+
+    if (p.step === 2){
+      say(pen ? (it.short + "长大了一点点，再喂一次就长成啦。")
+              : (it.short + "冒出了小叶子，再浇一次水就熟了。"));
+    } else {
+      say(pen ? (it.short + "长成大" + it.short + "啦！点它看看能做什么。")
+              : (it.short + "熟啦！点它看看能卖多少星星。"));
+      setTimeout(function(){ Sound.blip("good"); }, 200);
+    }
+  }
+
+  function sparkleAt(i){
+    var row = isPen(i) ? penRow : fieldRow;
+    var idx = isPen(i) ? (i - FIELD_N) : i;
+    var el = row.children[idx];
+    if (!el) return;
+    var r = el.getBoundingClientRect();
+    for (var k = 0; k < 5; k++){
+      var s = document.createElement("div");
+      s.className = "sparkle";
+      s.textContent = "✦";
+      s.style.left = (r.left + r.width * (0.25 + Math.random() * 0.5)) + "px";
+      s.style.top = (r.top + r.height * (0.2 + Math.random() * 0.3)) + "px";
+      s.style.color = ["#ffd75e", "#fff3c4", "#a9e0a0"][k % 3];
+      document.body.appendChild(s);
+      (function(n){ setTimeout(function(){ if (n.parentNode) n.parentNode.removeChild(n); }, 900); })(s);
+    }
+  }
+
+  /* 成熟：卖 / 带回家 / 送人 */
+  function openHarvest(i){
+    var p = PLOTS[i];
+    var it = byId(p.id);
+    var pen = isPen(i);
+    if (!it) return;
+
+    if (!pen){
+      var price = sellPrice(it);
+      openSheet(
+        '<h2>' + it.short + '熟啦</h2>' +
+        '<p class="sub">一' + (it.id === "seed_corn" ? "根" : (it.id === "seed_rose" ? "朵" : "个")) + it.short + '，' +
+          '装进筐里拿去卖，能换 <b>' + price + '</b> 颗星星。</p>' +
+        '<div class="big-ico">' + itemArt(it, 96) + '</div>' +
+        '<div class="row">' +
+          '<button class="btn warm" id="hvSell">卖 ' + price + ' 颗星星</button>' +
+          '<button class="btn ghost" id="hvKeep">先留着</button>' +
+        '</div>'
+      );
+      document.getElementById("hvSell").onclick = function(){ sell(i); };
+      document.getElementById("hvKeep").onclick = closeSheet;
+      Voice.say(it.short + "熟了，可以卖 " + price + " 颗星星。");
+      return;
+    }
+
+    /* 幼崽长大了 */
+    var gp = giftPrice(it);
+    openSheet(
+      '<h2>' + it.short + '长大了</h2>' +
+      '<p class="sub">它已经能自己走路啦。你可以带它回小镇当宠物，' +
+        '也可以送给小镇上的朋友——<b>愿意分享</b>的话，能收到 <b>' + gp + '</b> 颗星星。</p>' +
+      '<div class="big-ico">' + Room.art(it.grow, 104) + '</div>' +
+      '<div class="row">' +
+        '<button class="btn primary" id="hvTake">带回家当宠物</button>' +
+        '<button class="btn warm" id="hvGive">送给朋友 · ' + gp + ' 星</button>' +
+      '</div>' +
+      '<div class="row"><button class="btn ghost" id="hvKeep2">先待在窝里</button></div>'
+    );
+    document.getElementById("hvTake").onclick = function(){ takeHome(i); };
+    document.getElementById("hvGive").onclick = function(){ openWho(i); };
+    document.getElementById("hvKeep2").onclick = closeSheet;
+    Voice.say(it.short + "长大了，可以带回家当宠物，也可以送给朋友。");
+  }
+
+  /* 卖出农作物 */
+  function sell(i){
+    var p = PLOTS[i];
+    if (!p) return;
+    var it = byId(p.id);
+    if (!it) return;
+    if (p.kind !== "seed" || p.step < 3){
+      say("还没长熟呢，先浇水，等它长大了再卖。");
+      return;
+    }
+    var price = sellPrice(it);
+    S.stars = (S.stars || 0) + price;
+    PLOTS[i] = null;
+    Room.save(); render(); closeSheet();
+    Sound.blip("good");
+    floatNum("+" + price + " ★", i);
+    say("卖了 " + price + " 颗星星！再去种一包，长得更快啦。");
+    setTimeout(function(){
+      guideShareIfIdle();
+    }, 2200);
+  }
+
+  /* 带回家：进宠物列表，回小镇就跟着你 */
+  function takeHome(i){
+    var p = PLOTS[i];
+    if (!p) return;
+    var it = byId(p.id);
+    if (!it) return;
+    if (p.kind !== "pet"){
+      say(it.short + "是庄稼，不能当宠物带出去。等它长熟了，可以卖星星。");
+      return;
+    }
+    if (p.step < 3){
+      say(it.short + "还没长大，先喂一喂，长大才能带出农场。");
+      return;
+    }
+    S.pets = S.pets || [];
+    if (S.pets.length >= 3){
+      say("身边已经跟着 3 个小伙伴啦，先送出去一个再带新的吧。");
+      return;
+    }
+    S.pets.push({ id: it.id, name: it.short, at: Date.now() });
+    PLOTS[i] = null;
+    Room.save(); render(); closeSheet();
+    Sound.blip("good");
+    say(it.short + "以后就跟着你啦。回小镇以后，它会一直陪你走。");
+    setTimeout(function(){
+      say("回到小镇，它会跟在你后面走。想送给谁，走近了跟它一起过去就行。");
+    }, 2600);
+  }
+
+  /* 送给谁：小镇上所有人物都能收 */
+  function openWho(i){
+    var p = PLOTS[i];
+    var it = byId(p.id);
+    if (!it) return;
+    var folks = folkList();
+    var html = '<h2>送给谁呢</h2><p class="sub">小镇上的每个人都可以收下它。' +
+      '送出去以后，它就是那个人的小伙伴了。</p><div class="who-grid">';
+    folks.forEach(function(f, k){
+      html += '<button class="who" data-k="' + k + '">' +
+                '<span class="wa">' + Room.art(f.art, 42) + '</span>' +
+                '<span><b>' + f.name + '</b><small>' + f.line + '</small></span>' +
+              '</button>';
+    });
+    html += '</div><div class="row"><button class="btn" id="whoCancel">再想想</button></div>';
+    openSheet(html);
+    sheet.querySelectorAll(".who").forEach(function(b){
+      b.onclick = function(){ giveTo(i, folks[Number(b.dataset.k)]); };
+    });
+    document.getElementById("whoCancel").onclick = closeSheet;
+    Voice.say("想把" + it.short + "送给谁呢？");
+  }
+
+  /* 小镇上的人：三位固定居民 + 自己做的小朋友 */
+  function folkList(){
+    var base = [
+      { name:"豆豆", art:"kid1",  line:"爱跑爱跳的小男孩" },
+      { name:"朵朵", art:"girl",  line:"喜欢数格子的小女孩" },
+      { name:"阿福", art:"kid2",  line:"会摇尾巴的小狗" }
+    ];
+    var mine = (S.myfolk || []).filter(function(u){ return !u.gone; }).map(function(u){
+      return { name: u.name, art: "kid1", line: "你自己做的小朋友" };
+    });
+    return base.concat(mine).slice(0, 6);
+  }
+
+  function giveTo(i, folk){
+    var p = PLOTS[i];
+    if (!p) return;
+    var it = byId(p.id);
+    if (!it) return;
+    if (p.kind !== "pet" || p.step < 3) return;
+    var gp = giftPrice(it);
+    S.stars = (S.stars || 0) + gp;
+    /* 记一笔：送给谁了，回小镇能看到它跟着那个人 */
+    S.folkPets = S.folkPets || {};
+    S.folkPets[folk.name] = it.id;
+    PLOTS[i] = null;
+    Room.save(); render(); closeSheet();
+    Sound.blip("good");
+    floatNum("+" + gp + " ★", i);
+    say("你把" + it.short + "送给了" + folk.name + "，" + folk.name + "开心得直点头。愿意分享的人，星星也会多一些。");
+    Voice.say("你把" + it.short + "送给了" + folk.name + "。愿意分享，真好。");
+  }
+
+  function guideShareIfIdle(){
+    if (Math.random() < 0.5) return;
+    say("窝里的小动物养大了，可以送给小镇上的朋友，也可以带回家当宠物。");
+  }
+
+  function floatNum(txt, i){
+    var row = isPen(i) ? penRow : fieldRow;
+    var idx = isPen(i) ? (i - FIELD_N) : i;
+    var el = row.children[idx];
+    if (!el) return;
+    var r = el.getBoundingClientRect();
+    var d = document.createElement("div");
+    d.className = "fly";
+    d.textContent = txt;
+    d.style.left = (r.left + r.width / 2) + "px";
+    d.style.top = (r.top + r.height * 0.3) + "px";
+    document.body.appendChild(d);
+    setTimeout(function(){ if (d.parentNode) d.parentNode.removeChild(d); }, 1200);
+  }
+
+  /* ---------------- 顶部按钮 ---------------- */
+  document.getElementById("btnBack").onclick = function(){ location.href = "index.html"; };
+  document.getElementById("btnWallet").onclick = function(){
+    say("你现在有 " + (S.stars || 0) + " 颗星星。种得越多，卖得越多。");
+  };
+  document.getElementById("btnBag").onclick = function(){
+    var ids = Object.keys(S.bag || {}).filter(function(id){ return S.bag[id] > 0; });
+    var html = '<h2>我的背包</h2><p class="sub">' + (ids.length ? "种子和幼崽都可以直接放到田里、窝里。" : "背包空空的，去商店换点种子吧。") + '</p>';
+    if (ids.length){
+      html += '<div class="pick-grid">';
+      ids.forEach(function(id){
+        var it = byId(id);
+        if (!it) return;
+        html += '<div class="pick" style="cursor:default">' +
+                  '<div class="pv">' + itemArt(it, 46) + '</div>' +
+                  '<b>' + it.name + '</b><span>× ' + S.bag[id] + '</span></div>';
+      });
+      html += '</div>';
+    }
+    html += '<div class="row"><button class="btn primary" id="bagClose">收起来</button></div>';
+    openSheet(html);
+    document.getElementById("bagClose").onclick = closeSheet;
+  };
+
+  /* ---------------- 开场 ---------------- */
+  render();
+  var greeting = bagCount("seed") || bagCount("pet")
+    ? "欢迎来到农场。点一块空地，把背包里的种子种下去吧。"
+    : "欢迎来到农场。先去商店换一包种子，就能种啦。";
+  var el0 = document.getElementById("tips");
+  if (el0) el0.textContent = greeting;
+  setTimeout(function(){ Voice.say(greeting, { who:"farmer", rate:0.94 }); }, 420);
+
+  /* 回小镇后如果还有熟的东西没处理，提醒一句 */
+  setTimeout(function(){
+    var ripe = 0, grown = 0;
+    PLOTS.forEach(function(p, i){
+      if (p && p.step >= 3){ if (isPen(i)) grown++; else ripe++; }
+    });
+    if (ripe || grown){
+      say((ripe ? ("有 " + ripe + " 样作物熟了，点它就能卖。") : "") +
+          (grown ? ("有 " + grown + " 只小动物长大了，点它看看吧。") : ""));
+    }
+  }, 2600);
+
+  /* 页面暴露给测试用 */
+  window.FARM = { S:S, PLOTS:PLOTS, plant:plant, care:care, sell:sell, takeHome:takeHome,
+                  giveTo:giveTo, folkList:folkList, render:render, byId:byId, sellPrice:sellPrice, giftPrice:giftPrice };
+})();
+</script>
+</body>
+</html>

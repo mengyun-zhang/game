@@ -1,0 +1,781 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>外公外婆家 · 澄澄的小镇</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="room.css">
+<style>
+  /* ============ 电视 ============ */
+  .tv-mask .sheet{max-width:560px}
+  .tv-set{
+    position:relative;border-radius:16px;overflow:hidden;background:#1d2433;
+    box-shadow:inset 0 0 0 6px #3a4356, 0 10px 24px rgba(20,20,30,.3);
+  }
+  .tv-screen{
+    position:relative;aspect-ratio:16/9;overflow:hidden;
+    background:linear-gradient(#a8dcf5 0%, #cfeafd 58%, #bfe0a4 58%, #a6d18c 100%);
+  }
+  .tv-sun{position:absolute;right:12%;top:10%;width:16%;aspect-ratio:1;border-radius:50%;
+    background:#ffd75e;box-shadow:0 0 22px 6px rgba(255,215,94,.55)}
+  .tv-ground{position:absolute;left:0;right:0;bottom:0;height:42%;background:#8fc47c}
+  .tv-radish{
+    position:absolute;left:26%;bottom:16%;width:14%;aspect-ratio:.72;
+    background:linear-gradient(#f08a3c,#e07a2c);
+    border-radius:50% 50% 46% 46%/60% 60% 40% 40%;
+    animation:tvGrow 3.2s ease-in-out infinite;
+  }
+  .tv-leaf{
+    position:absolute;left:50%;bottom:100%;width:76%;height:70%;transform:translateX(-50%);
+    background:
+      radial-gradient(ellipse at 30% 100%, #7fbf6f 0 46%, transparent 47%),
+      radial-gradient(ellipse at 70% 100%, #9ad689 0 46%, transparent 47%);
+    animation:tvLeaf 3.2s ease-in-out infinite;
+  }
+  @keyframes tvGrow{
+    0%,14%{transform:translateY(46%) scale(.35);opacity:.5}
+    46%,70%{transform:translateY(0) scale(1);opacity:1}
+    86%,100%{transform:translateY(10%) scale(1.04);opacity:1}
+  }
+  @keyframes tvLeaf{
+    0%,14%{transform:translateX(-50%) scale(.2);opacity:.2}
+    46%,100%{transform:translateX(-50%) scale(1);opacity:1}
+  }
+  .tv-critter{
+    position:absolute;left:-20%;bottom:18%;width:13%;aspect-ratio:1;
+    background:#fffdf8;border-radius:50% 50% 44% 44%;
+    animation:tvWalk 3.2s linear infinite;
+  }
+  .tv-critter:before,.tv-critter:after{
+    content:"";position:absolute;top:-26%;width:34%;height:52%;background:#fffdf8;
+    border-radius:50% 50% 40% 40%;
+  }
+  .tv-critter:before{left:4%} .tv-critter:after{right:4%}
+  @keyframes tvWalk{
+    0%,52%{left:-20%;opacity:0}
+    58%{left:-14%;opacity:1}
+    92%{left:82%;opacity:1}
+    100%{left:88%;opacity:0}
+  }
+  .tv-sub{
+    position:absolute;left:0;right:0;bottom:0;padding:6px 10px;text-align:center;
+    background:rgba(20,26,36,.55);color:#fff;font-size:13px;letter-spacing:.5px;
+  }
+  .tv-line{margin-top:10px;text-align:center;font-size:14px;color:#5a5347;line-height:1.6}
+
+  /* ============ 红包 ============ */
+  .hongbao{
+    position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.6);
+    z-index:70;width:190px;padding:22px 14px 18px;border-radius:14px;
+    background:linear-gradient(#e5544a,#cf3b33);color:#ffe9b8;text-align:center;
+    box-shadow:0 20px 46px rgba(120,30,20,.42), inset 0 0 0 3px rgba(255,225,160,.45);
+    opacity:0;pointer-events:none;transition:transform .42s cubic-bezier(.34,1.56,.64,1),opacity .3s;
+  }
+  .hongbao.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .hongbao .hb-top{font-size:13px;letter-spacing:3px;opacity:.85}
+  .hongbao .hb-num{font-size:42px;font-weight:800;color:#ffdf8a;margin:6px 0 2px;text-shadow:0 2px 0 rgba(120,30,20,.35)}
+  .hongbao .hb-unit{font-size:13px;opacity:.9}
+  .hongbao .hb-seal{
+    position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);
+    width:44px;height:44px;border-radius:50%;background:#ffd75e;color:#b8342c;
+    font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;
+    box-shadow:0 4px 10px rgba(120,30,20,.35);
+  }
+
+  /* ============ 拔萝卜 ============ */
+  .pull-wrap{user-select:none}
+  .pull-stage{
+    position:relative;margin:6px 0 4px;border-radius:16px;overflow:hidden;
+    height:clamp(230px,42vh,320px);
+    background:linear-gradient(#bfe6f7 0%,#dff1fb 34%,#a9d18f 34%,#93c47a 100%);
+    touch-action:none;isolation:isolate;
+  }
+  .pull-soil{
+    position:absolute;left:0;right:0;bottom:0;height:44%;
+    background:linear-gradient(#a97a4e,#8a5e37);
+    box-shadow:inset 0 6px 0 rgba(255,255,255,.14);
+  }
+  .radish{
+    position:absolute;width:126px;height:126px;margin:-63px 0 0 -63px;
+    border:none;background:transparent;padding:0;cursor:grab;
+    touch-action:none;transition:transform .18s ease;
+    filter:drop-shadow(0 6px 6px rgba(60,40,20,.28));
+    z-index:5;
+  }
+  .radish svg{width:100%;height:auto;pointer-events:none;display:block}
+  .radish.drag{cursor:grabbing;transition:none;z-index:9}
+  .radish.gone{transform:scale(.2) translateY(-40px);opacity:0;pointer-events:none}
+  .radish.tip{animation:radishTip 1.6s ease-in-out infinite}
+  @keyframes radishTip{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+
+  .pull-basket{
+    position:absolute;right:6%;bottom:9%;width:96px;height:70px;z-index:2;
+    border-radius:8px 8px 26px 26px;
+    background:repeating-linear-gradient(90deg,#d9a25c 0 7px,#c8924c 7px 14px);
+    box-shadow:inset 0 -8px 0 rgba(0,0,0,.12), 0 6px 12px rgba(60,40,20,.25);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .pull-basket:before{
+    content:"";position:absolute;left:-6px;right:-6px;top:-9px;height:14px;border-radius:8px;
+    background:#e8c08a;box-shadow:inset 0 -3px 0 rgba(0,0,0,.1);
+  }
+  .pull-basket b{
+    position:relative;z-index:2;font-size:15px;color:#7a4f22;font-weight:800;
+    text-shadow:0 1px 0 rgba(255,255,255,.5);
+  }
+  .pull-basket.hot{box-shadow:inset 0 -8px 0 rgba(0,0,0,.12), 0 0 0 4px #ffe08a, 0 6px 12px rgba(60,40,20,.25)}
+  .pull-finger{
+    position:absolute;z-index:8;font-size:26px;pointer-events:none;
+    animation:pinch 2.4s ease-in-out infinite;
+  }
+  @keyframes pinch{
+    0%,100%{transform:translate(0,0) rotate(-8deg);opacity:.9}
+    40%{transform:translate(26px,-30px) rotate(8deg);opacity:1}
+    70%{transform:translate(90px,10px) rotate(0deg);opacity:.6}
+  }
+  .pull-tip{text-align:center;font-size:13px;color:#8a8478;margin-top:6px}
+  @media (max-width:560px){
+    .radish{width:84px;height:84px;margin:-42px 0 0 -42px}
+    .pull-basket{width:80px;height:60px;right:5%}
+  }
+
+  /* 餐桌上的汤 */
+  .soup-row{display:flex;justify-content:center;margin:4px 0 6px}
+  .soup-txt{text-align:center;font-size:14px;color:#5a5347;line-height:1.65}
+  .soup-txt b{color:#c9705f}
+</style>
+</head>
+<body>
+
+<div class="room-wrap">
+  <div class="stage" id="room"></div>
+</div>
+
+<div class="hud">
+  <div class="brand">
+    <h1>外公外婆家</h1>
+    <p>点一点，听他们说话</p>
+  </div>
+  <div class="tools">
+    <button id="btnStar" title="我的星星" aria-label="我的星星" style="width:auto;padding:0 12px;display:flex;align-items:center;gap:5px">
+      <svg width="17" height="17" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 L14.6 9.4 L21.5 10 L16.3 14.5 L17.9 21.2 L12 17.6 L6.1 21.2 L7.7 14.5 L2.5 10 L9.4 9.4 Z" fill="#f0b23f"/></svg>
+      <span id="starNum" style="font-size:15px;font-weight:700;color:#e09a24">0</span>
+    </button>
+    <button id="btnBack" title="回小镇" aria-label="回小镇">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 11 L12 4 L20 11"/><path d="M6.5 10 L6.5 19 L17.5 19 L17.5 10"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div class="room-done" id="roomDone">
+  <h2>在外公家吃过饭啦</h2>
+  <p>萝卜汤喝完了，红包也收到了。<br>下次再来陪外公吃饭。</p>
+  <button class="btn primary" onclick="location.href='index.html'">回小镇</button>
+</div>
+
+<div class="hongbao" id="hongbao">
+  <div class="hb-top">外 公 的 红 包</div>
+  <div class="hb-num" id="hbNum">100</div>
+  <div class="hb-unit">颗 星 星</div>
+  <div class="hb-seal">福</div>
+</div>
+
+<div class="cover" id="cover">
+  <div class="box">
+    <div id="coverArt" style="display:flex;justify-content:center;align-items:flex-end;gap:2px"></div>
+    <h1>外公外婆家</h1>
+    <p>外公在厨房熬萝卜汤，<br>一进门就问你吃饭了没有。</p>
+    <button class="go" id="goBtn">进屋看看</button>
+    <div class="small">点「进屋看看」后会有轻轻的背景音乐</div>
+  </div>
+</div>
+
+<script src="room.js"></script>
+<script>
+document.getElementById("coverArt").innerHTML =
+  Room.art("grandpa", 120) + Room.art("grandma", 110) + Room.art("girl", 96);
+
+document.getElementById("btnBack").onclick = function(){ location.href = "index.html"; };
+
+/* ===================================================================
+   桌上的菜：都是外公做的，点一下会说一句
+   =================================================================== */
+function dishSvg(kind){
+  if (kind === "soup"){
+    return '<svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true" style="display:block">'
+      + '<ellipse cx="32" cy="46" rx="24" ry="7" fill="#e8dccb"/>'
+      + '<path d="M8,30 L56,30 C54,44 46,50 32,50 C18,50 10,44 8,30 Z" fill="#fffdf8" stroke="#e0d3c0" stroke-width="2"/>'
+      + '<ellipse cx="32" cy="30" rx="24" ry="7" fill="#f2dcc2"/>'
+      + '<ellipse cx="32" cy="30" rx="18" ry="4.6" fill="#e8b96a"/>'
+      + '<circle cx="25" cy="29" r="2.6" fill="#f08a3c"/><circle cx="36" cy="31" r="2.2" fill="#f08a3c"/>'
+      + '<circle cx="31" cy="27" r="1.8" fill="#8fc97e"/>'
+      + '<path d="M22,16 C18,10 26,8 24,3" stroke="#e8dccb" stroke-width="3" fill="none" stroke-linecap="round" opacity=".9"/>'
+      + '<path d="M34,14 C30,8 38,6 36,1" stroke="#e8dccb" stroke-width="3" fill="none" stroke-linecap="round" opacity=".75"/>'
+      + '</svg>';
+  }
+  if (kind === "fish"){
+    return '<svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true" style="display:block">'
+      + '<ellipse cx="32" cy="48" rx="26" ry="7" fill="#e8dccb"/>'
+      + '<path d="M10,40 C10,32 52,32 52,40 Z" fill="#fffdf8" stroke="#e0d3c0" stroke-width="2"/>'
+      + '<ellipse cx="32" cy="36" rx="16" ry="8" fill="#c9d8e8"/>'
+      + '<path d="M48,36 L58,29 L58,43 Z" fill="#b9cadb"/>'
+      + '<circle cx="22" cy="34" r="1.6" fill="#4a4438"/>'
+      + '<path d="M26,36 Q32,40 38,36" stroke="#a9bccd" stroke-width="1.4" fill="none"/>'
+      + '</svg>';
+  }
+  if (kind === "veggie"){
+    return '<svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true" style="display:block">'
+      + '<ellipse cx="32" cy="48" rx="24" ry="7" fill="#e8dccb"/>'
+      + '<ellipse cx="32" cy="42" rx="22" ry="7" fill="#fffdf8" stroke="#e0d3c0" stroke-width="2"/>'
+      + '<path d="M18,40 C14,26 26,18 32,26 C38,18 50,26 46,40 Z" fill="#7fbf6f"/>'
+      + '<path d="M24,38 C22,28 30,24 32,30" stroke="#a9d993" stroke-width="2.4" fill="none"/>'
+      + '<circle cx="40" cy="34" r="4" fill="#e4705f"/>'
+      + '</svg>';
+  }
+  /* 红烧肉 */
+  return '<svg viewBox="0 0 64 64" width="72" height="72" aria-hidden="true" style="display:block">'
+    + '<ellipse cx="32" cy="48" rx="24" ry="7" fill="#e8dccb"/>'
+    + '<ellipse cx="32" cy="42" rx="21" ry="7" fill="#fffdf8" stroke="#e0d3c0" stroke-width="2"/>'
+    + '<rect x="16" y="30" width="14" height="12" rx="3" fill="#b5643c"/>'
+    + '<rect x="30" y="28" width="14" height="12" rx="3" fill="#c4744a"/>'
+    + '<rect x="22" y="24" width="14" height="11" rx="3" fill="#a95a35"/>'
+    + '<path d="M18,34 L28,34 M32,32 L42,32" stroke="#e8b96a" stroke-width="2" opacity=".7"/>'
+    + '</svg>';
+}
+
+/* ===================================================================
+   房间
+   =================================================================== */
+var NAR = (window.innerWidth / Math.max(1, window.innerHeight)) < 1;
+/* 竖屏时房间会被横向压到 0.62，6 个人会挤成一团。
+   这里把「想让他站在屏幕 24% 处」反解回场景坐标，人就能均匀铺开。 */
+function ux(v){ return NAR ? (50 + (v - 50) / 0.62) : v; }
+var SC_TVX = NAR ? 26 : 24;      /* 电视靠左墙 */
+var SC_WX  = NAR ? 84 : 80;      /* 窗靠右 */
+var SC_TPX = ux(44);              /* 餐桌 */
+
+var room = Room.init({
+  id: "gong",
+  name: "外公外婆家",
+  avoid: [{ x1: 20, x2: 72, y1: 66, y2: 84 }],
+  intro: "外公外婆家。外公说：吃饭了没有？先坐下，我给你盛碗萝卜汤。",
+  scene: {
+    wall: "#f7e9d6", floor: "#e0c9a8", base: "#c9ad8b",
+    items: [
+      /* 电视柜 */
+      { t: "shelf", x: SC_TVX, y: 50, w: 24, h: 14, c1: "#c99a62", c2: "#a8804f" },
+      /* 窗 */
+      { t: "window", x: SC_WX, y: 36, w: 20, h: 26, c1: "#f4c9a6" },
+      /* 墙上全家福 */
+      { t: "frame", x: 52, y: 27, w: 13, h: 16, c1: "#f6d365", c2: "#d9b48f", motif: "sun" },
+      { t: "frame", x: 66, y: 30, w: 10, h: 12, c1: "#f7a8bd", c2: "#d9b48f", motif: "heart" },
+      /* 吊灯 */
+      { t: "lamp", x: 50, y: 12, w: 12, h: 14 },
+      /* 餐桌：压到画面下沿，只露出桌沿和一桌菜，人是站在桌后面的 */
+      { t: "table", x: SC_TPX, y: 80, w: 58, h: 18, c1: "#d9a25c", c2: "#b3803f", c3: "#e8c08a" },
+      /* 沙发 */
+      { t: "sofa", x: 88, y: 72, w: 18, h: 17, c1: "#8fa9c8", c2: "#6f8bab" },
+      /* 盆栽 */
+      { t: "plant", x: 6, y: 80, w: 9, h: 15 },
+      /* 地毯 */
+      { t: "rug", x: 44, y: 92, w: 56, h: 11, c1: "#ead8bd", c2: "#d0b993" }
+    ]
+  },
+  people: [
+    {
+      id: "waigong", name: "外公", art: "grandpa", voice: "grandpa", x: ux(22), y: 62, size: 108,
+      roam: { x1: ux(22) - 5, x2: ux(22) + 5, y1: 61, y2: 65 },
+      talk: [
+        "回来啦？先坐下，萝卜汤刚熬好。",
+        "地里的萝卜今年长得特别好，一个个都胖。",
+        "吃完饭，外公带你到后院拔萝卜，好不好？",
+        "慢点喝，烫。锅里还有。"
+      ],
+      idle: [
+        "汤要再炖一会儿。",
+        "这萝卜是今早拔的。",
+        "多吃一碗，长个子。"
+      ]
+    },
+    {
+      id: "waipo", name: "外婆", art: "grandma", voice: "grandma", x: ux(40), y: 63, size: 104,
+      roam: { x1: ux(40) - 5, x2: ux(40) + 5, y1: 62, y2: 66 },
+      talk: [
+        "外婆给你挑了一块最嫩的。",
+        "汤里放了萝卜和排骨，甜着呢。",
+        "吃完了外婆给你盛第二碗。",
+        "路上冷不冷？外婆给你焐焐手。"
+      ],
+      idle: [
+        "再添一点饭吧。",
+        "碗里还有呢。",
+        "菜要凉了，快吃。"
+      ]
+    },
+    {
+      id: "baba", name: "爸爸", art: "dad", voice: "dad", x: ux(58), y: 62, size: 108,
+      roam: { x1: ux(58) - 5, x2: ux(58) + 5, y1: 61, y2: 65 },
+      talk: [
+        "外公的汤，一年比一年好喝。",
+        "吃完饭我陪你去院子里走走。",
+        "别光喝汤，也吃点青菜。",
+        "碗放着，我来收。"
+      ],
+      idle: [
+        "这汤真不错。",
+        "再来半碗。",
+        "爸，您也坐下吃。"
+      ]
+    },
+    {
+      id: "jiujiu", name: "舅舅", art: "uncle", voice: "uncle", x: ux(76), y: 64, size: 102,
+      roam: { x1: ux(76) - 5, x2: ux(76) + 5, y1: 63, y2: 67 },
+      talk: [
+        "我小时候也爱喝这个汤。",
+        "吃完饭舅舅陪你看电视。",
+        "你长高了不少，快赶上我了。",
+        "电视里那个动画片可好看了。"
+      ],
+      idle: [
+        "再来一碗。",
+        "这个台有动画片。",
+        "外公，您歇会儿。"
+      ]
+    },
+    {
+      id: "mama", name: "妈妈", art: "mom", voice: "mom", x: ux(30), y: 71.5, size: 104,
+      roam: { x1: ux(30) - 5, x2: ux(30) + 5, y1: 70.5, y2: 73.5 },
+      talk: [
+        "谢谢外公，外婆也坐下来吃吧。",
+        "她今天在镇上玩了一整天。",
+        "先喝汤，喝完再吃菜。",
+        "外公特意给你做的萝卜汤。"
+      ],
+      idle: [
+        "慢点吃。",
+        "要不要再添一点？",
+        "把碗里的吃完。"
+      ]
+    },
+    {
+      id: "cheng", name: "澄澄", art: "girl", voice: "girl", x: ux(47), y: 72.5, size: 96,
+      roam: { x1: ux(47) - 5, x2: ux(47) + 5, y1: 71.5, y2: 74.5 },
+      talk: [
+        "外公，我还要一碗！",
+        "这个萝卜是甜的吗？",
+        "我想看看电视。",
+        "外婆做的饭最好吃。"
+      ],
+      idle: [
+        "好香呀。",
+        "我吃饱了。",
+        "我想去后院看看。"
+      ]
+    }
+  ],
+  things: [
+    /* 电视 */
+    {
+      id: "tv", name: "电视",
+      html: '<svg viewBox="0 0 120 84" width="176" height="123" aria-hidden="true" style="display:block">'
+        + '<rect x="4" y="4" width="112" height="70" rx="8" fill="#3a4356"/>'
+        + '<rect x="11" y="11" width="98" height="56" rx="5" fill="#bfe6f7"/>'
+        + '<circle cx="84" cy="26" r="9" fill="#ffd75e"/>'
+        + '<rect x="11" y="48" width="98" height="19" fill="#9ed48c"/>'
+        + '<path d="M36,58 C36,48 44,44 50,50 C56,44 64,48 64,58 Z" fill="#7fbf6f"/>'
+        + '<circle cx="72" cy="54" r="5" fill="#f08a3c"/>'
+        + '<rect x="46" y="74" width="28" height="6" rx="3" fill="#2b3240"/>'
+        + '<circle cx="102" cy="78" r="3" fill="#e8705f"/><circle cx="92" cy="78" r="3" fill="#8ec9a3"/>'
+        + '</svg>',
+      x: SC_TVX, y: 44, act: function(el, say){
+        say("电视里在放《小萝卜长大啦》。");
+        openTV();
+      }
+    },
+    /* 一桌菜 */
+    {
+      id: "soup", name: "萝卜汤",
+      html: dishSvg("soup"),
+      x: SC_TPX - 6,  y: 77.2,
+      act: function(el, say){ say("外公的萝卜汤，热气腾腾的。"); openSoup(); }
+    },
+    {
+      id: "fish", name: "红烧鱼",
+      html: dishSvg("fish"),
+      x: SC_TPX + 6,  y: 77.2,
+      act: function(el, say){ say("还有一条鱼，外公说吃鱼聪明。"); openSoup(); }
+    },
+    {
+      id: "meat", name: "红烧肉",
+      html: dishSvg("meat"),
+      x: SC_TPX + 18, y: 76.8,
+      act: function(el, say){ say("红烧肉炖得烂烂的，一抿就化。"); openSoup(); }
+    },
+    {
+      id: "veg", name: "青菜",
+      html: dishSvg("veggie"),
+      x: SC_TPX - 18, y: 76.8,
+      act: function(el, say){ say("还有一盘青菜，外公自己种的。"); openSoup(); }
+    }
+  ]
+});
+
+/* ===================================================================
+   星星
+   =================================================================== */
+function paintStar(){
+  var n = document.getElementById("starNum");
+  if (n) n.textContent = room.S.stars || 0;
+}
+paintStar();
+
+/* ===================================================================
+   面板
+   =================================================================== */
+var mask = null, sheet = null;
+function ensureMask(){
+  if (mask) return;
+  mask = document.createElement("div");
+  mask.id = "mask";
+  mask.className = "mask";
+  mask.innerHTML = '<div class="sheet" id="sheet"></div>';
+  document.body.appendChild(mask);
+  mask.addEventListener("click", function(e){ if (e.target === mask) closeSheet(); });
+}
+function openSheet(html, cls){
+  ensureMask();
+  mask.className = "mask" + (cls ? " " + cls : "");
+  sheet = document.getElementById("sheet");
+  sheet.innerHTML = html;
+  mask.classList.add("show");
+  var x = sheet.querySelector(".close");
+  if (x) x.onclick = closeSheet;
+}
+function closeSheet(){
+  if (mask) mask.classList.remove("show");
+}
+
+/* ===================================================================
+   一桌菜：点开看看今天吃什么
+   =================================================================== */
+var DISHES = [
+  { k:"soup",   n:"萝卜汤",  d:"外公熬了一个下午，萝卜炖得软软的，汤是甜的。" },
+  { k:"fish",   n:"红烧鱼",  d:"外婆说吃鱼聪明，鱼刺已经挑干净了。" },
+  { k:"meat",   n:"红烧肉",  d:"炖得烂烂的，一抿就化。" },
+  { k:"veggie", n:"炒青菜",  d:"院子里自己种的，早上刚摘。" }
+];
+function openSoup(){
+  var html = '<h2>今天外公做了一桌子菜</h2>' +
+    '<p class="sub">点每一样，看看是什么。</p>' +
+    '<div class="soup-row">' + DISHES.map(function(d){
+      return '<button class="pick" data-k="' + d.k + '" style="border:none;background:transparent;padding:4px">' +
+        dishSvg(d.k) + '</button>';
+    }).join("") + '</div>' +
+    '<div class="soup-txt" id="dishTxt">萝卜汤是外公的拿手菜，先喝汤，再吃菜。</div>' +
+    '<div class="row"><button class="btn primary" onclick="closeSheet()">坐下吃饭</button></div>';
+  openSheet('<button class="close">✕</button>' + html);
+  sheet.querySelectorAll(".pick").forEach(function(b){
+    b.onclick = function(){
+      var d = DISHES.filter(function(x){ return x.k === b.dataset.k; })[0];
+      var t = document.getElementById("dishTxt");
+      if (t) t.innerHTML = "<b>" + d.n + "</b>：" + d.d;
+      room.Sound.blip("tap");
+      room.Say(d.n + "。" + d.d, { who:"grandpa" });
+    };
+  });
+  room.Say("外公做了一桌子菜，先喝碗萝卜汤。", { who:"grandpa" });
+}
+
+/* ===================================================================
+   电视：一段循环的小动画
+   =================================================================== */
+function openTV(){
+  var html = '<h2>电视里在放动画片</h2>' +
+    '<p class="sub">《小萝卜长大啦》</p>' +
+    '<div class="tv-set"><div class="tv-screen">' +
+      '<div class="tv-sun"></div>' +
+      '<div class="tv-ground"></div>' +
+      '<div class="tv-radish"><div class="tv-leaf"></div></div>' +
+      '<div class="tv-critter"></div>' +
+      '<div class="tv-sub">小萝卜一天一天长大，小兔子天天来看它</div>' +
+    '</div></div>' +
+    '<div class="tv-line" id="tvLine">小兔子说：等你长大了，我就和你做朋友。</div>' +
+    '<div class="row"><button class="btn primary" onclick="closeSheet()">看完啦</button></div>';
+  openSheet('<button class="close">✕</button>' + html);
+  var lines = [
+    "小兔子说：等你长大了，我就和你做朋友。",
+    "小萝卜使劲往上长，叶子一天比一天多。",
+    "下雨了，小兔子给小萝卜撑了一把小伞。",
+    "小萝卜终于长大了，它把一半分给了小兔子。"
+  ];
+  var i = 0;
+  clearInterval(window._tvT);
+  window._tvT = setInterval(function(){
+    i = (i + 1) % lines.length;
+    var el = document.getElementById("tvLine");
+    if (el) el.textContent = lines[i];
+    else clearInterval(window._tvT);
+  }, 3200);
+  room.Say("舅舅陪你看动画片。", { who:"uncle" });
+}
+
+/* ===================================================================
+   点外公：后院拔萝卜（拖拽小游戏）
+   =================================================================== */
+var pullState = null;
+
+function openGame(){
+  var n = 5;
+  var spots = [
+    { x: 14, y: 62, s: .78 }, { x: 31, y: 74, s: 1 },
+    { x: 47, y: 60, s: .86 }, { x: 62, y: 76, s: 1.05 },
+    { x: 69, y: 60, s: .82 }
+  ];
+  var radishes = spots.map(function(sp, i){
+    return '<button class="radish" type="button" data-i="' + i + '" ' +
+      'style="left:' + sp.x + '%;top:' + sp.y + '%;transform:scale(' + sp.s + ')" ' +
+      'aria-label="萝卜">' + Room.art("carrot", 126) + '</button>';
+  }).join("");
+
+  openSheet(
+    '<button class="close">✕</button>' +
+    '<h2>帮外公拔萝卜</h2>' +
+    '<p class="sub">按住一根萝卜，把它拖到右边的筐里，松开手就拔出来啦。</p>' +
+    '<div class="pull-wrap"><div class="pull-stage" id="pStage">' +
+      '<div class="pull-soil"></div>' + radishes +
+      '<div class="pull-basket" id="pBasket"><b><span id="pCount">0</span>/5</b></div>' +
+      '<div class="pull-finger" id="pFinger" style="left:9%;top:50%">👆</div>' +
+    '</div>' +
+    '<div class="pull-tip" id="pTip">先拔最左边那一根试试。</div></div>'
+  );
+
+  pullState = { done: 0, total: n, dragging: null, seq: (pullState && pullState.seq || 0) + 1 };
+  bindDrag();
+  room.Say("按住萝卜，往筐里拖。", { who:"grandpa" });
+}
+
+function bindDrag(){
+  var stage = document.getElementById("pStage");
+  if (!stage) return;
+  var basket = document.getElementById("pBasket");
+
+  function nearBasket(cx, cy){
+    var r = basket.getBoundingClientRect();
+    var pad = 46;
+    return cx > r.left - pad && cx < r.right + pad && cy > r.top - pad && cy < r.bottom + pad;
+  }
+
+  stage.addEventListener("pointerdown", function(e){
+    var el = e.target.closest ? e.target.closest(".radish") : null;
+    if (!el || el.classList.contains("gone")) return;
+    e.preventDefault();
+    var r = el.getBoundingClientRect();
+    var sr = stage.getBoundingClientRect();
+    pullState.dragging = {
+      el: el,
+      dx: e.clientX - (r.left + r.width / 2),
+      dy: e.clientY - (r.top + r.height / 2)
+    };
+    el.classList.add("drag");
+    el.classList.remove("tip");
+    var f = document.getElementById("pFinger");
+    if (f) f.style.display = "none";
+    room.Sound.blip("tap");
+    try { el.setPointerCapture(e.pointerId); } catch(err) {}
+  });
+
+  stage.addEventListener("pointermove", function(e){
+    var d = pullState && pullState.dragging;
+    if (!d) return;
+    e.preventDefault();
+    var sr = stage.getBoundingClientRect();
+    var x = e.clientX - sr.left - d.dx;
+    var y = e.clientY - sr.top - d.dy;
+    d.el.style.left = x + "px";
+    d.el.style.top = y + "px";
+    d.el.style.margin = "0";
+    d.el.style.transform = "translate(-50%,-50%) scale(1.05)";
+    if (nearBasket(e.clientX, e.clientY)) basket.classList.add("hot");
+    else basket.classList.remove("hot");
+  });
+
+  function endDrag(e){
+    var d = pullState && pullState.dragging;
+    if (!d) return;
+    pullState.dragging = null;
+    basket.classList.remove("hot");
+    d.el.classList.remove("drag");
+    if (nearBasket(e.clientX, e.clientY)){
+      dropIn(d.el);
+    } else {
+      /* 没拖到筐里：滑回原位，并给一句鼓励 */
+      var i = Number(d.el.dataset.i);
+      var sp = [{x:14,y:62},{x:31,y:74},{x:47,y:60},{x:62,y:76},{x:69,y:60}][i];
+      var sc = [.78,1,.86,1.05,.82][i];
+      d.el.style.transition = "left .3s ease, top .3s ease, transform .3s ease, margin .3s ease";
+      d.el.style.left = sp.x + "%";
+      d.el.style.top = sp.y + "%";
+      d.el.style.margin = "-63px 0 0 -63px";
+      d.el.style.transform = "scale(" + sc + ")";
+      setTimeout(function(){ d.el.style.transition = ""; }, 320);
+      var tip = document.getElementById("pTip");
+      if (tip) tip.textContent = "再往右边的筐那边拖一点。";
+      room.Say("再往筐那边拖一点。", { who:"grandpa" });
+    }
+  }
+  stage.addEventListener("pointerup", endDrag);
+  stage.addEventListener("pointercancel", endDrag);
+}
+
+function dropIn(el){
+  el.classList.add("gone");
+  pullState.done++;
+  var c = document.getElementById("pCount");
+  if (c) c.textContent = pullState.done;
+  room.Sound.blip("pop");
+  var tip = document.getElementById("pTip");
+  if (tip) tip.textContent = pullState.done < pullState.total
+    ? ("拔了 " + pullState.done + " 根，还有 " + (pullState.total - pullState.done) + " 根。")
+    : "全拔完啦！";
+
+  if (pullState.done >= pullState.total){
+    setTimeout(finishGame, 900);
+  } else if (pullState.done === 1){
+    room.Say("拔出来啦！再试下一根。", { who:"grandpa" });
+  }
+}
+
+function finishGame(){
+  var S = room.S;
+  var first = !(S.gong && S.gong.red);
+  var got = first ? 100 : 5;
+
+  openSheet(
+    '<button class="close">✕</button>' +
+    '<h2>' + (first ? "外公给你一个红包" : "外公又给你一颗糖") + '</h2>' +
+    '<p class="sub">' + (first
+      ? "五根萝卜全拔出来了，外公笑得眼睛都眯起来了。<br>他从口袋里掏出一个红包，塞到你手里。"
+      : "萝卜拔得真利索。外公说红包上次给过啦，这次给你一颗水果糖。") + '</p>' +
+    '<div class="soup-row">' + Room.art("carrot", 96) + '</div>' +
+    '<div class="soup-txt">收下 <b>' + got + '</b> 颗星星</div>' +
+    '<div class="row"><button class="btn warm" id="hbTake">收下红包</button></div>'
+  );
+  document.getElementById("hbTake").onclick = function(){
+    closeSheet();
+    /* 点了「收下」才真的进账，孩子能看见星星涨上去 */
+    S.gong = S.gong || {};
+    S.gong.red = true;
+    S.stars = (S.stars || 0) + got;
+    room.Save();
+    paintStar();
+    showHongbao(got);
+    if (first){
+      setTimeout(function(){
+        var d = document.getElementById("roomDone");
+        if (d) d.classList.add("show");
+      }, 2600);
+    }
+  };
+  room.Say(first ? "全拔完啦，外公给你一个红包。" : "全拔完啦，外公给你一颗糖。", { who:"grandpa" });
+}
+
+function showHongbao(n){
+  var hb = document.getElementById("hongbao");
+  var num = document.getElementById("hbNum");
+  if (num) num.textContent = n;
+  if (hb) hb.classList.add("show");
+  room.Sound.blip("good");
+  setTimeout(function(){
+    if (hb) hb.classList.remove("show");
+  }, 2400);
+}
+
+/* ===================================================================
+   「帮帮我」：把萝卜按顺序指一遍
+   =================================================================== */
+function hintGame(){
+  var list = [].slice.call(document.querySelectorAll(".radish:not(.gone)"));
+  if (!list.length) return;
+  list[0].classList.add("tip");
+  var f = document.getElementById("pFinger");
+  if (f) f.style.display = "";
+  room.Say("按住这根萝卜，往右边的筐拖。", { who:"grandpa" });
+  setTimeout(function(){ list[0].classList.remove("tip"); }, 3000);
+}
+
+/* ===================================================================
+   人物：点了外公就开游戏
+   =================================================================== */
+/* 页面自己接管「点外公」：在气泡之后再弹游戏 */
+function askGrandpa(){
+  openSheet(
+    '<button class="close">✕</button>' +
+    '<h2>外公想请你帮个忙</h2>' +
+    '<p class="sub">后院的萝卜熟了，外公一个人拔不完。<br>帮外公拔五根，好不好？</p>' +
+    '<div class="soup-row">' + Room.art("carrot", 92) + '</div>' +
+    '<div class="row">' +
+      '<button class="btn primary" id="agYes">好呀，我去拔</button>' +
+      '<button class="btn ghost" id="agNo">先喝汤</button>' +
+    '</div>'
+  );
+  document.getElementById("agYes").onclick = function(){ closeSheet(); setTimeout(openGame, 260); };
+  document.getElementById("agNo").onclick = closeSheet;
+  room.Say("来，外公带你到后院拔萝卜。", { who:"grandpa" });
+}
+
+/* ===================================================================
+   一进门：外公外婆问一句
+   =================================================================== */
+var greeted = false;
+function greetOnce(){
+  if (greeted) return;
+  greeted = true;
+  room.Say("外公说：回来啦？吃饭了没有？先坐下，我给你盛碗萝卜汤。", { who:"grandpa" });
+  setTimeout(function(){
+    room.Say("外婆说：汤里放了萝卜和排骨，甜着呢。", { who:"grandma" });
+  }, 5200);
+  setTimeout(function(){
+    room.Say("点外公，他会带你去后院拔萝卜。点电视，能看动画片。", { who:"girl" });
+  }, 10400);
+}
+
+var _go = document.getElementById("goBtn");
+if (_go) _go.addEventListener("click", function(){
+  room.Sound.start();
+  setTimeout(greetOnce, 1400);
+}, { once: true });
+
+/* 从 ?from=door 进来时封面已被移除，这里自己补一次问候 */
+setTimeout(function(){
+  if (!document.getElementById("cover")) greetOnce();
+}, 900);
+
+/* 点外公 = 说话 + 请他去拔萝卜。给外公这个 peep 元素单独加一层监听 */
+function bindGrandpa(){
+  var el = document.querySelector("#folk-waigong") || document.querySelector('[data-pid="waigong"]');
+  if (!el){
+    /* 没有 id 时按顺序找：people 里第一个就是外公 */
+    var all = document.querySelectorAll(".peep");
+    el = all[0];
+  }
+  if (!el || el._gb) return;
+  el._gb = true;
+  el.addEventListener("click", function(e){
+    e.stopPropagation();
+    setTimeout(askGrandpa, 700);
+  }, false);
+}
+setTimeout(bindGrandpa, 100);
+setTimeout(bindGrandpa, 900);
+
+window.GONG = {
+  S: room.S, openGame: openGame, finishGame: finishGame, dropIn: dropIn,
+  askGrandpa: askGrandpa, openTV: openTV, openSoup: openSoup, paintStar: paintStar,
+  pullState: function(){ return pullState; }
+};
+</script>
+</body>
+</html>
