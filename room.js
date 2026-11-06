@@ -326,6 +326,7 @@
     /* —— 商店与礼物用的小东西 —— */
     apple: '<path d="M0,-6 C-7,-10 -12,-4 -11,2 C-10,8 -4,12 0,11 C4,12 10,8 11,2 C12,-4 7,-10 0,-6 Z" fill="#e4705f"/><path d="M0,-6 C-1,-9 0,-11 1,-12" stroke="#7a5a3a" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M1,-10 C4,-13 8,-12 8,-10 C6,-8 3,-8 1,-10 Z" fill="#8fc97e"/><ellipse cx="-4" cy="0" rx="2.6" ry="3.4" fill="#f0928a" opacity=".7"/>',
     balloon: '<ellipse cx="0" cy="-4" rx="8.5" ry="10" fill="#f78fb3"/><ellipse cx="-2.6" cy="-7" rx="2.4" ry="3.2" fill="#fff" opacity=".5"/><path d="M0,6 L0,9" stroke="#c98aa0" stroke-width="1.4"/><path d="M0,9 C-3,12 3,13 0,16" stroke="#c98aa0" stroke-width="1.3" fill="none"/>',
+    bubble: '<circle cx="0" cy="0" r="12" fill="#bfe6ff" opacity=".55"/><circle cx="0" cy="0" r="12" fill="none" stroke="#8fc8ea" stroke-width="1.1" opacity=".85"/><ellipse cx="-4" cy="-4.4" rx="3.2" ry="2.2" fill="#fff" opacity=".85" transform="rotate(-24 -4 -4.4)"/><ellipse cx="3.8" cy="4.2" rx="1.9" ry="1.1" fill="#fff" opacity=".45"/><circle cx="9" cy="-9" r="3.4" fill="#bfe6ff" opacity=".45"/><circle cx="-9.5" cy="7" r="2.4" fill="#bfe6ff" opacity=".4"/>',
     bread: '<ellipse cx="0" cy="1" rx="12" ry="8" fill="#e8b96a"/><ellipse cx="0" cy="-1" rx="9" ry="5.4" fill="#f0cd94"/><path d="M-5,-3 L-3,-1 M0,-4 L2,-2 M4,-3 L6,-1" stroke="#c9954f" stroke-width="1.4" stroke-linecap="round"/>',
     milk: '<rect x="-6" y="-8" width="12" height="18" rx="3" fill="#fffdf8"/><rect x="-6" y="-8" width="12" height="4" rx="2" fill="#7fb6e0"/><rect x="-4" y="0" width="8" height="6" rx="1.6" fill="#cde8f5"/>',
     teddy: '<circle cx="-6" cy="-10" r="3.6" fill="#c99a62"/><circle cx="6" cy="-10" r="3.6" fill="#c99a62"/><circle cx="0" cy="-6" r="7" fill="#d9ad76"/><ellipse cx="0" cy="6" rx="8" ry="7.4" fill="#c99a62"/><ellipse cx="0" cy="7" rx="4.6" ry="4.4" fill="#f0dcc2"/><circle cx="-2.6" cy="-7" r="1.2" fill="#4a3327"/><circle cx="2.6" cy="-7" r="1.2" fill="#4a3327"/><ellipse cx="0" cy="-4" rx="1.6" ry="1.2" fill="#4a3327"/>',
@@ -800,6 +801,8 @@
     return {
       S: S, say: say, Sound: Sound, Voice: Voice, art: art,
       Say: say, Save: save,           /* 页面里买完东西要立刻存盘 */
+      /* 场景 y%（设计坐标）→ 视口 y%，页面自己摆物件时要用同一套投影，不然竖屏会漂 */
+      projY: projY, vx: vx,
       CloseSheet: function(){ var m = document.getElementById("mask"); if (m) m.classList.remove("show"); }
     };
   }

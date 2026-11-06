@@ -62,7 +62,8 @@ var ITEMS = [
   { id:"apple",  name:"苹果", cost:2, line:"红红的苹果，脆脆的。" },
   { id:"bread",  name:"面包", cost:2, line:"刚烤好的面包，香香的。" },
   { id:"candy",  name:"糖果", cost:3, line:"甜甜的糖，一天只能吃一颗。" },
-  { id:"balloon",name:"气球", cost:3, line:"一个会飞的气球。" },
+  { id:"balloon",name:"气球", cost:3, per:3, line:"一次给 3 只，带回小镇点一下就能放飞。" },
+  { id:"bubble", name:"泡泡", cost:2, per:1, line:"带回小镇点一下，满屏都会飘起泡泡。" },
   { id:"teddy",  name:"小熊", cost:5, line:"软软的小熊，可以抱着睡。" },
   { id:"kite",   name:"风筝", cost:6, line:"有风的时候，风筝会飞很高。" }
 ];
@@ -114,21 +115,24 @@ var room = Room.init({
   things: []
 });
 
-/* ============ 货架上的六样东西 ============ */
-/* y 是"商品脚底"落在哪，货架台上表面在 y≈58% 处 */
+/* ============ 货架上的东西 ============ */
+/* 商品脚底落在货架台面上。台面是场景里的 counter，其上表面 y≈56.5。
+   7 件商品：前排 4 件、后排 3 件，两排错开，前后都能看见。
+   x/y 用的是「场景百分比」，渲染时统一过 room.vx()/room.projY()，
+   这样竖屏把 viewBox 拉长时，商品仍然贴着台面，不会掉到地上。 */
 var shelfPos = [
-  { x: 13, y: 56.5 }, { x: 23.5, y: 56.5 },
-  { x: 45, y: 56.5 }, { x: 55.5, y: 56.5 },
-  { x: 77, y: 56.5 }, { x: 87.5, y: 56.5 }
+  { x: 14, y: 56.5 }, { x: 30, y: 56.5 }, { x: 46, y: 56.5 }, { x: 62, y: 56.5 },
+  { x: 22, y: 56.5 }, { x: 38, y: 56.5 }, { x: 54, y: 56.5 }
 ];
-/* 手机竖屏时画面被横向压缩，三张台面挤在一起。
-   窄屏下把三张台面横着摊开，商品按新的台面位置重新摆（不是碰运气调像素）。 */
+/* 窄屏（竖屏）下场景横向被压到 0.62，vx() 会把 0–100 映射成 19–81。
+   所以这里给的 x 直接就是「视口百分比」：vx 会再往中间收一次，
+   为了铺满整条台面，先把目标反解回场景坐标（unvx）。 */
+function unvx(v){ return 50 + (v - 50) / 0.62; }
 function shelfSpot(i){
   if (!NARROW) return shelfPos[i];
-  var sp = shelfPos[i];
-  var group = Math.floor(i / 2), within = i % 2;
-  var cx = SHELF_SPREAD[group];
-  return { x: cx + (within === 0 ? -4.3 : 4.3), y: 56.5 };
+  /* 前排 4 件铺满 22%–74%，后排 3 件 78%–92%，后排抬高一层落后面台面 */
+  if (i < 4) return { x: unvx(22 + i * 16.5), y: 58.5 };
+  return { x: unvx(71 + (i - 4) * 7), y: 49.5 };
 }
 
 var bought = 0, shopFinished = false;
@@ -146,8 +150,8 @@ function buildShelf(){
     b.type = "button";
     b.dataset.item = it.id;
     var sp2 = shelfSpot(i);
-    b.style.left = sp2.x + "%";
-    b.style.top = sp2.y + "%";
+    b.style.left = room.vx(sp2.x) + "%";
+    b.style.top = room.projY(sp2.y) + "%";
     b.innerHTML = '<span class="pricetag">' + it.cost + '</span>' + Room.art(it.id, 74);
     b.addEventListener("click", function(){ buy(it, b); });
     props.appendChild(b);
@@ -168,7 +172,7 @@ function buy(it, el){
     return;
   }
   room.S.stars -= it.cost;
-  room.S.bag[it.id] = (room.S.bag[it.id] || 0) + 1;
+  room.S.bag[it.id] = (room.S.bag[it.id] || 0) + (it.per || 1);
   room.Save();
   wallet();
   room.Sound.blip("good");
