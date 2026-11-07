@@ -16,7 +16,7 @@
 <div class="hud">
   <div class="brand">
     <h1>幼儿园</h1>
-    <p>点一点老师和小朋友</p>
+    <p>点一点人，帮老师收积木</p>
   </div>
   <div class="tools">
     <button id="btnBack" title="回小镇" aria-label="回小镇">
@@ -29,7 +29,7 @@
 
 <div class="room-done" id="roomDone">
   <h2>教室转完啦</h2>
-  <p>老师和小朋友都跟你说过话了，<br>积木和皮球也玩过了。回小镇吧。</p>
+  <p>打过招呼了，积木也按颜色收好了。<br>回小镇吧。</p>
   <button class="btn primary" onclick="location.href='index.html'">回小镇</button>
 </div>
 
@@ -43,6 +43,7 @@
   </div>
 </div>
 
+<script src="ui.js"></script>
 <script src="room.js"></script>
 <script>
 document.getElementById("coverArt").innerHTML =
@@ -121,20 +122,6 @@ var room = Room.init({
   ],
   things: [
     {
-      id: "blocks", name: "积木", art: "toy", x: 26, y: 89, size: 86, once: true,
-      doneLine: "积木已经搭好一座小塔啦。",
-      act: function(el, say){
-        el.innerHTML =
-          '<svg viewBox="-30 -46 60 56" width="96" height="92" style="display:block;overflow:visible">' +
-            '<rect x="-22" y="-2" width="44" height="14" rx="3" fill="#7fb6e0"/>' +
-            '<rect x="-14" y="-18" width="28" height="14" rx="3" fill="#f6b93b"/>' +
-            '<rect x="-7" y="-32" width="14" height="14" rx="3" fill="#f78fb3"/>' +
-            '<circle cx="0" cy="-40" r="6" fill="#8fc97e"/>' +
-          '</svg>';
-        say("你把积木一块一块叠起来，变成一座小塔。");
-      }
-    },
-    {
       id: "ball", name: "皮球", art: "ball", x: 14, y: 93, size: 74, once: true,
       doneLine: "皮球滚到那边去啦。",
       act: function(el, say){
@@ -160,6 +147,151 @@ var room = Room.init({
     }
   ]
 });
+
+/* ===================================================================
+   进屋的第一件小事：收积木
+   -------------------------------------------------------------------
+   地上散着六块积木，三个筐。先点一块积木（它会被拿起来），
+   再点一个筐——颜色对就掉进去，不对就晃一晃、再说一遍颜色。
+   练的是按颜色分类，也练「先拿、再放」这两步。
+   =================================================================== */
+(function(){
+  var kg = room.S.rooms.kg;
+  if (kg && kg.done) return;                    /* 以前收过了，不再打断 */
+
+  var COLORS = {
+    red:    { c1: "#e8756a", c2: "#c85a50", name: "红色", deep: "#b34d44" },
+    yellow: { c1: "#f2c14e", c2: "#d9a52f", name: "黄色", deep: "#b8871f" },
+    blue:   { c1: "#6fa8dc", c2: "#4f8ac0", name: "蓝色", deep: "#3b6c9b" }
+  };
+  function blockSVG(c, w){
+    var k = COLORS[c];
+    return '<svg viewBox="-24 -24 48 48" width="' + w + '" height="' + w + '" style="display:block">' +
+      '<rect x="-18" y="-16" width="36" height="34" rx="6" fill="' + k.c1 + '"/>' +
+      '<rect x="-18" y="-16" width="36" height="8" rx="4" fill="' + k.c2 + '" opacity=".55"/>' +
+      '<rect x="-12" y="-10" width="24" height="5" rx="2.5" fill="#fff" opacity=".38"/>' +
+      '<rect x="-18" y="-16" width="36" height="34" rx="6" fill="none" stroke="' + k.deep + '" stroke-width="1.4" opacity=".55"/>' +
+    '</svg>';
+  }
+  function basketSVG(c, w){
+    var k = COLORS[c];
+    return '<svg viewBox="-32 -30 64 60" width="' + w + '" height="' + Math.round(w * 0.94) + '" style="display:block">' +
+      '<path d="M-22,-14 L22,-14 L17,20 C10,24 -10,24 -17,20 Z" fill="' + k.c1 + '"/>' +
+      '<path d="M-22,-14 L22,-14 L21,-6 L-21,-6 Z" fill="' + k.c2 + '"/>' +
+      '<path d="M-22,-14 L22,-14 L17,20 C10,24 -10,24 -17,20 Z" fill="none" stroke="' + k.deep + '" stroke-width="1.6" opacity=".5"/>' +
+      '<path d="M-11,-16 C-11,-26 11,-26 11,-16" fill="none" stroke="' + k.deep + '" stroke-width="3" stroke-linecap="round" opacity=".65"/>' +
+      '<g opacity=".3" stroke="#fff" stroke-width="1.6" stroke-linecap="round">' +
+        '<path d="M-9,1 L-7,13"/><path d="M0,1 L0,15"/><path d="M9,1 L7,13"/>' +
+      '</g>' +
+    '</svg>';
+  }
+
+  var NARROW = (window.innerWidth / Math.max(1, window.innerHeight)) < 1;
+  /* 竖屏时地面压成窄条，直接按屏幕百分比排：左边三个筐，右边两行积木 */
+  var SLOT = NARROW
+    ? { red: { x: 17, y: 84 }, yellow: { x: 34, y: 84 }, blue: { x: 51, y: 84 } }
+    : { red: { x: 20, y: 84 }, yellow: { x: 31, y: 84 }, blue: { x: 42, y: 84 } };
+  var SCR = !!NARROW;
+  var START = [
+    { c: "blue",   x: 58, y: 85 },
+    { c: "red",    x: 65, y: 85 },
+    { c: "yellow", x: 72, y: 85 },
+    { c: "red",    x: 79, y: 85 },
+    { c: "blue",   x: 86, y: 85 },
+    { c: "yellow", x: 92, y: 85 }
+  ];
+  /* 竖屏横向放不下六块，摆成两行 */
+  if (NARROW) START = [
+    { c: "blue",   x: 68, y: 84 },
+    { c: "red",    x: 80, y: 84 },
+    { c: "yellow", x: 92, y: 84 },
+    { c: "red",    x: 68, y: 91 },
+    { c: "blue",   x: 80, y: 91 },
+    { c: "yellow", x: 92, y: 91 }
+  ];
+
+  var tl = room.TaskLayer({ hint: "积木按颜色分：先点积木，再点筐。", count: [0, 6], lift: NARROW });
+  var done = 0, picked = null, pickedColor = "", binN = {};
+  /* 六块积木没分完，就先别弹「转完啦」 */
+  room.setTask(function(){ return done >= 6; });
+
+  /* 三个筐 */
+  var bins = {};
+  Object.keys(SLOT).forEach(function(c){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("aria-label", COLORS[c].name + "筐");
+    b.innerHTML = basketSVG(c, 66);
+    tl.put(b, SLOT[c].x, SLOT[c].y, SCR);
+    b.addEventListener("click", function(){ drop(c, b); });
+    bins[c] = b;
+  });
+
+  /* 六块积木 */
+  START.forEach(function(st){
+    var el = document.createElement("button");
+    el.type = "button";
+    el.setAttribute("aria-label", COLORS[st.c].name + "积木");
+    el.innerHTML = blockSVG(st.c, 42);
+    el.dataset.c = st.c;
+    tl.put(el, st.x, st.y, SCR);
+    el.addEventListener("click", function(){ take(el); });
+  });
+
+  function take(el){
+    if (el.classList.contains("settled")) return;
+    if (picked) picked.classList.remove("hold");
+    picked = el;
+    pickedColor = el.dataset.c;
+    el.classList.add("hold");
+    room.Sound.blip("tap");
+    tl.hint("这块是" + COLORS[pickedColor].name + "的。找一个" + COLORS[pickedColor].name + "的筐。");
+  }
+
+  function drop(c, binEl){
+    if (!picked){
+      tl.hint("先点一块积木拿起来，再点筐。");
+      room.Sound.blip("soft");
+      return;
+    }
+    if (c === pickedColor){
+      /* 放对：积木缩进筐里 */
+      var el = picked;
+      picked = null;
+      el.classList.remove("hold");
+      el.classList.add("settled");
+      binN[c] = (binN[c] || 0) + 1;
+      el.style.transform = "translate(-50%,-50%) scale(.62)";
+      el.style.opacity = ".92";
+      /* 落在筐口上沿，露出一截；同色两块错开一点，看得出是两块 */
+      tl.move(el, SLOT[c].x + (binN[c] - 1) * (SCR ? 4 : 1.1), SLOT[c].y - (SCR ? 2.6 : 1.8) - (binN[c] - 1) * (SCR ? 2 : 1.6), SCR);
+      room.Sound.blip("ok");
+      done++;
+      tl.count(done, 6);
+      binEl.animate(
+        [{ transform: "translate(-50%,-50%) scale(1)" },
+         { transform: "translate(-50%,-50%) scale(1.12)" },
+         { transform: "translate(-50%,-50%) scale(1)" }],
+        { duration: 300, easing: "ease-out" }
+      );
+      if (done === 6){
+        tl.hint("六块积木都回家啦，颜色分得真清楚。");
+        room.Say("红的回红筐，黄的回黄筐，蓝的回蓝筐。六块积木都收好啦。");
+        setTimeout(function(){ tl.hint(""); }, 2800);
+        return room.Check();
+      }
+      tl.hint(done < 6 ? "对啦。" + COLORS[c].name + "的回" + COLORS[c].name + "的筐。还有 " + (6 - done) + " 块。" : "");
+      return;
+    }
+    /* 放错：晃一下，把颜色说出来，不扣分 */
+    binEl.classList.remove("shake");
+    void binEl.offsetWidth;
+    binEl.classList.add("shake");
+    room.Sound.blip("soft");
+    var WHERE = { red: "最左边", yellow: "中间", blue: "右边" };
+    tl.hint("这块是" + COLORS[pickedColor].name + "的。" + COLORS[pickedColor].name + "的筐在" + WHERE[pickedColor] + "。");
+  }
+})();
 
 var _go=document.getElementById("goBtn");
 if(_go) _go.addEventListener("click", function(){

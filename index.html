@@ -4,7 +4,7 @@
   ---------------------------------------------------------------
   单文件、零依赖（无 CDN / 无框架 / 无外链图片 / 无外链音频）、原生 JS+CSS、localStorage 存进度、PC+移动自适应。
   音乐与语音说明：
-    · 背景音乐《小镇的早晨》由 Web Audio 实时合成（D 大调五声、3/4 拍圆舞曲），不加载任何音频文件，因此断网也能响。
+    · 背景音乐《小镇的午后》由 Web Audio 实时合成（G 大调五声、4/4 拍分解和弦），不加载任何音频文件，因此断网也能响。
     · 引导语用浏览器内置的 speechSynthesis 中文语音朗读，无需联网下载语音包（是否可用取决于系统语音）。
   扩展示例：往 BUILDINGS 里加一条建筑数据 → 在 BUILDING_ART 里加一个造型 → 在 MINI 里加一个玩法函数。
 -->
@@ -105,6 +105,9 @@
   .flyer svg{display:block;overflow:visible}
   .flyer.bubble{cursor:pointer;border-radius:50%}
   .flyer.bubble.popping{animation:bubblePop .3s ease-out forwards}
+  .fw-canvas{position:fixed;left:0;top:0;z-index:96;pointer-events:none;
+    transition:opacity .5s ease}
+  .fw-canvas.out{opacity:0}
   @keyframes bubblePop{
     0%{transform:scale(1);opacity:.9}
     100%{transform:scale(1.6);opacity:0}
@@ -464,6 +467,10 @@
   .kv:last-child{border:none}
   .kv span:first-child{color:var(--muted);flex:0 0 auto}
   .kv span:last-child{text-align:right}
+  .sndbtn{border:1px solid #e3dcc9;background:#fff;border-radius:10px;padding:4px 9px;font-size:12px;
+    font-weight:700;color:#a9a293;cursor:pointer;font-family:inherit;line-height:1.5}
+  .sndbtn.on{background:#e8f2ea;border-color:#8fd0a4;color:#3f7a55}
+  .sndbtn:active{transform:translateY(1px)}
 
   /* 开场封面 */
   .cover{position:fixed;top:0;right:0;bottom:0;left:0;;z-index:70;display:grid;place-items:center;padding:20px;
@@ -609,6 +616,16 @@
   </div>
 </div>
 
+<script src="ui.js"></script>
+<script>
+/* 少了 ui.js 就只剩一片白，先给一句人话 */
+if (!window.CC) {
+  document.body.style.cssText = "font:16px/1.9 -apple-system,'PingFang SC',sans-serif;padding:48px 28px;color:#4a4438;background:#fbf6ea";
+  document.body.innerHTML = '<b>少了一个文件：ui.js</b><br>它要和小镇的页面放在同一个文件夹里，' +
+    '一起拷、一起打开。<br>现在这个文件夹里可能只拿出了 index.html 一个。';
+  throw new Error("ui.js not found");
+}
+</script>
 <script>
 /* =====================================================================
    0. 世界设定
@@ -658,6 +675,41 @@ var FOLK_ART = (function(){
       + '<ellipse cx="-6.2" cy="-0.2" rx="1.9" ry="1.2" fill="#f79aa5" opacity=".45"/><ellipse cx="6.2" cy="-0.2" rx="1.9" ry="1.2" fill="#f79aa5" opacity=".45"/>',
     heart: '<path d="M0,9 C-11,2 -11,-6 -5.5,-6 C-2.4,-6 0,-3.4 0,-2 C0,-3.4 2.4,-6 5.5,-6 C11,-6 11,2 0,9 Z" fill="#f78fb3"/>',
 
+    /* —— 跟着走的小宠物：小鸡 / 小猪 / 小鸭（商店幼崽长大后的样子） —— */
+    chick: ''
+      + '<ellipse cx="0" cy="4" rx="9.8" ry="8.8" fill="#f8d95e"/>'
+      + '<path d="M-8,4 C-12,6 -11,11 -6,11 C-9,9 -9,6 -6,5 Z" fill="#f3c93f"/>'
+      + '<circle cx="0.4" cy="-5.4" r="7" fill="#fbe98d"/>'
+      + '<path d="M-4.4,-10.6 C-6.4,-14.4 -3.2,-15.4 -1.8,-12.4 Z" fill="#f8d95e"/>'
+      + '<circle cx="-1.9" cy="-6" r="1.25" fill="#4a3327"/><circle cx="2.6" cy="-6" r="1.25" fill="#4a3327"/>'
+      + '<circle cx="-1.55" cy="-6.45" r="0.45" fill="#fff"/><circle cx="2.95" cy="-6.45" r="0.45" fill="#fff"/>'
+      + '<path d="M0.6,-3.6 L-2.4,-1.4 L3.4,-1.4 Z" fill="#f0952f"/>'
+      + '<ellipse cx="-4.9" cy="-2.6" rx="1.7" ry="1.05" fill="#f79aa5" opacity=".5"/>'
+      + '<ellipse cx="5.6" cy="-2.6" rx="1.7" ry="1.05" fill="#f79aa5" opacity=".5"/>'
+      + '<path d="M0,7.6 C-3.6,7.6 -4.4,11 -4.4,12.6 M0,7.6 C3.6,7.6 4.4,11 4.4,12.6" stroke="#f0952f" stroke-width="2.2" fill="none" stroke-linecap="round"/>',
+    pig: ''
+      + '<ellipse cx="0" cy="3.4" rx="11.4" ry="8.6" fill="#f7bcc8"/>'
+      + '<path d="M11,2 C15.6,-0.6 16.2,-4.4 14.4,-5.2 C14.2,-2.6 12.4,-0.4 10.6,0.6 Z" fill="#f2a4b4"/>'
+      + '<circle cx="0.6" cy="-5" r="7.4" fill="#fbd2da"/>'
+      + '<path d="M-6.6,-10.4 C-8.6,-14.6 -4.6,-15.6 -3.4,-12 Z" fill="#f7bcc8"/>'
+      + '<path d="M5,-10.6 C7.4,-14.6 3.4,-15.4 2.2,-11.8 Z" fill="#f7bcc8"/>'
+      + '<ellipse cx="0.6" cy="-3" rx="4.4" ry="3.3" fill="#f299ab"/>'
+      + '<ellipse cx="-1" cy="-3" rx="0.95" ry="1.25" fill="#cf7186"/><ellipse cx="2.2" cy="-3" rx="0.95" ry="1.25" fill="#cf7186"/>'
+      + '<circle cx="-2.6" cy="-7.2" r="1.1" fill="#4a3327"/><circle cx="3.6" cy="-7.2" r="1.1" fill="#4a3327"/>'
+      + '<circle cx="-2.3" cy="-7.6" r="0.4" fill="#fff"/><circle cx="3.9" cy="-7.6" r="0.4" fill="#fff"/>'
+      + '<ellipse cx="-6.2" cy="-4" rx="1.6" ry="1" fill="#f79aa5" opacity=".55"/>'
+      + '<path d="M-4,10.6 L-4,13.4 M4,10.6 L4,13.4" stroke="#e893a4" stroke-width="2.6" stroke-linecap="round"/>',
+    duck: ''
+      + '<ellipse cx="0" cy="4.6" rx="10.6" ry="7.4" fill="#f8dc7a"/>'
+      + '<path d="M9,2 C13.4,-0.4 14.6,-4 12.8,-5 C12.4,-2.4 10.8,-0.2 9,-0.4 Z" fill="#f0cd5e"/>'
+      + '<circle cx="-5.4" cy="-4.6" r="6.2" fill="#fcec9e"/>'
+      + '<path d="M-11.2,-4.8 C-15.6,-4.2 -15.6,-1.4 -11.4,-1.6 Z" fill="#f0952f"/>'
+      + '<circle cx="-7.4" cy="-5.8" r="1.2" fill="#4a3327"/>'
+      + '<circle cx="-7.15" cy="-6.2" r="0.42" fill="#fff"/>'
+      + '<path d="M-5.4,-8.6 C-4.6,-11.4 -2.2,-11.8 -1.4,-9.6" stroke="#f0cd5e" stroke-width="2" fill="none" stroke-linecap="round"/>'
+      + '<ellipse cx="-9.4" cy="-2.4" rx="1.5" ry="1" fill="#f79aa5" opacity=".5"/>'
+      + '<path d="M-1,10.6 L-1,13.4 M5.4,10.4 L5.4,13.4" stroke="#f0952f" stroke-width="2.4" stroke-linecap="round"/>',
+
     /* —— 自己捏的小朋友：皮肤 / 头发 / 衣服 / 发饰 全部按参数上色 —— */
     kid: ''
       + '<rect x="-4.8" y="6" width="4.2" height="8" rx="2.1" fill="{S}"/><rect x="0.6" y="6" width="4.2" height="8" rx="2.1" fill="{S}"/>'
@@ -675,6 +727,7 @@ var FOLK_ART = (function(){
       + '<path d="M-1.7,-8.8 Q0,-7.3 1.7,-8.8" stroke="#c9705f" stroke-width="1.05" fill="none" stroke-linecap="round"/>'
   };
   var VB = { boy:"-14 -25 28 43", girl2:"-14 -24 28 42", dog:"-16 -18 32 30", heart:"-18 -18 36 36",
+             chick:"-14 -17 28 32", pig:"-14 -17 28 32", duck:"-16 -15 30 30",
              kid:"-14 -25 28 43" };
 
   /* 自己做的小朋友：look = { skin, hair, cloth, acc, hairStyle, shirt } */
@@ -773,10 +826,7 @@ var BUILDINGS = [
     inside:"外公的萝卜地被风吹散了，帮外公拼回来。", game:"puzzle", by:"外公",
     hello:"@K@来啦，外公种了一地萝卜，画儿被风吹散了几块，帮外公拼回来好不好？", skill:"观察与整体部分关系（拼图）" },
 
-  { id:"nai", name:"爷爷奶奶家", ico:"tea", x:1090, y:186, w:200, h:190, tone:"#e0e4f4", roof:"#8a95c6",
-    inside:"帮爷爷浇一浇门口的盆栽。", game:"water", by:"爷爷",
-    hello:"@K@来啦，爷爷的盆栽口渴了，一盆一盆浇过去吧。", skill:"顺序与因果" },
-
+  
   { id:"kg", name:"幼儿园", ico:"crayon", x:190, y:520, w:238, h:200, tone:"#ffe4ab", roof:"#f0b23f",
     inside:"把小朋友按大小排队，一起做游戏。", game:"sort", by:"李老师",
     hello:"@K@来啦，小朋友要排队啦，小的站前面，大的站后面。", skill:"大小比较与序列" },
@@ -785,28 +835,27 @@ var BUILDINGS = [
     inside:"看看消防器材，找出它的影子。", game:"shadow", by:"消防员叔叔",
     hello:"@K@你好呀，消防员叔叔考考你：这个器材的影子是哪一个？", skill:"形状观察与配对（影子）" },
 
-  { id:"hosp", name:"医院", ico:"cross", x:930, y:520, w:200, h:200, tone:"#e6f1f7", roof:"#7fb6cb",
-    inside:"找出一样的药盒，配成一盒。", game:"same", by:"护士阿姨",
-    hello:"@K@来帮忙啦？药盒要找一样的，找出两个一样的就配好啦。", skill:"观察与配对" },
-
   { id:"mall", name:"超市", ico:"apple", x:1300, y:520, w:214, h:200, tone:"#f8e7a8", roof:"#e0a92b",
     inside:"把水果搬进筐里，苹果放苹果筐。", game:"basket", by:"理货员",
     hello:"@K@来得正好，水果到货啦，一样的放进同一个筐里。", skill:"分类思维（按属性归组）" },
 
-  { id:"park", name:"小镇公园", ico:"tree", x:300, y:778, w:200, h:168, tone:"#cbe8bd", roof:"#7fb069",
-    inside:"把草地上的小路铺好，走到大树下。", game:"path", by:"大树",
-    hello:"@K@，小路断了几段，把路接上，就能走到大树下啦。", skill:"空间路径规划" },
-
+  
   { id:"farm", name:"小镇农场", ico:"sprout", x:760, y:798, w:206, h:168, tone:"#dbeacb", roof:"#87b06a",
     inside:"种下小种子，浇水，等它发芽。", game:"plant", by:"农场阿姨",
     hello:"@K@来啦，地里空空的，先挖坑，再放种子，最后浇水。", skill:"顺序与因果（三步）" },
 
+  /* 图书馆：故事屋，六个语言小关卡（在 books.html 里） */
   { id:"lib", name:"小镇图书馆", ico:"book", x:1230, y:778, w:204, h:168, tone:"#e9dcc6", roof:"#a8804f",
-    inside:"把书一本一本放回书架。", game:"harvest", by:"管理员",
-    hello:"@K@来啦，书要回到架子上，一本一本放回去。", skill:"手眼协调与顺序" },
+    inside:"六个故事，翻一页读一页。", game:"harvest", by:"管理员",
+    hello:"@K@故事屋开门啦，里面六个故事，一个接一个。", skill:"语言·叙事·韵律·前识字" },
+
+  /* 游戏馆：整整 20 关，从第 1 关开始一关一关往上开（在 games.html 里） */
+  { id:"games", name:"游戏馆", ico:"dice", x:1000, y:772, w:196, h:172, tone:"#ffefc9", roof:"#e09a54",
+    inside:"二十关，一关一关往上走，过一关开一关。", game:"memory", by:"馆长",
+    hello:"@K@游戏馆开啦，一共二十关，从第一关开始，想过哪关就点哪关。", skill:"颜色·数量·分类·逻辑（分层闯关）" },
 
   /* 数学天地：屋子里是四种不同类型的数学小游戏（在 shuxue.html 里） */
-  { id:"math", name:"数学天地", ico:"num", x:520, y:786, w:196, h:172, tone:"#dfe3f7", roof:"#7a86c8",
+  { id:"math", name:"数学天地", ico:"num", x:1200, y:212, w:196, h:172, tone:"#dfe3f7", roof:"#7a86c8",
     inside:"数一数这里有几个，选出对的数字。", game:"count", by:"数数老师",
     hello:"@K@来啦，数数老师考考你：数一数有几个，再挑出对的数字。", skill:"数数与数量对应（1—10）" }
 ];
@@ -827,43 +876,31 @@ var SKILLS = {
 
 /* =====================================================================
    1. 存档
-   ===================================================================== */
-var KEY = "chengcheng-town-v2";
-var S = {
-  kidName:"",      // 小朋友的名字（第一次进小镇时自己起，决定小镇和家的名字）
-  stars:0, visited:{}, cleared:{}, diff:"mid",
-  hero:{x:985,y:772},
-  flowers:{},      // 每个地点的花是否开过
-  sound:true, voice:true,
-  silent:{},       // 已听过的引导（避免每次重复念）
-  folk:{},         // 镇上居民的当前位置与心情
-  myfolk:[],       // 自己做的小朋友（名字、配色、家在哪）
-  bag:{},          // 背包：{ 物品id: 数量 }
-  pets:[],         // 从农场带回来的小伙伴，会一直跟着孩子走
-  farm:null,       // 农场里的田与窝（farm.html 写，这里只负责保留）
-  entered:false    // 是否已经点过「开始」进过小镇
-};
-var START_STARS = 88;   /* 第一次进小镇先给 88 颗星星，能直接去商店换东西 */
+   ---------------------------------------------------------------------
+   真正的读盘、默认字段、旧存档修补都在 ui.js 里。
+   这一页只认领「小镇用的是哪一份」，写法还是 S.xxx / save()。 */
+var KEY = CC.KEY;
+var S = CC.load();
+CC.setSave(S);
+function save(){ CC.save(); }
 
-function load(){
-  var first = true;
-  try{
-    var raw = localStorage.getItem(KEY);
-    var v = raw ? JSON.parse(raw) : null;
-    if(v&&typeof v==="object"){ S=Object.assign(S,v); first = false; }
-  }catch(e){}
-  S.visited=S.visited||{}; S.cleared=S.cleared||{}; S.flowers=S.flowers||{}; S.silent=S.silent||{};
-  S.folk=S.folk||{}; S.bag=S.bag||{}; S.myfolk=S.myfolk||[];
-  if(!(S.myfolk instanceof Array)) S.myfolk=[];
-  if(typeof S.stars!=="number"||S.stars<0) S.stars=0;
-  /* 第一次打开：先给 88 颗星，够换好几样东西 */
-  if(first && !S.stars){ S.stars=START_STARS; }
-  S.hero=S.hero||{x:985,y:772};
-  if(typeof S.kidName!=="string") S.kidName="";
-  if(S.sound===undefined) S.sound=true;
-  if(S.voice===undefined) S.voice=true;
+/* 声音分三档：音乐 / 说话 / 音效。
+   孩子只用顶栏一个喇叭（一键全静音），细调留给「给大人看」。
+   判断规则和 ui.js 里一致，这里只是留个短名字给页面用。 */
+function audioOn(kind){ return CC.on(kind); }
+function toggleAudio(kind){
+  if(kind==="music"){
+    S.music = !(S.music!==false);
+    if(S.music){ try{ Sound.start(); }catch(e){} } else { try{ Sound.stop(); }catch(e){} }
+  }
+  if(kind==="voice") S.voice = !(S.voice!==false);
+  if(kind==="sfx")   S.sfx   = !(S.sfx!==false);
+  S.sound = S.music;                 /* 兼容老字段 */
+  save(); paintSoundBtn();
+  if(typeof openHelp==="function") openHelp();
 }
-function save(){ try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+
+/* 计时已经挪到 ui.js：进任何一页都在记，跨过午夜也不会算错天。 */
 
 /* 名字 → 各处称呼。没起名之前用「我的」，起名之后整站都改成小朋友的名字 */
 function kidName(){ return (S.kidName||"").trim(); }
@@ -872,224 +909,15 @@ function homeName(){ return kidName() ? kidName()+"的家" : "我的家"; }
 function heroCall(){ return kidName() || "小朋友"; }
 
 /* =====================================================================
-   2. 声音：背景音乐（Web Audio 实时合成）+ 语音（speechSynthesis）
-   ===================================================================== */
-var Sound = (function(){
-  var ctx=null, master=null, musicGain=null, lp=null, timer=null, playing=false, step=0;
-  /* —— 曲子：《小镇的早晨》，D 大调五声音阶的慢圆舞曲 ——
-     3/4 拍，每小节「咚—恰—恰」：第一拍的低音像脚步，
-     后两拍是很轻的和声，上面一条八音盒似的旋律慢慢转。
-     全部用振荡器实时合成，不加载任何音频文件。 */
-  var SCALE=[0,2,4,7,9,12,14,16,19,21];   /* 相对 D 的五声音阶 */
-  var ROOT=293.66;                        /* D4 */
-  var BEAT=470;                           /* 一拍多少毫秒 */
-  /* 旋律：24 拍（8 小节），-1 表示这一拍不弹 */
-  var MEL=[4,2,0, 2,4,5, 4,2,0, 2,-1,-1,
-           4,2,0, 2,4,7, 5,4,2, 0,-1,-1];
-  /* 每小节的和弦根音（相对 D 的半音数）：D G D A / D G A D */
-  var BASS=[0,5,0,7, 0,5,7,0];
-  function freq(semi){ return ROOT*Math.pow(2,semi/12); }
-
-  function ensure(){
-    if(ctx) return ctx;
-    try{
-      var AC = window.AudioContext||window.webkitAudioContext;
-      if(!AC) return null;
-      ctx = new AC();
-      master = ctx.createGain(); master.gain.value=0.9; master.connect(ctx.destination);
-      musicGain = ctx.createGain(); musicGain.gain.value=0.0;
-      /* 一层低通，把高处的毛刺削掉，听感更软 */
-      lp = ctx.createBiquadFilter();
-      lp.type = "lowpass"; lp.frequency.value = 2600; lp.Q.value = 0.6;
-      musicGain.connect(lp); lp.connect(master);
-      /* 一点点空间感：短延迟 + 反馈 */
-      var dly=ctx.createDelay(0.6), fb=ctx.createGain(), wet=ctx.createGain();
-      dly.delayTime.value=0.33; fb.gain.value=0.22; wet.gain.value=0.2;
-      lp.connect(dly); dly.connect(fb); fb.connect(dly); dly.connect(wet); wet.connect(master);
-    }catch(e){ ctx=null; }
-    return ctx;
-  }
-
-  /* 一个柔和的音：三角波 + 缓慢包络 */
-  function tone(f,when,dur,vol,type){
-    if(!ctx) return;
-    var o=ctx.createOscillator(), g=ctx.createGain();
-    o.type=type||"triangle";
-    o.frequency.value=f;
-    g.gain.setValueAtTime(0,when);
-    g.gain.linearRampToValueAtTime(vol,when+0.06);
-    g.gain.exponentialRampToValueAtTime(0.0008,when+dur);
-    o.connect(g); g.connect(musicGain);
-    o.start(when); o.stop(when+dur+0.05);
-  }
-
-  /* 每一拍排一次音：低音 / 和声 / 旋律，各走各的音量 */
-  function tick(){
-    if(!ctx||!playing) return;
-    var t=ctx.currentTime+0.03;
-    var b=step, bar=Math.floor(b/3), inBar=b%3;
-    var m=MEL[b%MEL.length];
-    var root=BASS[bar%BASS.length];
-
-    /* 旋律：八音盒一样的三角波，短促、带一点尾巴 */
-    if(m>=0) tone(freq(SCALE[m%SCALE.length]), t, 1.75, 0.072, "triangle");
-
-    if(inBar===0){
-      /* 第一拍：低音，轻轻的“咚” */
-      tone(freq(root-12), t, 2.5, 0.058, "sine");
-    } else {
-      /* 第二、三拍：和声的两个音，比低音更轻 */
-      tone(freq(root+7),  t,       1.15, 0.026, "triangle");
-      tone(freq(root+12), t+0.02,  1.0,  0.02,  "sine");
-    }
-    /* 每两小节飘一颗高音小星星 */
-    if(b%6===4) tone(freq(SCALE[7]+12), t+0.01, 1.3, 0.026, "sine");
-
-    step++;
-  }
-
-  return {
-    /* 用户第一次点击后调用：解锁音频并淡入 */
-    start:function(){
-      if(!S.sound) return;
-      ensure(); if(!ctx) return;
-      if(ctx.state==="suspended") ctx.resume();
-      if(playing) return;
-      playing=true;
-      musicGain.gain.cancelScheduledValues(ctx.currentTime);
-      musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
-      musicGain.gain.linearRampToValueAtTime(0.5, ctx.currentTime+2.5);
-      clearInterval(timer);
-      timer=setInterval(tick, BEAT);
-      tick();
-    },
-    stop:function(){
-      if(!ctx) { playing=false; return; }
-      playing=false;
-      clearInterval(timer);
-      musicGain.gain.cancelScheduledValues(ctx.currentTime);
-      musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
-      musicGain.gain.linearRampToValueAtTime(0, ctx.currentTime+0.8);
-    },
-    /* 小狗的「汪汪」：短促、下滑、带低通，才不会像电子音 */
-    bark:function(times){
-      if(!S.sound) return;
-      ensure(); if(!ctx) return;
-      if(ctx.state==="suspended") ctx.resume();
-      var n=times||2, t0=ctx.currentTime;
-      for(var i=0;i<n;i++){
-        var o=ctx.createOscillator(), g=ctx.createGain(), lp=ctx.createBiquadFilter();
-        var at=t0+i*0.17;
-        o.type="sawtooth";
-        o.frequency.setValueAtTime(380-i*20,at);
-        o.frequency.exponentialRampToValueAtTime(150,at+0.13);
-        lp.type="lowpass"; lp.frequency.value=1400;
-        g.gain.setValueAtTime(0,at);
-        g.gain.linearRampToValueAtTime(0.13,at+0.015);
-        g.gain.exponentialRampToValueAtTime(0.0008,at+0.15);
-        o.connect(lp); lp.connect(g); g.connect(master);
-        o.start(at); o.stop(at+0.18);
-      }
-    },
-    /* 语音播放时把音乐压低，说完再抬起来 */
-    duck:function(on){
-      if(!ctx||!playing) return;
-      var g = on?0.12:0.5;
-      musicGain.gain.cancelScheduledValues(ctx.currentTime);
-      musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
-      musicGain.gain.linearRampToValueAtTime(g, ctx.currentTime+0.4);
-    },
-    /* 音效：轻快的小提示音 */
-    blip:function(kind){
-      if(!S.sound) return;
-      ensure(); if(!ctx) return;
-      if(ctx.state==="suspended") ctx.resume();
-      var t=ctx.currentTime;
-      var map={ ok:[784,1047], good:[659,880,1175], soft:[523], pop:[880] };
-      var arr=map[kind]||map.soft;
-      var tmp=ctx.createGain(); tmp.gain.value=1; tmp.connect(master);
-      arr.forEach(function(f,i){
-        var o=ctx.createOscillator(), g=ctx.createGain();
-        o.type="sine"; o.frequency.value=f;
-        g.gain.setValueAtTime(0,t+i*0.09);
-        g.gain.linearRampToValueAtTime(0.16,t+i*0.09+0.02);
-        g.gain.exponentialRampToValueAtTime(0.001,t+i*0.09+0.42);
-        o.connect(g); g.connect(tmp);
-        o.start(t+i*0.09); o.stop(t+i*0.09+0.46);
-      });
-      setTimeout(function(){ try{tmp.disconnect();}catch(e){} }, 900);
-    }
-  };
-})();
-
-/* --------- 语音 --------- */
-/* 系统只给一两个中文嗓子，所以「谁在说话」靠音高和语速区分：
-   小孩亮而快、妈妈柔和、爷爷奶奶低而慢、老师清楚、小狗直接换成汪汪声。 */
-var VOICE_CHAR = {
-  girl:    { pitch:1.50, rate:1.00 },   /* 澄澄、小女孩 */
-  kid:     { pitch:1.55, rate:1.02 },   /* 小朋友 */
-  boy:     { pitch:1.45, rate:1.00 },
-  mom:     { pitch:1.16, rate:0.94 },
-  dad:     { pitch:0.90, rate:0.90 },
-  grandma: { pitch:0.82, rate:0.80 },
-  grandpa: { pitch:0.72, rate:0.78 },
-  teacher: { pitch:1.20, rate:0.88 },
-  uncle:   { pitch:0.94, rate:0.94 },
-  nurse:   { pitch:1.24, rate:0.92 },
-  clerk:   { pitch:1.10, rate:0.94 },
-  fireman: { pitch:0.84, rate:0.88 },
-  farmer:  { pitch:1.05, rate:0.90 },
-  dog:     { bark:true }
-};
-var Voice = (function(){
-  var zh=null, ready=false, lastText="", lastAt=0;
-  function pick(){
-    if(!("speechSynthesis" in window)) return null;
-    var vs=window.speechSynthesis.getVoices()||[];
-    /* 优先中文女声 */
-    var pref=["Xiaoxiao","Xiaoyi","Tingting","Yaoyao","Huihui","Google 普通话","Chinese","中文","普通话"];
-    for(var i=0;i<pref.length;i++){
-      for(var j=0;j<vs.length;j++){
-        if((vs[j].name||"").indexOf(pref[i])>=0 && /zh|Chinese/i.test(vs[j].lang||"")) return vs[j];
-      }
-    }
-    for(var k=0;k<vs.length;k++){ if(/^zh/i.test(vs[k].lang||"")) return vs[k]; }
-    return null;
-  }
-  function refresh(){ zh=pick(); ready=true; }
-  if("speechSynthesis" in window){
-    refresh();
-    window.speechSynthesis.onvoiceschanged=refresh;
-    setTimeout(refresh,300); setTimeout(refresh,1200);
-  }
-  return {
-    say:function(text,opts){
-      if(!S.voice || !text) return;
-      var prof = (opts && opts.who && VOICE_CHAR[opts.who]) || null;
-      /* 小狗：不念字，换成两短声「汪汪」，气泡里照常显示文字 */
-      if(prof && prof.bark){ Sound.bark(2); return; }
-      if(!("speechSynthesis" in window)) return;
-      var now=Date.now();
-      if(text===lastText && now-lastAt<2500) return;   // 同一句不连续重复
-      lastText=text; lastAt=now;
-      try{
-        window.speechSynthesis.cancel();
-        var u=new SpeechSynthesisUtterance(text);
-        u.lang="zh-CN";
-        if(zh) u.voice=zh;
-        u.rate=(opts&&opts.rate)||(prof&&prof.rate)||0.92;      // 略慢，适合 3 岁
-        u.pitch=(opts&&opts.pitch)||(prof&&prof.pitch)||1.15;    // 略高，更柔和
-        u.volume=0.95;
-        u.onstart=function(){ Sound.duck(true); };
-        u.onend=function(){ Sound.duck(false); };
-        u.onerror=function(){ Sound.duck(false); };
-        window.speechSynthesis.speak(u);
-      }catch(e){}
-    },
-    stop:function(){ try{ window.speechSynthesis.cancel(); Sound.duck(false); }catch(e){} },
-    has:function(){ return ("speechSynthesis" in window); }
-  };
-})();
+   2. 声音：背景音乐、音效、语音
+   ---------------------------------------------------------------------
+   实现在 ui.js，和小镇里每个房间用的是同一套——
+   同一首《小镇的午后》、同一套「叮」和「汪汪」、同一份角色嗓音表。
+   两处各养一份的时候，一边改了另一边没改，孩子一进房间音色就变了。
+   这里只是把名字接过来，页面里的写法一行都不用改。 */
+var Sound = CC.Sound;
+var Voice = CC.Voice;
+var VOICE_CHAR = CC.VOICE_CHAR;
 
 /* 统一播报：文字气泡 + 语音，一处调用 */
 function guide(text,opts){
@@ -1133,15 +961,21 @@ document.addEventListener("pointerdown",unlockAudio);
 document.addEventListener("keydown",unlockAudio);
 
 function toggleSound(){
-  S.sound=!S.sound; save();
-  var btn=document.getElementById("btnSound");
-  btn.classList.toggle("off",!S.sound);
-  if(S.sound){ Sound.start(); toast("声音打开啦"); } else { Sound.stop(); Voice.stop(); toast("先安静一会儿"); }
+  /* 孩子只需要「有声音 / 没声音」；分项开关在「给大人看」里 */
+  var anyOn = audioOn("music") || audioOn("voice") || audioOn("sfx");
+  S.music = anyOn ? false : true;
+  S.voice = anyOn ? false : true;
+  S.sfx   = anyOn ? false : true;
+  S.sound = S.music;
+  save(); paintSoundBtn();
+  if(S.music){ Sound.start(); toast("声音打开啦"); }
+  else { Sound.stop(); Voice.stop(); toast("先安静一会儿"); }
 }
 function paintSoundBtn(){
   var btn=document.getElementById("btnSound");
   if(!btn) return;
-  btn.classList.toggle("off",!S.sound);
+  var anyOn = audioOn("music") || audioOn("voice") || audioOn("sfx");
+  btn.classList.toggle("off",!anyOn);
 }
 
 /* =====================================================================
@@ -1602,6 +1436,34 @@ ART.lib=function(g,s){
   E("rect",{x:60,y:174,width:80,height:8,rx:4,fill:"#e4dac6"},g);
 };
 
+/* 游戏馆：奶油墙 + 靛蓝圆顶，门口立着一颗大骰子，像一间闯关的小屋 */
+ART.games=function(g,s){
+  E("ellipse",{cx:100,cy:190,rx:82,ry:11,fill:"rgba(70,90,60,.15)"},g);
+  /* 门前小广场 */
+  E("rect",{x:20,y:158,width:160,height:34,rx:16,fill:"#e6e9f8"},g);
+  /* 墙 */
+  E("rect",{x:44,y:96,width:112,height:72,rx:12,fill:"#fde9c8"},g);
+  E("rect",{x:44,y:96,width:112,height:72,rx:12,fill:"rgba(255,255,255,.3)"},g);
+  /* 圆顶 */
+  E("path",{d:"M36,98 A64,44 0 0 1 164,98 Z",fill:"#e09a54"},g);
+  E("path",{d:"M36,98 A64,44 0 0 1 100,54 L100,98 Z",fill:"rgba(255,255,255,.16)"},g);
+  E("rect",{x:30,y:94,width:140,height:9,rx:4.5,fill:"#c8823f"},g);
+  /* 屋顶小旗 */
+  E("path",{d:"M100,54 L100,34",stroke:"#c9b79d","stroke-width":"3","stroke-linecap":"round"},g);
+  E("path",{d:"M100,34 L120,40 L100,47 Z",fill:"#f0a832"},g);
+  /* 门与窗 */
+  gDoor(g,100,168,30,44,"#c98b50");
+  gWindows(g,58,116,84,20,2);
+  /* 门口的骰子 */
+  E("rect",{x:54,y:150,width:26,height:26,rx:7,fill:"#fffdf8",stroke:"#8a95c6","stroke-width":"2.4"},g);
+  E("circle",{cx:62,cy:158,r:2.4,fill:"#6f7fc0"},g);
+  E("circle",{cx:72,cy:168,r:2.4,fill:"#6f7fc0"},g);
+  E("circle",{cx:72,cy:158,r:2.4,fill:"#e8737d"},g);
+  /* 门口两块彩色积木 */
+  E("rect",{x:118,y:158,width:18,height:18,rx:4,fill:"#f6b93b"},g);
+  E("rect",{x:130,y:146,width:16,height:16,rx:4,fill:"#8fd0a4"},g);
+};
+
 /* 数学天地：蓝紫小楼，屋顶挂着三张「点数卡片」（1 点 / 2 点 / 3 点） */
 ART.math=function(g,s){
   E("ellipse",{cx:100,cy:190,rx:80,ry:11,fill:"rgba(70,90,60,.15)"},g);
@@ -1657,7 +1519,9 @@ var SIGN={
   sprout: {x:100,y:0,sy:10,bg:"#fffdf8",d:'<path d="M0,9 L0,-4" stroke="#6da45f" stroke-width="2.4"/><path d="M0,-2 C-9,-2 -10,-11 -2,-9 Z" fill="#8fc97e"/><path d="M0,-5 C9,-5 10,-13 2,-11 Z" fill="#a9d993"/>'},
   book:   {x:100,y:0,sy:10,bg:"#fffdf8",d:'<rect x="-8" y="-6" width="6" height="12" rx="1.5" fill="#a8804f"/><rect x="-1" y="-7" width="6" height="14" rx="1.5" fill="#c99a62"/><rect x="6" y="-6" width="4" height="12" rx="1.5" fill="#8f9ec9"/>'},
   /* 算盘：一眼就知道是算数的地方 */
-  num:    {x:100,y:0,sy:10,bg:"#fffdf8",d:'<rect x="-10" y="-8" width="20" height="16" rx="3" fill="none" stroke="#7a86c8" stroke-width="2.2"/><path d="M-10,-1 L10,-1" stroke="#7a86c8" stroke-width="1.6"/><circle cx="-5" cy="-4.4" r="2.4" fill="#e4705f"/><circle cx="1" cy="-4.4" r="2.4" fill="#f0b23f"/><circle cx="6" cy="3.6" r="2.4" fill="#7fb6e0"/><circle cx="-1" cy="3.6" r="2.4" fill="#8fc97e"/>'}
+  num:    {x:100,y:0,sy:10,bg:"#fffdf8",d:'<rect x="-10" y="-8" width="20" height="16" rx="3" fill="none" stroke="#7a86c8" stroke-width="2.2"/><path d="M-10,-1 L10,-1" stroke="#7a86c8" stroke-width="1.6"/><circle cx="-5" cy="-4.4" r="2.4" fill="#e4705f"/><circle cx="1" cy="-4.4" r="2.4" fill="#f0b23f"/><circle cx="6" cy="3.6" r="2.4" fill="#7fb6e0"/><circle cx="-1" cy="3.6" r="2.4" fill="#8fc97e"/>'},
+  /* 游戏馆：一颗小骰子 */
+  dice:   {x:100,y:0,sy:10,bg:"#fffdf8",d:'<rect x="-8" y="-8" width="16" height="16" rx="4" fill="none" stroke="#6f7fc0" stroke-width="2.2"/><circle cx="-4" cy="-4" r="1.7" fill="#6f7fc0"/><circle cx="4" cy="4" r="1.7" fill="#6f7fc0"/><circle cx="0" cy="0" r="1.7" fill="#e8737d"/>'}
 };
 /* 招牌直接画进建筑 SVG 里：天然跟着屋顶走，不会错位 */
 function drawSign(g,b){
@@ -2106,11 +1970,13 @@ var ROOM_PAGES = {
   mall: { file:"room-shop.html", label:"超市",      who:"理货员阿姨在整理货架" },
   math: { file:"shuxue.html",    label:"数学天地",  who:"数数老师在摆数字卡片" },
   gong: { file:"gradefaterhome.html", label:"外公外婆家", who:"外公在厨房熬萝卜汤" },
-  farm: { file:"farm.html",      label:"小镇农场",  who:"农场阿姨在地头浇水" }
+  farm: { file:"farm.html",      label:"小镇农场",  who:"农场阿姨在地头浇水" },
+  games:{ file:"games.html",     label:"游戏馆",    who:"馆长在门口等你" },
+  lib:  { file:"books.html",     label:"小镇图书馆", who:"故事屋里有会说话的书" }
 };
 
 /* 有些地方不用先玩游戏，进去就是能逛的房间（超市） */
-var DIRECT_ROOMS = { mall:1 };
+var DIRECT_ROOMS = { mall:1, games:1, lib:1 };
 
 /* 通关后弹出的「进屋」提示 */
 function showEnterRoom(b){
@@ -3032,45 +2898,17 @@ function toggleMine(id){
 /* =====================================================================
    8.6 商店与背包
    ===================================================================== */
-/* 商店分成四类：吃的、玩的、农作物（种子）、幼崽 */
-var SHOP_CATS = [
-  { id:"food", name:"吃的",   ico:"apple",   hint:"买来可以送人" },
-  { id:"toy",  name:"玩的",   ico:"balloon", hint:"拿在手里，点一下就玩" },
-  { id:"seed", name:"农作物", ico:"seedbag", hint:"种到农场，三步长成，卖掉能得三倍星星" },
-  { id:"pet",  name:"幼崽",   ico:"chick",   hint:"养大能当宠物，也可以送给小镇上的人" }
-];
-
-var SHOP_ITEMS = [
-  { id:"apple",  name:"苹果",  cost:2, cat:"food", line:"红红的苹果，脆脆的。" },
-  { id:"bread",  name:"面包",  cost:2, cat:"food", line:"刚烤好的面包，香香的。" },
-  { id:"candy",  name:"糖果",  cost:3, cat:"food", line:"甜甜的糖，只能吃一颗。" },
-  { id:"balloon",name:"气球",  cost:3, per:3, cat:"toy", line:"一次给 3 只，点一下就能放飞。" },
-  { id:"bubble", name:"泡泡",  cost:2, per:1, cat:"toy", line:"点一下，满屏都会飘起泡泡。" },
-  { id:"teddy",  name:"小熊",  cost:5, cat:"toy", line:"软软的小熊，可以抱着睡。" },
-  { id:"kite",   name:"风筝",  cost:6, cat:"toy", line:"有风的时候，风筝会飞很高。" },
-  /* —— 农作物种子：种到农场，浇水两步就成熟，卖价是买价的三倍 —— */
-  { id:"seed_rose",   name:"玫瑰花种子", cost:3, cat:"seed", grow:"rose",   line:"种在农场里，能开出一朵玫瑰花。" },
-  { id:"seed_potato", name:"土豆种子",   cost:2, cat:"seed", grow:"potato", line:"土豆最好养，浇浇水就长。" },
-  { id:"seed_carrot", name:"萝卜种子",   cost:2, cat:"seed", grow:"carrot", line:"外公最爱种萝卜，长得最快。" },
-  { id:"seed_tomato", name:"番茄种子",   cost:3, cat:"seed", grow:"tomato", line:"熟了红红的，酸酸甜甜。" },
-  { id:"seed_corn",   name:"玉米种子",   cost:4, cat:"seed", grow:"corn",   line:"玉米长得高，得多浇一次水。" },
-  /* —— 幼崽：养大能当宠物带出农场，也能送给小镇上的人 —— */
-  { id:"pet_chick", name:"小鸡", cost:4, cat:"pet", grow:"chick", line:"毛茸茸的小鸡，会跟着你走。" },
-  { id:"pet_pig",   name:"小猪", cost:5, cat:"pet", grow:"pig",   line:"圆圆的小猪，爱吃也爱睡。" },
-  { id:"pet_duck",  name:"小鸭", cost:4, cat:"pet", grow:"duck",  line:"小鸭走路一摇一摆的。" }
-];
+/* 商店分成四类：吃的、玩的、农作物（种子）、幼崽。
+   这张表和价格规则都在 ui.js 里，超市、农场、背包共用同一份——
+   以前三处各抄一遍，改一次价要改三个地方，漏一处就对不上账。 */
+var SHOP_CATS = CC.CATS;
+var SHOP_ITEMS = CC.ITEMS;
 
 /* 种子／幼崽的图形用「长成以后的样子」，孩子一眼就认得出 */
-function itemArt(it, size){
-  if (!it) return art("star", size);
-  return art(it.grow || it.id, size);
-}
-function itemById(id){
-  return SHOP_ITEMS.filter(function(x){ return x.id === id; })[0] || null;
-}
-/* 种子买价的三倍，幼崽送人的五倍 */
-function sellPrice(it){ return Math.round((it.cost || 1) * 3); }
-function petGiftPrice(it){ return Math.round((it.cost || 1) * 5); }
+function itemArt(it, size){ return art(CC.itemGrow(it), size); }
+function itemById(id){ return CC.itemById(id); }
+function sellPrice(it){ return CC.sellPrice(it); }
+function petGiftPrice(it){ return CC.giftPrice(it); }
 
 function buyItem(id){
   var it = SHOP_ITEMS.filter(function(x){ return x.id === id; })[0];
@@ -3088,10 +2926,10 @@ function buyItem(id){
   Sound.blip("good");
   toast("买到 " + n + " 个" + it.name + "啦，在背包里");
   Voice.say("买到" + it.name + "啦。");
-  if (id === "balloon" || id === "bubble"){
+  if (id === "balloon" || id === "bubble" || id === "firework"){
     setTimeout(function(){
       guide("现在" + childCall() + "身上就带着" + it.name + "，碰到它点一下，" +
-        (id === "balloon" ? "气球就飞上天啦" : "泡泡就吹出来啦") + "。");
+        (id === "balloon" ? "气球就飞上天啦" : id === "bubble" ? "泡泡就吹出来啦" : "天上就开出花啦") + "。");
     }, 1200);
   }
   if (it.cat === "seed" || it.cat === "pet"){
@@ -3157,7 +2995,7 @@ function openBag(){
     ids.forEach(function(id){
       var it = SHOP_ITEMS.filter(function(x){ return x.id === id; })[0];
       if (!it) return;
-      var playable = (id === "balloon" || id === "bubble");
+      var playable = (id === "balloon" || id === "bubble" || id === "firework");
       html += '<div class="bag-cell"><div class="bg-ico">' + itemArt(it, 58) + '</div>' +
               '<b>' + it.name + '</b><span>× ' + S.bag[id] + '</span>' +
               (playable ? '<button class="bg-play" onclick="closeSheet();playCarry(\'' + id + '\')">放</button>' : '') +
@@ -3210,6 +3048,13 @@ function art(kind,size,opt){
     cloud:'<path d="M-9,-2 C-9,-8 -2,-10 1,-6 C4,-11 13,-9 12,-3 C18,-2 18,5 11,5 L-8,5 C-14,5 -14,-2 -9,-2 Z" fill="#f2f6fa" stroke="#cfe0ee" stroke-width="1.6"/>',
     sun:'<circle r="8" fill="#f6c445"/><g stroke="#f6c445" stroke-width="2.4" stroke-linecap="round"><path d="M0,-13 L0,-10"/><path d="M0,13 L0,10"/><path d="M-13,0 L-10,0"/><path d="M13,0 L10,0"/><path d="M-9,-9 L-7,-7"/><path d="M9,9 L7,7"/><path d="M9,-9 L7,-7"/><path d="M-9,9 L-7,7"/></g>',
     fire:'<path d="M0,-13 C8,-3 8,4 0,12 C-8,4 -8,-3 0,-13 Z" fill="#e05f5f"/><path d="M0,-3 C4,1 4,7 0,10 C-4,7 -4,1 0,-3 Z" fill="#f6d365"/>',
+    firework:'<rect x="-2.4" y="-2" width="4.8" height="14" rx="1.8" fill="#d9534f"/>'
+      +'<rect x="-4.4" y="11" width="8.8" height="3" rx="1.5" fill="#a8804f"/>'
+      +'<path d="M0,-2 C-1.6,-6 1.6,-7.6 0,-11" stroke="#a8804f" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+      +'<g stroke="#f6c445" stroke-width="2" stroke-linecap="round">'
+      +'<path d="M0,-11 L0,-17"/><path d="M0,-11 L7,-15"/><path d="M0,-11 L7,-7"/>'
+      +'<path d="M0,-11 L-7,-15"/><path d="M0,-11 L-7,-7"/></g>'
+      +'<circle cx="0" cy="-11" r="2.6" fill="#ffe08a"/>',
     truck:'<rect x="-12" y="-4" width="16" height="10" rx="3" fill="#d9534f"/><path d="M4,0 L9,0 L13,6 L13,6 L4,6 Z" fill="#e8887f"/><rect x="-9" y="-1" width="9" height="3" rx="1.5" fill="#fff" opacity=".7"/><circle cx="-7" cy="7" r="3.4" fill="#4a4438"/><circle cx="7" cy="7" r="3.4" fill="#4a4438"/>',
     ball:'<circle r="11" fill="#7fb6e0"/><path d="M-11,0 A11,11 0 0,0 11,0" fill="#f7a5ad"/><path d="M-8,-6 C-2,-2 -2,2 -8,6" stroke="#fff" stroke-width="2" fill="none"/>',
     book:'<rect x="-10" y="-8" width="9" height="16" rx="2" fill="#a8804f"/><rect x="-1" y="-9" width="9" height="18" rx="2" fill="#c99a62"/><rect x="8" y="-8" width="4" height="16" rx="2" fill="#8f9ec9"/>',
@@ -4212,7 +4057,7 @@ function openPlaces(){
   },0);
 }
 function mapArtKey(b){
-  return {home:"apple",gong:"carrot",nai:"flower",kg:"kid1",fire:"truck",hosp:"cross",mall:"apple",park:"tree",farm:"sprout",lib:"book",math:"abacus"}[b.id]||"star";
+  return {home:"apple",gong:"carrot",nai:"flower",kg:"kid1",fire:"truck",hosp:"cross",mall:"apple",park:"tree",farm:"sprout",lib:"book",math:"abacus",games:"dice"}[b.id]||"star";
 }
 function goFromList(id){
   var b=BUILDINGS.filter(function(x){return x.id===id})[0];
@@ -4239,36 +4084,168 @@ function openBook(){
 }
 function resetAll(){
   if(!confirm("清空小镇记录？小花和小星星都会消失。")) return;
-  try{ localStorage.removeItem(KEY); }catch(e){}
-  S={stars:0,visited:{},cleared:{},diff:"mid",hero:{x:985,y:772},flowers:{},sound:true,voice:true,silent:{}};
+  S = CC.reset();          /* 存档结构由 ui.js 统一重建，不会再漏字段 */
+  CC.setSave(S);
   heroPose.x=985; heroPose.y=772; drawHero(); paintHud(); closeSheet(); toast("小镇又变成新的啦");
 }
 
 function openHelp(){
-  var html='<h2>给大人看</h2>'+
-    '<p class="sub">'+townTitle()+'是给 3 岁左右孩子玩的探索游戏：走一走、点一点，帮镇上的人做一件小事。</p>'+
-    '<div class="kv"><span>操作</span><span>电脑：方向键 / WASD；手机：左下摇杆；也可以点地面走</span></div>'+
-    '<div class="kv"><span>进屋</span><span>走到房子门口点一下房子</span></div>'+
-    '<div class="kv"><span>难度</span><span>小班 / 中班 / 大班，只影响任务数量，不影响规则</span></div>'+
-    '<div class="kv"><span>背景音乐</span><span>右上角喇叭按钮可以打开或关掉</span></div>'+
-    '<div class="kv"><span>语音讲解</span><span>每进一个地方会念一句引导语，说来话长时可以点「帮帮我」再听一遍</span></div>'+
-    '<div class="kv"><span>小镇居民</span><span>街上有人自己走来走去，点他们会说话；头上冒苹果说明饿了</span></div>'+
-    '<div class="kv"><span>做新朋友</span><span>顶栏「笑脸」按钮，可以给新朋友起名字、挑发型和衣服，最多 3 个</span></div>'+
-    '<div class="kv"><span>星星与商店</span><span>完成一个地方第一次给 3 颗星，重复玩给 1 颗；星星能换东西送给居民</span></div>'+
-    '<div class="kv"><span>改名字</span><span>最多 4 个字，镇上的人都会这么叫，小镇和家的名字也跟着变</span></div>'+
-    '<div class="row" style="gap:8px;margin:6px 0 4px">'+
-      '<input id="renameKid" maxlength="4" placeholder="名字最多 4 个字" value="'+(kidName()||"")+'" '+
-      'style="flex:1;min-width:0;border:1px solid #e3dcc9;border-radius:12px;padding:9px 12px;'+
-      'font-size:16px;letter-spacing:2px;font-family:inherit;background:#fff;text-align:center">'+
-      '<button class="btn primary" onclick="renameKid()" style="flex:0 0 auto">改好</button>'+
-    '</div>'+
-    '<div class="note"><b>每个地方在练什么</b><br>'+
-      BUILDINGS.map(function(b){ return bLabel(b)+"："+SKILLS[b.game]; }).join("<br>")+
-    '</div>'+
-    '<div class="note">没有打卡、没有排行榜、不催上线。玩几分钟就可以关掉，进度只存在这台设备上。<br>'+
-    '本项目全部文字与图形由代码生成，不含任何外部素材。</div>'+
+  /* ---- 统计：跟着 S.stats 走，没有就当全 0 ---- */
+  var st = S.stats || { days:{} };
+  var days = st.days || {};
+  var dayKeys = Object.keys(days);
+  var totalMin = 0, weekMin = 0, todayMin = 0;
+  var now = new Date();
+  var todayK = now.getFullYear() + "-" + (now.getMonth() + 1) + "-" + now.getDate();
+  dayKeys.forEach(function(k){
+    totalMin += days[k] || 0;
+    if (k === todayK) todayMin = days[k] || 0;
+  });
+  /* 近 7 天 */
+  for (var i = 0; i < 7; i++){
+    var d = new Date(Date.now() - i * 86400000);
+    var kk = d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
+    weekMin += days[kk] || 0;
+  }
+  var lastTxt = "还没开始";
+  if (st.last){
+    var ld = new Date(st.last);
+    lastTxt = (ld.getMonth() + 1) + " 月 " + ld.getDate() + " 日";
+  }
+
+  /* ---- 各地方的进度 ---- */
+  var visitedN = Object.keys(S.visited || {}).length;
+  var gamesN = Object.keys((S.games && S.games.cleared) || {}).length;
+  var booksN = Object.keys((S.books && S.books.cleared) || {}).length;
+  var mathN  = Object.keys(S.mathDone || {}).length;
+  var roomN  = 0;
+  Object.keys(S.rooms || {}).forEach(function(k){ if (S.rooms[k] && S.rooms[k].done) roomN++; });
+  var petN = (S.pets || []).length;
+
+  var html = '<h2>给大人看</h2>' +
+    '<p class="sub">' + townTitle() + '是给 3–5 岁孩子玩的探索小镇：走一走、点一点，帮镇上的人做一件小事。没有打卡、没有排行榜、不催上线。</p>' +
+
+    '<div class="note"><b>最近玩的情况</b><br>' +
+      '一共来过 <b>' + (dayKeys.length || 0) + '</b> 天，累计 <b>' + Math.round(totalMin) + '</b> 分钟<br>' +
+      '最近 7 天玩了 <b>' + Math.round(weekMin) + '</b> 分钟，今天 <b>' + Math.round(todayMin) + '</b> 分钟<br>' +
+      '最近一次打开：' + lastTxt +
+    '</div>' +
+
+    '<div class="kv"><span>小镇探索</span><span>' + visitedN + ' / ' + BUILDINGS.length + ' 个地方去过</span></div>' +
+    '<div class="kv"><span>游戏馆</span><span>' + gamesN + ' / 20 关通过</span></div>' +
+    '<div class="kv"><span>故事屋</span><span>' + booksN + ' / 6 个故事读完</span></div>' +
+    '<div class="kv"><span>数学天地</span><span>' + mathN + ' / 4 种玩法</span></div>' +
+    '<div class="kv"><span>房间任务</span><span>' + roomN + ' 间做完</span></div>' +
+    '<div class="kv"><span>农场</span><span>养着 ' + petN + ' 只小动物，星星 ' + (S.stars || 0) + ' 颗</span></div>' +
+
+    '<div class="note"><b>进度备份</b><br>' +
+      '进度只存在这台设备的浏览器里。换电脑、换手机、清理浏览器数据都会丢。<br>' +
+      '「存一份」会下载一个小文件，换设备时用「读回来」选它就行。' +
+    '</div>' +
+    '<div class="row" style="gap:8px">' +
+      '<button class="btn" style="flex:1" onclick="exportSave()">存一份到文件</button>' +
+      '<button class="btn" style="flex:1" onclick="pickImport()">从文件读回来</button>' +
+    '</div>' +
+    '<input type="file" id="importFile" accept=".json,application/json" style="display:none">' +
+    '<div class="kv"><span>操作</span><span>电脑：方向键 / WASD；手机：左下摇杆；也可以点地面走</span></div>' +
+    '<div class="kv"><span>进屋</span><span>走到房子门口点一下房子</span></div>' +
+    '<div class="kv"><span>星星</span><span>房间里第一次做完给 3 颗、重做 1 颗；游戏馆和故事屋每关 5 颗；外公的红包只给一次（6 颗）</span></div>' +
+    '<div class="kv"><span>语音讲解</span><span>每进一个地方会念一句引导语，说来话长时可以点「帮帮我」再听一遍</span></div>' +
+    '<div class="kv"><span>声音分项</span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">' +
+      '<button class="sndbtn' + (audioOn("music") ? " on" : "") + '" onclick="toggleAudio(\'music\')">音乐</button>' +
+      '<button class="sndbtn' + (audioOn("voice") ? " on" : "") + '" onclick="toggleAudio(\'voice\')">说话</button>' +
+      '<button class="sndbtn' + (audioOn("sfx") ? " on" : "") + '" onclick="toggleAudio(\'sfx\')">音效</button>' +
+    '</span></div>' +
+    '<div class="row" style="gap:8px;margin:6px 0 4px">' +
+      '<input id="renameKid" maxlength="4" placeholder="名字最多 4 个字" value="' + (kidName() || "") + '" ' +
+      'style="flex:1;min-width:0;border:1px solid #e3dcc9;border-radius:12px;padding:9px 12px;' +
+      'font-size:16px;letter-spacing:2px;font-family:inherit;background:#fff;text-align:center">' +
+      '<button class="btn primary" onclick="renameKid()" style="flex:0 0 auto">改好</button>' +
+    '</div>' +
+
+    '<div class="note"><b>每个地方在练什么</b><br>' +
+      BUILDINGS.map(function(b){ return bLabel(b) + "：" + (b.skill || SKILLS[b.game]); }).join("<br>") +
+    '</div>' +
+
+    '<div class="row" style="margin-top:6px">' +
+      '<button class="btn" style="font-size:13px;color:#a26b5c" onclick="askReset()">重新开始（清空进度）</button>' +
+    '</div>' +
+    '<div class="note" style="margin-top:10px">本项目全部文字与图形由代码生成，不含任何外部素材，断网也能玩。</div>' +
     '<div class="row" style="margin-top:12px"><button class="btn primary" onclick="closeSheet()">知道啦</button></div>';
+
   openSheet(html);
+
+  var inp = document.getElementById("importFile");
+  if (inp){
+    inp.addEventListener("change", function(){
+      var f = inp.files && inp.files[0];
+      if (f) doImport(f);
+    });
+  }
+}
+
+/* ---------------- 进度备份：导出 / 导入 / 重置 ---------------- */
+function exportSave(){
+  try{
+    var payload = { _app:"chengcheng-town", _v:2, _at:new Date().toISOString(), save:S };
+    var blob = new Blob([JSON.stringify(payload)], { type:"application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "chengcheng-" + (kidName() || "小镇") + "-" +
+      new Date().toISOString().slice(0, 10) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 1600);
+    toast("进度存好啦，去「下载」里找这个文件");
+    Voice.say("进度存好了。");
+  } catch(e){
+    toast("这台设备不支持存文件，换成电脑试试");
+  }
+}
+function pickImport(){
+  var inp = document.getElementById("importFile");
+  if (inp) inp.click();
+}
+function doImport(file){
+  var r = new FileReader();
+  r.onload = function(){
+    var v = null;
+    try{
+      var obj = JSON.parse(String(r.result));
+      /* 兼容两种：包了一层信封的，和直接是存档的 */
+      v = (obj && obj.save) ? obj.save : obj;
+    } catch(e){ v = null; }
+    if (!v || typeof v !== "object" || typeof v.stars !== "number"){
+      toast("这个文件读不了，确认是小镇的进度文件");
+      return;
+    }
+    try{
+      localStorage.setItem(KEY, JSON.stringify(v));
+      toast("读好了，马上回到你的小镇");
+      setTimeout(function(){ location.reload(); }, 700);
+    } catch(e){
+      toast("存不进去，可能是浏览器满了");
+    }
+  };
+  r.onerror = function(){ toast("文件读不出来，再试一次"); };
+  r.readAsText(file);
+}
+function askReset(){
+  openSheet(
+    '<h2>真的要重新开始吗</h2>' +
+    '<p class="sub">星星、通过关卡的记录、养的小动物，全部会清空。<br>' +
+    '想留着的话，先点「存一份到文件」把进度存下来。</p>' +
+    '<div class="row" style="gap:10px;margin-top:6px">' +
+      '<button class="btn primary" style="flex:1" onclick="openHelp()">再想想</button>' +
+      '<button class="btn" style="flex:1;color:#a26b5c" onclick="doReset()">清空重来</button>' +
+    '</div>'
+  );
+}
+function doReset(){
+  try{ CC.reset(); }catch(e){}
+  toast("已经清空，正在重新开始");
+  setTimeout(function(){ location.reload(); }, 600);
 }
 
 /* 大人看这里里改名字：最多 4 个字，改完立刻全站同步 */
@@ -4298,8 +4275,8 @@ var carryEls = [];
 function paintCarry(){
   carryEls.forEach(function(e){ if (e.parentNode) e.parentNode.removeChild(e); });
   carryEls = [];
-  /* 气球挂在身后，泡泡拿在手上；碰到（pointerdown）就放，不等抬手 */
-  [["balloon","点一下，气球就飞起来"],["bubble","点一下，吹出满屏泡泡"]].forEach(function(it){
+  /* 气球挂在身后，泡泡拿在手上，烟花抱在怀里；碰到（pointerdown）就放 */
+  [["balloon","点一下，气球就飞起来"],["bubble","点一下，吹出满屏泡泡"],["firework","点一下，放一支烟花"]].forEach(function(it){
     if (!(S.bag[it[0]] > 0)) return;
     var b = document.createElement("button");
     b.type = "button";
@@ -4316,14 +4293,14 @@ function paintCarry(){
 }
 /* 跟着主角一起动的东西（气球 / 风筝 / 小旗子）每帧更新，不用定时器 */
 function stepCarry(){
-  /* 身上可能同时有气球和泡泡：
-     气球举高在身后，泡泡拿在手边——都让开脸，别挡着孩子 */
-  var offs = [26, -34];
-  var tops = [128, 62];
+  /* 身上可能同时有气球、泡泡和烟花：
+     气球举高在身后，泡泡拿在手边，烟花抱在另一侧——都让开脸，别挡着孩子 */
+  var offs = [26, -34, 46];
+  var tops = [128, 62, 104];
   carryEls.forEach(function(e, i){
     var sw = Math.sin(Date.now() / 900 + i * 1.4) * 3;
-    e.style.left = (heroPose.x + offs[i % 2] * heroPose.face + sw) + "px";
-    e.style.top = (heroPose.y - tops[i % 2]) + "px";
+    e.style.left = (heroPose.x + offs[i % 3] * heroPose.face + sw) + "px";
+    e.style.top = (heroPose.y - tops[i % 3]) + "px";
     e.style.zIndex = String(40 + Math.round(heroPose.y / 10));
   });
   folkState.forEach(function(n){
@@ -4379,7 +4356,9 @@ function playCarry(id){
   if(now-_lastPlay<700) return;          /* 碰到连点，别一口气全放光 */
   _lastPlay=now;
   if (!(S.bag[id] > 0)){
-    toast(id === "balloon" ? "气球用完了，去商店再换一些" : "泡泡用完了，去商店再换一些");
+    toast(id === "balloon" ? "气球用完了，去商店再换一些"
+        : id === "bubble" ? "泡泡用完了，去商店再换一些"
+        : "烟花用完了，去商店再换一支吧");
     Voice.say("用完了，去商店换一些吧。");
     return;
   }
@@ -4387,15 +4366,15 @@ function playCarry(id){
   if (S.bag[id] <= 0) delete S.bag[id];
   save(); paintHud(); paintCarry();
   if (id === "balloon") releaseBalloons();
+  else if (id === "firework") launchFireworks();
   else blowBubbles();
 }
 
-/* 气球：一次放一片（3 只左右），从人物身边升起，飘飘悠悠往上走 */
+/* 气球：一次放一大片，铺满整屏，飘飘悠悠往上走 */
 function releaseBalloons(){
   var root = flyRoot();
-  var n = 3 + Math.floor(Math.random() * 2);      /* 3-4 只 */
-  var cols = 3, rows = 2;
-  var spots = scatterSpots(n, cols, rows, 0.10, 0.28, 0.18);
+  var n = 14 + Math.floor(Math.random() * 5);     /* 14-18 只，铺满屏 */
+  var spots = scatterSpots(n, 5, 4, 0.06, 0.10, 0.12);
   var vw = window.innerWidth, vh = window.innerHeight;
   Sound.blip("pop");
   spots.forEach(function(p, i){
@@ -4403,7 +4382,7 @@ function releaseBalloons(){
       var el = document.createElement("div");
       el.className = "flyer balloon";
       var col = FLY_COLORS[Math.floor(Math.random() * FLY_COLORS.length)];
-      var size = 30 + Math.random() * 18;
+      var size = 26 + Math.random() * 26;
       el.style.left = (p.x * vw) + "px";
       el.style.top = (p.y * vh) + "px";
       el.style.setProperty("--c", col);
@@ -4416,50 +4395,177 @@ function releaseBalloons(){
       FLY.push({
         el: el, kind: "balloon",
         x: p.x * vw, y: p.y * vh,
-        vx: (Math.random() - 0.5) * 10, vy: -(14 + Math.random() * 12),
-        sway: Math.random() * 6.28, swayAmp: 8 + Math.random() * 10,
-        life: 7.5, age: 0
+        vx: (Math.random() - 0.5) * 12, vy: -(13 + Math.random() * 14),
+        sway: Math.random() * 6.28, swayAmp: 8 + Math.random() * 12,
+        life: 8.5, age: 0
       });
       Sound.blip("ok");
-    }, i * 170);
+    }, i * 70);
   });
   toast("气球飞起来啦");
   Voice.say("气球飞起来喽。");
 }
 
-/* 泡泡：一群泡泡从脚下升起来，点一下会破 */
+/* 泡泡：一大群泡泡从脚下升起来，铺满屏，点一下会破 */
 function blowBubbles(){
   var root = flyRoot();
   var vw = window.innerWidth, vh = window.innerHeight;
   Sound.blip("soft");
-  var n = 7;
-  for (var i = 0; i < n; i++){
-    (function(i){
-      setTimeout(function(){
-        var el = document.createElement("div");
-        el.className = "flyer bubble";
-        var size = 18 + Math.random() * 26;
-        el.style.width = size + "px";
-        el.style.height = size + "px";
-        el.innerHTML = art("bubble", size);
-        el.style.left = (0.12 + Math.random() * 0.76) * vw + "px";
-        el.style.top = (0.34 + Math.random() * 0.22) * vh + "px";
-        root.appendChild(el);
-        var f = {
-          el: el, kind: "bubble",
-          x: (0.12 + Math.random() * 0.76) * vw, y: (0.34 + Math.random() * 0.22) * vh,
-          vx: (Math.random() - 0.5) * 16, vy: -(22 + Math.random() * 16),
-          sway: Math.random() * 6.28, swayAmp: 10 + Math.random() * 12,
-          life: 5.2, age: 0
-        };
-        el.addEventListener("click", function(e){ e.stopPropagation(); popBubble(f); });
-        FLY.push(f);
-        Sound.blip("ok");
-      }, i * 110);
-    })(i);
-  }
+  var n = 22 + Math.floor(Math.random() * 8);      /* 22-29 个 */
+  var spots = scatterSpots(n, 6, 5, 0.05, 0.30, 0.06);
+  spots.forEach(function(p, i){
+    setTimeout(function(){
+      var el = document.createElement("div");
+      el.className = "flyer bubble";
+      var size = 16 + Math.random() * 30;
+      el.style.width = size + "px";
+      el.style.height = size + "px";
+      el.innerHTML = art("bubble", size);
+      el.style.left = (p.x * vw) + "px";
+      el.style.top = (p.y * vh) + "px";
+      root.appendChild(el);
+      var f = {
+        el: el, kind: "bubble",
+        x: p.x * vw, y: p.y * vh,
+        vx: (Math.random() - 0.5) * 18, vy: -(20 + Math.random() * 20),
+        sway: Math.random() * 6.28, swayAmp: 8 + Math.random() * 14,
+        life: 6.2, age: 0
+      };
+      el.addEventListener("click", function(e){ e.stopPropagation(); popBubble(f); });
+      FLY.push(f);
+      Sound.blip("ok");
+    }, i * 55);
+  });
   Voice.say("泡泡，圆圆的泡泡。");
 }
+
+/* =====================================================================
+   烟花：点一下背包里的烟花，天上接连炸开几朵大花
+   ---------------------------------------------------------------------
+   · 用一张临时 canvas 画粒子，放完自己删掉，不常驻内存
+   · 先升空再炸开，粒子带重力、会拖着光往下落
+   ===================================================================== */
+function launchFireworks(){
+  var W = window.innerWidth, H = window.innerHeight;
+  var cv = document.createElement("canvas");
+  cv.className = "fw-canvas";
+  var dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.floor(W * dpr); cv.height = Math.floor(H * dpr);
+  cv.style.width = W + "px"; cv.style.height = H + "px";
+  document.body.appendChild(cv);
+  var g = cv.getContext("2d");
+  if (!g){ if (cv.parentNode) cv.parentNode.removeChild(cv); return; }
+  g.scale(dpr, dpr);
+
+  var COLS = [["#ffd166","#fff0b8"],["#ff7b9c","#ffd0dc"],["#7fd8ff","#dff4ff"],
+              ["#b6a6ff","#e6e0ff"],["#8ef0a8","#dbffe6"],["#ff9f6e","#ffe4d0"]];
+  var rockets = [], parts = [], flashes = [];
+  var start = performance.now(), last = start, t = 0, closing = false;
+
+  function addRocket(delay){
+    rockets.push({
+      x: W * (0.16 + Math.random() * 0.68),
+      y: H + 8,
+      ty: H * (0.14 + Math.random() * 0.28),
+      v: H * 0.011 + Math.random() * 3.5,
+      c: COLS[Math.floor(Math.random() * COLS.length)],
+      wait: delay, tail: []
+    });
+  }
+  addRocket(0); addRocket(230); addRocket(430); addRocket(680);
+
+  function explode(r){
+    var n = 62 + Math.floor(Math.random() * 28);
+    var sp = 1.15 + Math.random() * 1.5;
+    for (var i = 0; i < n; i++){
+      var a = Math.PI * 2 * i / n + Math.random() * 0.12;
+      var v = sp * (0.55 + Math.random() * 0.9);
+      parts.push({
+        x: r.x, y: r.y,
+        vx: Math.cos(a) * v * 2.1, vy: Math.sin(a) * v * 2.1,
+        life: 1, dec: 0.008 + Math.random() * 0.006,
+        col: Math.random() < 0.55 ? r.c[0] : r.c[1],
+        r: 1.3 + Math.random() * 1.5
+      });
+    }
+    flashes.push({ x: r.x, y: r.y, life: 1 });
+    Sound.boom();
+  }
+
+  function frame(now){
+    var dt = Math.min(0.05, (now - last) / 1000);
+    last = now; t += dt;
+    var fs = Math.max(0.4, Math.min(2.2, dt * 60));
+
+    /* 黄昏色轻轻压一层，烟花才亮得起来 */
+    var dusk = closing ? Math.max(0, 0.2 * (1 - (t - 3.4) / 1.4)) : Math.min(0.2, t * 0.9);
+    g.clearRect(0, 0, W, H);
+    if (dusk > 0.002){ g.fillStyle = "rgba(26,30,56," + dusk.toFixed(3) + ")"; g.fillRect(0, 0, W, H); }
+
+    g.globalCompositeOperation = "lighter";
+
+    /* 升空的礼花 */
+    for (var i = rockets.length - 1; i >= 0; i--){
+      var r = rockets[i];
+      if (r.wait > 0){ r.wait -= dt * 1000; continue; }
+      r.tail.push({ x: r.x, y: r.y });
+      if (r.tail.length > 7) r.tail.shift();
+      r.y -= r.v * fs;
+      g.strokeStyle = "rgba(255,240,200,.85)";
+      g.lineWidth = 2.2;
+      g.beginPath();
+      for (var k = 0; k < r.tail.length; k++){
+        if (k === 0) g.moveTo(r.tail[k].x, r.tail[k].y);
+        else g.lineTo(r.tail[k].x, r.tail[k].y);
+      }
+      g.stroke();
+      g.fillStyle = "#fff6d8";
+      g.beginPath(); g.arc(r.x, r.y, 2.6, 0, 6.2832); g.fill();
+      if (r.y <= r.ty){ explode(r); rockets.splice(i, 1); }
+    }
+
+    /* 炸开的粒子 */
+    for (var j = parts.length - 1; j >= 0; j--){
+      var p = parts[j];
+      p.vy += 0.052 * fs;
+      p.vx *= Math.pow(0.987, fs);
+      p.vy *= Math.pow(0.987, fs);
+      p.x += p.vx * fs; p.y += p.vy * fs;
+      p.life -= p.dec * fs;
+      if (p.life <= 0 || p.y > H + 40){ parts.splice(j, 1); continue; }
+      var tw = 0.72 + 0.28 * Math.sin(now / 70 + j);
+      g.globalAlpha = Math.max(0, Math.min(1, p.life * tw));
+      g.fillStyle = p.col;
+      g.beginPath(); g.arc(p.x, p.y, p.r * (0.5 + p.life * 0.7), 0, 6.2832); g.fill();
+    }
+    g.globalAlpha = 1;
+
+    /* 炸开瞬间的白光 */
+    for (var m = flashes.length - 1; m >= 0; m--){
+      var f = flashes[m];
+      f.life -= 0.055 * fs;
+      if (f.life <= 0){ flashes.splice(m, 1); continue; }
+      var rad = 96 * (1.15 - f.life);
+      var rg = g.createRadialGradient(f.x, f.y, 0, f.x, f.y, Math.max(1, rad));
+      rg.addColorStop(0, "rgba(255,252,235," + (0.55 * f.life).toFixed(3) + ")");
+      rg.addColorStop(1, "rgba(255,240,200,0)");
+      g.fillStyle = rg;
+      g.beginPath(); g.arc(f.x, f.y, Math.max(1, rad), 0, 6.2832); g.fill();
+    }
+
+    g.globalCompositeOperation = "source-over";
+
+    if (!closing && t > 3.4 && !rockets.length){ closing = true; cv.classList.add("out"); }
+    if (closing && t > 4.0){
+      if (cv.parentNode) cv.parentNode.removeChild(cv);
+      return;
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  Voice.say("烟花！看天上。");
+}
+
 
 function popBubble(f){
   if (f.dead) return;
@@ -4514,7 +4620,14 @@ var ICONS={
   book:'<path d="M-9,-6 L-1,-4 L-1,7 L-9,5 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9,-6 L1,-4 L1,7 L9,5 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>',
   face:'<circle cx="0" cy="0" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="-3" cy="-2" r="1.05" fill="currentColor"/><circle cx="3" cy="-2" r="1.05" fill="currentColor"/><path d="M-3.2,3 Q0,5.6 3.2,3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M-8,0 C-9.4,-6 -6,-9.4 0,-9.4 C6,-9.4 9.4,-6 8,0" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
   help:'<circle cx="0" cy="0" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><text x="0" y="0" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="700" fill="currentColor">?</text>',
-  sound:'<path d="M-8,-4 L-4,-4 L1,-8 L1,8 L-4,4 L-8,4 Z" fill="currentColor"/><path d="M4,-4 C7,-1 7,1 4,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6.5,-6.5 C11,-2 11,2 6.5,6.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>'
+  sound:'<path d="M-8,-4 L-4,-4 L1,-8 L1,8 L-4,4 L-8,4 Z" fill="currentColor"/><path d="M4,-4 C7,-1 7,1 4,4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M6.5,-6.5 C11,-2 11,2 6.5,6.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>',
+  /* 商店分类用的四个小图标（原来缺了会全变成星星，看着像分类错了） */
+  apple:'<circle cx="0" cy="2.4" r="6.6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M0,-4.2 C0,-6.6 1.8,-8 3.6,-8.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M1.8,-6.4 C4.6,-9.2 7.6,-7.4 6.2,-5.2 C4.8,-3.4 2.8,-4.8 1.8,-6.4 Z" fill="currentColor"/>',
+  balloon:'<ellipse cx="0" cy="-2.8" rx="5.8" ry="6.8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M0,4 C-1.8,5.4 1.8,6.2 0,9" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  seedbag:'<path d="M-5.8,-3 L5.8,-3 L4.4,8.6 L-4.4,8.6 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M-6.2,-3 Q0,-8.6 6.2,-3" fill="none" stroke="currentColor" stroke-width="1.7"/><circle cx="-1.6" cy="1.6" r="1.25" fill="currentColor"/><circle cx="2" cy="4.4" r="1.05" fill="currentColor"/><circle cx="-1.2" cy="6.4" r=".85" fill="currentColor"/>',
+  chick:'<ellipse cx="0" cy="3.4" rx="6.2" ry="5.4" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx=".2" cy="-3.4" r="4.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M4.2,-3.6 L7.6,-2.2 L4.2,-1 Z" fill="currentColor"/><circle cx="-1.2" cy="-4.2" r=".9" fill="currentColor"/><path d="M-2,8.4 L-2,10.4 M2,8.4 L2,10.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>',
+  firework:'<path d="M0,0 L0,-8.6 M0,0 L6,-6 M0,0 L8.6,0 M0,0 L6,6 M0,0 L0,8.6 M0,0 L-6,6 M0,0 L-8.6,0 M0,0 L-6,-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle r="1.9" fill="currentColor"/>',
+  library:'<path d="M-9,-7 L-2,-5 L-2,7 L-9,5 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M2,-5 L9,-7 L9,5 L2,7 Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M-2,-5 L2,-5" stroke="currentColor" stroke-width="1.7"/>'
 };
 function ico(name,size,color){
   var d=ICONS[name]||ICONS.star;
@@ -4529,13 +4642,22 @@ function ico(name,size,color){
 });
 paintSoundBtn();
 
-load();
+/* 存档在文件开头已经读好了（CC.load），这里不再重复读一遍 */
+/* 从农场点「去商店」过来：带 ?shop= 直接进商店，不再问名字 */
+var ASK_SHOP = null;
+try{
+  var _sm = /[?&]shop=([a-z]+)/.exec(location.search);
+  if(_sm) ASK_SHOP = ["food","toy","seed","pet"].indexOf(_sm[1]) >= 0 ? _sm[1] : "toy";
+}catch(e){}
+
 /* 已经进过小镇了：从房间里回来时不再重新问一次「开始」 */
-if(S.entered){
+if(S.entered || ASK_SHOP){
   var _cv=document.getElementById("cover");
   if(_cv && _cv.parentNode) _cv.parentNode.removeChild(_cv);
   S.sound=S.sound!==false;
-  setTimeout(function(){ if(S.sound) Sound.start(); }, 400);
+  if(S.music===undefined) S.music=S.sound;      /* 老存档：从总开关继承 */
+  if(S.sfx===undefined) S.sfx=true;
+  setTimeout(function(){ if(audioOn("music")) Sound.start(); }, 400);
 } else {
   /* 老存档里有名字就不再问，直接开始 */
   if(kidName()){
@@ -4569,6 +4691,12 @@ world.style.transform="translate("+cam.x+"px,"+cam.y+"px) scale("+M.scale+")";
 drawHero();
 paintHud();
 requestAnimationFrame(loop);
+
+/* 带 ?shop= 进来的：开场动画走完就把商店摊开，落在对应分类 */
+if(ASK_SHOP){
+  S.entered = true; save();
+  setTimeout(function(){ paintShopSheet(ASK_SHOP); }, 900);
+}
 
 /* 兜底：老版本 iPad Safari 万一没认出场地的尺寸（页面一片空白），
    这里自己补上固定定位 + 100vw/100vh，再重新量一次，别让孩子对着空屏 */
@@ -4611,7 +4739,9 @@ function beginTown(){
   },520);
   S.entered=true; save();
   S.sound=S.sound!==false;
-  if(S.sound) Sound.start();
+  if(S.music===undefined) S.music=S.sound;
+  if(S.sfx===undefined) S.sfx=true;
+  if(audioOn("music")) Sound.start();
   Sound.blip("ok");
   setTimeout(function(){
     var tip="欢迎来到" + townTitle() + "。用方向键或者摇杆，我们去找" + childCall() + "的家人吧。";
@@ -4623,17 +4753,11 @@ function beginTown(){
   showTip("用方向键或左下摇杆走一走，走到房子门口点一下就能进屋");
 
   /* 从农场点「去商店」过来的：进门直接把商店开到对应分类 */
-  try{
-    var mm = /[?&]shop=([a-z]+)/.exec(location.search);
-    if(mm){
-      var cat = mm[1];
-      setTimeout(function(){
-        openShop();
-        paintShopSheet(cat === "pet" ? "pet" : (cat === "seed" ? "seed" : cat));
-      }, 700);
-    }
-  }catch(e){}
+  if(ASK_SHOP){
+    setTimeout(function(){ paintShopSheet(ASK_SHOP); }, 700);
+  }
 }
 </script>
 </body>
 </html>
+

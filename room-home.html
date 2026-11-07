@@ -16,7 +16,7 @@
 <div class="hud">
   <div class="brand">
     <h1>澄澄的家</h1>
-    <p>点一点人，听他们说话</p>
+    <p>点一点人，再看看桌上</p>
   </div>
   <div class="tools">
     <button id="btnBack" title="回小镇" aria-label="回小镇">
@@ -29,7 +29,7 @@
 
 <div class="room-done" id="roomDone">
   <h2>屋子转完啦</h2>
-  <p>妈妈和奶奶都跟你说过话了，花也浇了。<br>回小镇继续逛吧。</p>
+  <p>说过话了，花浇了，碗也摆好了。<br>回小镇继续逛吧。</p>
   <button class="btn primary" onclick="location.href='index.html'">回小镇</button>
 </div>
 
@@ -37,12 +37,13 @@
   <div class="box">
     <div id="coverArt" style="display:flex;justify-content:center;gap:-10px"></div>
     <h1>澄澄的家</h1>
-    <p>推开门，妈妈在厨房，奶奶在窗边。<br>去跟她们说说话吧。</p>
+    <p>推开门，妈妈在厨房，奶奶在窗边。<br>桌上还等着摆碗呢。</p>
     <button class="go" id="goBtn">进屋</button>
     <div class="small">点「进屋」后会有轻轻的背景音乐</div>
   </div>
 </div>
 
+<script src="ui.js"></script>
 <script src="room.js"></script>
 <script>
 /* 封面上的小人 */
@@ -52,9 +53,12 @@ document.getElementById("coverArt").innerHTML =
 
 document.getElementById("btnBack").onclick = function(){ location.href = "index.html"; };
 
+/* 竖屏时画面被横向压缩，桌子要更宽、碗要另排一套坐标 */
+var NARROW = (window.innerWidth / Math.max(1, window.innerHeight)) < 1;
+
 var room = Room.init({
   id: "home",
-  avoid: [{ x1: 35, x2: 54, y1: 68, y2: 90 }],
+  avoid: [{ x1: 28, x2: 64, y1: 64, y2: 80 }],
   name: "澄澄的家",
   intro: "到家啦。妈妈在厨房，奶奶在窗边坐着，去跟她们说说话吧。",
   scene: {
@@ -69,8 +73,8 @@ var room = Room.init({
       { t: "lamp", x: 16, y: 6, w: 12, h: 16 },
       /* 沙发 */
       { t: "sofa", x: 14, y: 68, w: 22, h: 19, c1: "#e9a0b4", c2: "#d98aa0" },
-      /* 茶几（偏左中，给人和地毯留空） */
-      { t: "table", x: 44, y: 78, w: 14, h: 12, c1: "#c69a72", c2: "#a9784f" },
+      /* 吃饭的小长桌：比原来的茶几宽一些，能摆下三副碗 */
+      { t: "table", x: NARROW ? 48 : 46, y: 78, w: NARROW ? 46 : 32, h: 13, c1: "#c69a72", c2: "#a9784f" },
       /* 地毯（近处，人都站在地毯后面） */
       { t: "rug", x: 50, y: 90, w: 40, h: 14, c1: "#f0c9a8", c2: "#d9a37c" },
       /* 右侧书架 */
@@ -156,6 +160,81 @@ var room = Room.init({
     }
   ]
 });
+
+/* ===================================================================
+   进屋的第一件小事：摆碗
+   -------------------------------------------------------------------
+   妈妈、奶奶、你，三个人三只碗。点一只碗，它就落到一个位子上；
+   三只都落好，这一桌就齐了。
+   练的是一一对应和数到三——不是考眼力，所以点哪儿都对，只是先后不同。
+   =================================================================== */
+(function(){
+  var home = room.S.rooms.home;
+  if (home && home.done) return;                 /* 以前摆过了，不再打断 */
+
+  var BOWL_W = NARROW ? 36 : 44;
+  function bowlSVG(w){
+    return '<svg viewBox="-22 -16 44 30" width="' + w + '" height="' + Math.round(w * 0.68) + '" style="display:block">' +
+      '<ellipse cx="0" cy="-4" rx="15" ry="3.6" fill="#efe6d6"/>' +
+      '<path d="M-18,-4 C-18,11 18,11 18,-4 Z" fill="#fffdf8" stroke="#ded2be" stroke-width="1.2"/>' +
+      '<ellipse cx="0" cy="-4" rx="18" ry="4.4" fill="#fff" stroke="#ded2be" stroke-width="1.2"/>' +
+      '<path d="M-12,1 C-10,7 10,7 12,1" fill="none" stroke="#a9c8e8" stroke-width="1.6" stroke-linecap="round"/>' +
+      '<ellipse cx="0" cy="-4" rx="12" ry="2.6" fill="none" stroke="#e3d8c4" stroke-width="1"/>' +
+    '</svg>';
+  }
+  /* 三个位子（桌上靠右），三只碗（桌上靠左） */
+  /* 竖屏时地面被压成窄窄一条，摆不进三只碗。
+     那就把「摆碗」整件事挪到画面下方的操作带：上一排是位子，下一排是碗，
+     点一只，它就往上走一层——孩子一眼看得出发生了什么。 */
+  var SLOT = NARROW
+    ? [{ x: 25, y: 83 }, { x: 50, y: 83 }, { x: 75, y: 83 }]
+    : [{ x: 48.5, y: 71.5 }, { x: 53, y: 71.5 }, { x: 57.5, y: 71.5 }];
+  var FROM = NARROW
+    ? [{ x: 25, y: 91 }, { x: 50, y: 91 }, { x: 75, y: 91 }]
+    : [{ x: 33, y: 72.5 }, { x: 38, y: 72.5 }, { x: 43, y: 72.5 }];
+  var SCR = !!NARROW;   /* 竖屏：上面这些数字是屏幕百分比，不做投影 */
+
+  var tl = room.TaskLayer({ hint: "桌上摆三只碗，一人一只。", count: [0, 3], lift: NARROW });
+  var placed = 0;
+  /* 三只碗没摆齐，就先别弹「转完啦」 */
+  room.setTask(function(){ return placed >= 3; });
+
+  SLOT.forEach(function(s){
+    var ring = document.createElement("div");
+    ring.className = "titem";
+    ring.style.pointerEvents = "none";
+    ring.innerHTML = '<svg viewBox="-22 -22 44 44" width="40" height="40" style="display:block">' +
+      '<ellipse cx="0" cy="3" rx="17" ry="6.6" fill="rgba(160,130,95,.26)" stroke="#8f7355" stroke-width="2.2" stroke-dasharray="5 4"/>' +
+      '</svg>';
+    tl.put(ring, s.x, s.y, SCR);
+  });
+
+  FROM.forEach(function(pos, i){
+    var b = document.createElement("button");
+    b.type = "button";
+    b.setAttribute("aria-label", "碗");
+    b.innerHTML = bowlSVG(BOWL_W);
+    tl.put(b, pos.x, pos.y, SCR);
+    b.addEventListener("click", function(){
+      if (placed >= 3) return;
+      var s = SLOT[placed];
+      tl.move(b, s.x, s.y, SCR);
+      b.classList.add("settled");
+      room.Sound.blip("ok");
+      placed++;
+      tl.count(placed, 3);
+      if (placed === 3){
+        tl.hint("三只碗摆好啦，一人一只，正好。");
+        room.Say("妈妈一只，奶奶一只，你一只，一共三只，正好。");
+        setTimeout(function(){ tl.hint(""); }, 2600);
+        return room.Check();
+      }
+      tl.hint(placed === 1 ? "妈妈一只碗。再放一只给奶奶。" :
+              placed === 2 ? "奶奶一只碗。最后一只给你。" :
+              "还差一只。");
+    });
+  });
+})();
 
 /* 进屋时把音乐和语音解锁 */
 var _go=document.getElementById("goBtn");

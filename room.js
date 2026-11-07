@@ -7,213 +7,23 @@
 (function (global) {
   "use strict";
 
-  var KEY = "chengcheng-town-v2";
+  /* ---------------- 存档：和小镇主页面共用一条 ----------------
+     真正读写存在 ui.js 里，这里只把「房间页用的是哪一份」告诉它。
+     存档只有一条：在房间里买的种子、攒的星星，回到小镇原样还在。 */
+  var CC = global.CC;
+  var KEY = CC.KEY;
+  var S = CC.load();
+  CC.setSave(S);
+  function load() { return S; }
+  function save() { CC.save(); }
 
-  /* ---------------- 存档：和小镇主页面共用一条 ---------------- */
-  var S = { stars: 0, visited: {}, cleared: {}, diff: "mid", hero: { x: 985, y: 772 },
-            flowers: {}, sound: true, voice: true, silent: {}, rooms: {},
-            folk: {}, bag: {} };
-  function load() {
-    try {
-      var v = JSON.parse(localStorage.getItem(KEY));
-      if (v && typeof v === "object") S = Object.assign(S, v);
-    } catch (e) {}
-    S.rooms = S.rooms || {};
-    S.folk = S.folk || {};
-    S.bag = S.bag || {};
-    S.mathDone = S.mathDone || {};
-    S.pets = S.pets || [];
-    if (typeof S.stars !== "number" || S.stars < 0) S.stars = 0;
-    if (S.sound === undefined) S.sound = true;
-    if (S.voice === undefined) S.voice = true;
-    return S;
-  }
-  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
 
-  /* ---------------- 背景音乐：《小镇的早晨》（D 大调五声，3/4 拍） ----------------
-     和主页用同一首：第一拍低音、后两拍轻和声，上面一条八音盒旋律。
-     纯振荡器合成，不带任何音频文件。 */
-  var Sound = (function () {
-    var ctx = null, master = null, musicGain = null, lp = null, timer = null, playing = false, step = 0;
-    var SCALE = [0, 2, 4, 7, 9, 12, 14, 16, 19, 21];
-    var ROOT = 293.66;
-    var BEAT = 470;
-    var MEL = [4,2,0, 2,4,5, 4,2,0, 2,-1,-1,
-               4,2,0, 2,4,7, 5,4,2, 0,-1,-1];
-    var BASS = [0, 5, 0, 7, 0, 5, 7, 0];
-    function fq(semi) { return ROOT * Math.pow(2, semi / 12); }
-
-    function ensure() {
-      if (ctx) return ctx;
-      try {
-        var AC = window.AudioContext || window.webkitAudioContext;
-        if (!AC) return null;
-        ctx = new AC();
-        master = ctx.createGain(); master.gain.value = 0.5;
-        master.connect(ctx.destination);
-        musicGain = ctx.createGain(); musicGain.gain.value = 0;
-        lp = ctx.createBiquadFilter();
-        lp.type = "lowpass"; lp.frequency.value = 2600; lp.Q.value = 0.6;
-        musicGain.connect(lp); lp.connect(master);
-        var dly = ctx.createDelay(0.6), fb = ctx.createGain(), wet = ctx.createGain();
-        dly.delayTime.value = 0.33; fb.gain.value = 0.22; wet.gain.value = 0.2;
-        lp.connect(dly); dly.connect(fb); fb.connect(dly); dly.connect(wet); wet.connect(master);
-      } catch (e) { ctx = null; }
-      return ctx;
-    }
-    function tone(f, when, dur, vol, type) {
-      if (!ctx) return;
-      var o = ctx.createOscillator(), g = ctx.createGain();
-      o.type = type || "triangle";
-      o.frequency.value = f;
-      g.gain.setValueAtTime(0, when);
-      g.gain.linearRampToValueAtTime(vol, when + 0.05);
-      g.gain.exponentialRampToValueAtTime(0.0002, when + dur);
-      o.connect(g); g.connect(musicGain);
-      o.start(when); o.stop(when + dur + 0.05);
-    }
-    function tick() {
-      if (!ctx || !playing) return;
-      var t = ctx.currentTime + 0.03;
-      var b = step, bar = Math.floor(b / 3), inBar = b % 3;
-      var m = MEL[b % MEL.length], root = BASS[bar % BASS.length];
-      if (m >= 0) tone(fq(SCALE[m % SCALE.length]), t, 1.75, 0.072, "triangle");
-      if (inBar === 0) {
-        tone(fq(root - 12), t, 2.5, 0.058, "sine");
-      } else {
-        tone(fq(root + 7), t, 1.15, 0.026, "triangle");
-        tone(fq(root + 12), t + 0.02, 1.0, 0.02, "sine");
-      }
-      if (b % 6 === 4) tone(fq(SCALE[7] + 12), t + 0.01, 1.3, 0.026, "sine");
-      step++;
-    }
-    return {
-      start: function () {
-        if (!ensure()) return;
-        if (ctx.state === "suspended") ctx.resume();
-        if (playing) return;
-        playing = true;
-        musicGain.gain.cancelScheduledValues(ctx.currentTime);
-        musicGain.gain.setValueAtTime(musicGain.gain.value, ctx.currentTime);
-        musicGain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 1.6);
-        clearInterval(timer);
-        timer = setInterval(tick, BEAT);
-        tick();
-      },
-      stop: function () {
-        if (!playing) return;
-        playing = false;
-        if (ctx) musicGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6);
-        clearInterval(timer);
-      },
-      duck: function (on) {
-        if (!ctx || !musicGain) return;
-        var t = ctx.currentTime;
-        musicGain.gain.cancelScheduledValues(t);
-        musicGain.gain.setValueAtTime(musicGain.gain.value, t);
-        musicGain.gain.linearRampToValueAtTime(on ? 0.12 : 0.5, t + 0.25);
-      },
-      blip: function (kind) {
-        if (!ensure() || !S.sound) return;
-        if (ctx.state === "suspended") ctx.resume();
-        var now = ctx.currentTime;
-        var seq = { ok: [523, 659], good: [523, 659, 784, 1046], soft: [392, 349], tap: [660] }[kind || "tap"] || [660];
-        seq.forEach(function (f, i) {
-          var o = ctx.createOscillator(), g = ctx.createGain();
-          o.type = "sine"; o.frequency.value = f;
-          g.gain.setValueAtTime(0, now + i * 0.08);
-          g.gain.linearRampToValueAtTime(0.16, now + i * 0.08 + 0.02);
-          g.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.08 + 0.3);
-          o.connect(g); g.connect(master);
-          o.start(now + i * 0.08); o.stop(now + i * 0.08 + 0.35);
-        });
-      },
-      /* 小狗不念字：用两三个短促的「汪汪」代替朗读，听起来才像狗 */
-      bark: function (times) {
-        if (!ensure() || !S.sound) return;
-        if (ctx.state === "suspended") ctx.resume();
-        var n = times || 2, t0 = ctx.currentTime;
-        for (var i = 0; i < n; i++) {
-          var o = ctx.createOscillator(), g = ctx.createGain(), lp = ctx.createBiquadFilter();
-          var at = t0 + i * 0.17;
-          o.type = "sawtooth";
-          o.frequency.setValueAtTime(380 - i * 20, at);
-          o.frequency.exponentialRampToValueAtTime(150, at + 0.13);
-          lp.type = "lowpass"; lp.frequency.value = 1400;
-          g.gain.setValueAtTime(0, at);
-          g.gain.linearRampToValueAtTime(0.13, at + 0.015);
-          g.gain.exponentialRampToValueAtTime(0.0008, at + 0.15);
-          o.connect(lp); lp.connect(g); g.connect(master);
-          o.start(at); o.stop(at + 0.18);
-        }
-      }
-    };
-  })();
-
-  /* ---------------- 语音：中文 TTS，按角色调音高与语速 ----------------
-     系统只给一两个中文嗓子，所以「谁在说话」靠 pitch / rate 区分：
-     小孩亮而快、妈妈柔和、爷爷奶奶低而慢、老师清楚、小狗直接换成汪汪声。 */
-  var VOICE_CHAR = {
-    girl:    { pitch: 1.50, rate: 1.00 },   /* 澄澄 */
-    kid:     { pitch: 1.55, rate: 1.02 },   /* 小朋友 */
-    boy:     { pitch: 1.45, rate: 1.00 },
-    mom:     { pitch: 1.16, rate: 0.94 },
-    dad:     { pitch: 0.90, rate: 0.90 },
-    grandma: { pitch: 0.82, rate: 0.80 },
-    grandpa: { pitch: 0.72, rate: 0.78 },
-    teacher: { pitch: 1.20, rate: 0.88 },
-    uncle:   { pitch: 0.94, rate: 0.94 },
-    nurse:   { pitch: 1.24, rate: 0.92 },
-    clerk:   { pitch: 1.10, rate: 0.94 },
-    fireman: { pitch: 0.84, rate: 0.88 },
-    farmer:  { pitch: 1.05, rate: 0.90 },
-    dog:     { bark: true }
-  };
-
-  var Voice = (function () {
-    var zh = null, ready = false, lastText = "", lastAt = 0;
-    function pick() {
-      var vs = window.speechSynthesis.getVoices() || [];
-      var want = ["Xiaoxiao", "Xiaoyi", "Huihui", "Yaoyao", "Tingting", "Meijia", "Google 普通话"];
-      for (var i = 0; i < want.length; i++) {
-        for (var j = 0; j < vs.length; j++) {
-          if (vs[j].name.indexOf(want[i]) >= 0) return vs[j];
-        }
-      }
-      for (var k = 0; k < vs.length; k++) if (vs[k].lang && vs[k].lang.toLowerCase().indexOf("zh") === 0) return vs[k];
-      return null;
-    }
-    function refresh() { zh = pick(); ready = true; }
-    return {
-      has: function () { return !!(window.speechSynthesis && window.SpeechSynthesisUtterance); },
-      say: function (text, opts) {
-        if (!text || !S.voice) return;
-        var prof = opts && opts.who ? (VOICE_CHAR[opts.who] || null) : null;
-        /* 小狗：不念字，直接汪汪两声，气泡里还是文字 */
-        if (prof && prof.bark) { Sound.bark(2); return; }
-        if (!this.has()) return;
-        var now = Date.now();
-        if (text === lastText && now - lastAt < 2500) return;
-        lastText = text; lastAt = now;
-        if (!ready) refresh();
-        try {
-          window.speechSynthesis.cancel();
-          var u = new SpeechSynthesisUtterance(text);
-          u.lang = "zh-CN";
-          if (zh) u.voice = zh;
-          u.rate = (opts && opts.rate) || (prof && prof.rate) || 0.92;
-          u.pitch = (opts && opts.pitch) || (prof && prof.pitch) || 1.15;
-          u.onstart = function () { Sound.duck(true); };
-          u.onend = function () { Sound.duck(false); };
-          window.speechSynthesis.speak(u);
-        } catch (e) {}
-      },
-      stop: function () { try { window.speechSynthesis.cancel(); Sound.duck(false); } catch (e) {} }
-    };
-  })();
-  if (window.speechSynthesis) {
-    window.speechSynthesis.onvoiceschanged = function () { Voice.say && (null); };
-  }
+  /* ---------------- 声音：和主页面共用同一首曲子、同一套音效 ----------------
+     实现在 ui.js。房间页原来自己抄了一份，两边音量、音阶会慢慢走散，
+     现在只剩一个来源：改一次，全站一起变。 */
+  var Sound = CC.Sound;
+  var Voice = CC.Voice;
+  var VOICE_CHAR = CC.VOICE_CHAR;
 
   /* ---------------- 图形：人物与道具（和主页面同一套画法） ---------------- */
   var ART = {
@@ -439,7 +249,12 @@
     milk: '<rect x="-6" y="-8" width="12" height="18" rx="3" fill="#fffdf8"/><rect x="-6" y="-8" width="12" height="4" rx="2" fill="#7fb6e0"/><rect x="-4" y="0" width="8" height="6" rx="1.6" fill="#cde8f5"/>',
     teddy: '<circle cx="-6" cy="-10" r="3.6" fill="#c99a62"/><circle cx="6" cy="-10" r="3.6" fill="#c99a62"/><circle cx="0" cy="-6" r="7" fill="#d9ad76"/><ellipse cx="0" cy="6" rx="8" ry="7.4" fill="#c99a62"/><ellipse cx="0" cy="7" rx="4.6" ry="4.4" fill="#f0dcc2"/><circle cx="-2.6" cy="-7" r="1.2" fill="#4a3327"/><circle cx="2.6" cy="-7" r="1.2" fill="#4a3327"/><ellipse cx="0" cy="-4" rx="1.6" ry="1.2" fill="#4a3327"/>',
     kite: '<path d="M0,-12 L10,-2 L0,10 L-10,-2 Z" fill="#f6b93b"/><path d="M0,-12 L0,10 M-10,-2 L10,-2" stroke="#fffdf8" stroke-width="1.2" opacity=".8"/><path d="M0,10 C2,14 -2,15 0,18" stroke="#c9954f" stroke-width="1.4" fill="none"/>',
-    candy: '<circle cx="-3" cy="0" r="6" fill="#f78fb3"/><circle cx="3" cy="0" r="6" fill="#f6b93b"/><circle cx="0" cy="-4" r="6" fill="#8fc97e"/><circle cx="-1" cy="-6" r="1.6" fill="#fff" opacity=".7"/>',
+
+    firework: '<rect x="-2.4" y="-2" width="4.8" height="14" rx="1.8" fill="#d9534f"/>'
+      +'<rect x="-4.4" y="11" width="8.8" height="3" rx="1.5" fill="#a8804f"/>'
+      +'<path d="M0,-2 C-1.6,-6 1.6,-7.6 0,-11" stroke="#a8804f" stroke-width="1.6" fill="none" stroke-linecap="round"/>'
+      +'<g stroke="#f6c445" stroke-width="2" stroke-linecap="round"><path d="M0,-11 L0,-17"/><path d="M0,-11 L7,-15"/><path d="M0,-11 L7,-7"/><path d="M0,-11 L-7,-15"/><path d="M0,-11 L-7,-7"/></g>'
+      +'<circle cx="0" cy="-11" r="2.6" fill="#ffe08a"/>',    candy: '<circle cx="-3" cy="0" r="6" fill="#f78fb3"/><circle cx="3" cy="0" r="6" fill="#f6b93b"/><circle cx="0" cy="-4" r="6" fill="#8fc97e"/><circle cx="-1" cy="-6" r="1.6" fill="#fff" opacity=".7"/>',
     cake: '<path d="M-11,4 L11,4 L9,12 L-9,12 Z" fill="#f0cd94"/><rect x="-12" y="0" width="24" height="6" rx="3" fill="#fffaf5"/><rect x="-12" y="0" width="24" height="2.6" rx="1.3" fill="#f7a8bd"/><rect x="-1" y="-9" width="2.2" height="10" fill="#f6b93b"/><circle cx="0" cy="-11" r="2.4" fill="#f0a832"/>',
     duck: '<ellipse cx="0" cy="4" rx="10" ry="7" fill="#f6d365"/><circle cx="-5" cy="-5" r="5.4" fill="#ffe08a"/><path d="M-10,-5 L-14,-3 L-10,-2 Z" fill="#f08a3c"/><circle cx="-6.6" cy="-6" r="1.1" fill="#4a3327"/><path d="M6,-2 C10,-6 12,-8 13,-7" stroke="#e8b96a" stroke-width="2" fill="none" stroke-linecap="round"/>',
     cat: '<path d="M-7,-9 L-4,-14 L-1,-9 Z" fill="#c9b79d"/><path d="M7,-9 L4,-14 L1,-9 Z" fill="#c9b79d"/><circle cx="0" cy="-4" r="7" fill="#d9c8ad"/><ellipse cx="0" cy="6" rx="8" ry="6" fill="#c9b79d"/><circle cx="-2.6" cy="-5" r="1.2" fill="#4a4438"/><circle cx="2.6" cy="-5" r="1.2" fill="#4a4438"/><path d="M-2,0 L0,-1 L2,0" stroke="#4a4438" stroke-width="1" fill="none" stroke-linecap="round"/><path d="M-9,-2 L-13,-3 M-9,0 L-13,0 M9,-2 L13,-3 M9,0 L13,0" stroke="#b8a68c" stroke-width="1" stroke-linecap="round"/>',
@@ -576,6 +391,25 @@
         s += '<rect x="' + (-w / 2 + 6) + '" y="' + (h * 0.44) + '" width="' + (w - 12) + '" height="' + (h * 0.16) + '" rx="8" fill="' + c1 + '"/>';
         /* 靠垫 */
         s += '<rect x="' + (-w * 0.3) + '" y="' + (-h * 0.12) + '" width="34" height="30" rx="9" fill="#f7a5ad" transform="rotate(-8 ' + (-w * 0.3) + ' ' + (-h * 0.12) + ')"/>';
+      }
+
+      if (it.t === "roundtable") {
+        /* 一张俯视带透视的大圆桌：桌面是个扁椭圆，下面垂一圈桌裙
+           —— 一家人围坐的时候用它，比长桌更能把画面收在中间 */
+        var _rx = w / 2, _ry = h * 0.30, _kh = h * 0.34;
+        /* 桌裙（圆柱侧面）：底部补一段半椭圆，看着有厚度 */
+        s += '<path d="M' + (-_rx) + ',0 L' + (-_rx) + ',' + _kh +
+             ' A' + _rx + ',' + _ry + ' 0 0 0 ' + _rx + ',' + _kh + ' L' + _rx + ',0 Z" fill="' + c2 + '"/>';
+        /* 裙边的一圈褶子 */
+        s += '<path d="M' + (-_rx) + ',' + _kh + ' A' + _rx + ',' + _ry + ' 0 0 0 ' + _rx + ',' + _kh +
+             '" fill="none" stroke="#fff" stroke-width="2" opacity=".18"/>';
+        /* 桌面 */
+        s += '<ellipse cx="0" cy="0" rx="' + _rx + '" ry="' + _ry + '" fill="' + c1 + '"/>';
+        /* 桌布：里圈一层浅色，边上压一道深色线 */
+        s += '<ellipse cx="0" cy="0" rx="' + (_rx - 8) + '" ry="' + (_ry - 5) + '" fill="' + c3 + '" opacity=".92"/>';
+        s += '<ellipse cx="0" cy="0" rx="' + (_rx - 8) + '" ry="' + (_ry - 5) + '" fill="none" stroke="' + c2 + '" stroke-width="2" opacity=".45" stroke-dasharray="9 8"/>';
+        /* 高光：桌面左上角一小片 */
+        s += '<ellipse cx="' + (-_rx * 0.42) + '" cy="' + (-_ry * 0.36) + '" rx="' + (_rx * 0.24) + '" ry="' + (_ry * 0.22) + '" fill="#fff" opacity=".28"/>';
       }
 
       if (it.t === "table") {
@@ -795,8 +629,25 @@
     var saved = S.rooms[cfg.id] || {};
     state.talked = saved.talked || {};
     state.acted = saved.acted || {};
+    S.rooms[cfg.id] = saved;
 
     var stage = document.getElementById("room");
+
+    /* 兜底：iPad / 老 Safari 上偶尔量出来是 0（父级高度没算出来），
+       这样整间屋子就"不显示"了。量不到就自己钉在屏幕上撑满。 */
+    (function ensureStage(){
+      var r = stage.getBoundingClientRect();
+      if (r.width < 20 || r.height < 20) {
+        stage.style.position = "fixed";
+        stage.style.left = "0"; stage.style.top = "0";
+        stage.style.width = "100vw"; stage.style.height = "100vh";
+        stage.style.maxWidth = "none";
+        var wrap = stage.parentNode;
+        if (wrap && wrap.classList && wrap.classList.contains("room-wrap")) {
+          wrap.style.width = "100vw"; wrap.style.height = "100vh";
+        }
+      }
+    })();
 
     /* —— 先算视口：横屏就是 1000×700；竖屏换成更窄更高的取景框 —— */
     var view = { cw: 1000, ch: 700, cx: 0, cy: 0, squeeze: 1 };
@@ -808,7 +659,9 @@
            再按舞台宽高比给出视口高度，地板线放在 62% —— 上下都刚好 */
         var ch3 = 1000 / ar;
         var cy3 = 434 - ch3 * 0.62;
-        cy3 = Math.max(-300, Math.min(700 - ch3, cy3));
+        /* 让地板线稳稳落在画面 62%，别再把人推到顶上留一大片空地板；
+           只保证视口不跑到场景下沿之外（700 是场景底） */
+        cy3 = Math.max(700 - ch3, Math.min(0, cy3));
         view = { cw: 1000, ch: ch3, cx: 0, cy: cy3, squeeze: 0.62 };
       }
     } catch (e2) {}
@@ -1054,16 +907,87 @@
       el.classList.add("pop");
     }
 
+    /* ===================================================================
+       任务层：有的屋子不只想让孩子「点一遍」，还想让她真做成一件小事
+       -------------------------------------------------------------------
+       这里只提供两样东西：一个能摆东西的层、一条顶上的提示。
+       摆什么、怎么算完成，由每个页面自己决定——
+       家的摆碗、幼儿园的分积木、消防站的找装备，玩法完全不一样。
+       =================================================================== */
+    function taskLayer(opt) {
+      opt = opt || {};
+      var layer = document.createElement("div");
+      layer.className = "task-layer";
+      stage.appendChild(layer);
+
+      var bar = document.createElement("div");
+      bar.className = "task-bar";
+      bar.innerHTML = '<span class="task-txt"></span><span class="task-n"></span>';
+      document.body.appendChild(bar);
+      var txtEl = bar.querySelector(".task-txt");
+      var numEl = bar.querySelector(".task-n");
+
+      /* 任务摆在地上的时候，说话气泡会盖住它们——那就把气泡抬起来 */
+      if (opt.lift) document.body.classList.add("has-task");
+
+      var api = {
+        node: layer,
+        /* 顶上的那句话：告诉孩子现在要做什么 */
+        hint: function (t) {
+          txtEl.textContent = t || "";
+          bar.style.opacity = t ? "1" : "0";
+        },
+        /* 右下角的「还差几个」 */
+        count: function (a, b) {
+          numEl.textContent = (b == null) ? "" : (a + " / " + b);
+        },
+        /* 把一个可点的东西放到场景坐标上（和家具用同一套投影）。
+           传 screen=true 就按屏幕百分比摆——竖屏取景把地面压得很扁，
+           那时候排一排东西，必须直接对着屏幕算。 */
+        put: function (el, x, y, screen) {
+          el.classList.add("titem");
+          el.style.left = (screen ? x : vx(x)) + "%";
+          el.style.top = (screen ? y : projY(y)) + "%";
+          layer.appendChild(el);
+          return el;
+        },
+        /* 让它慢慢挪到别处（放进去的那一下） */
+        move: function (el, x, y, screen) {
+          el.style.left = (screen ? x : vx(x)) + "%";
+          el.style.top = (screen ? y : projY(y)) + "%";
+          return el;
+        },
+        clear: function () {
+          if (layer.parentNode) layer.parentNode.removeChild(layer);
+          if (bar.parentNode) bar.parentNode.removeChild(bar);
+          document.body.classList.remove("has-task");
+        }
+      };
+      api.hint(opt.hint || "");
+      if (opt.count) api.count(opt.count[0], opt.count[1]);
+      return api;
+    }
+
+    /* 页面把「任务做完了没有」交上来；没交的屋子，就是原来那套 */
+    var taskFn = null;
+    function setTask(fn) { taskFn = fn || null; }
+
     function checkAll() {
       var talkDone = cfg.people.every(function (p) { return (state.talked[p.id] || 0) > 0; });
       var thingDone = (cfg.things || []).every(function (t) { return state.acted[t.id]; });
-      if (talkDone && thingDone && !S.rooms[cfg.id].done) {
+      var already = !!S.rooms[cfg.id].done;
+      /* 第一次来，得先把这件小事做完；做完了之后随便逛，不再拦 */
+      var taskDone = already || !taskFn || !!taskFn();
+      if (talkDone && thingDone && taskDone && !already) {
         S.rooms[cfg.id].done = true;
         save();
         Sound.blip("good");
         setTimeout(function () {
           var panel = document.getElementById("roomDone");
           if (panel) panel.classList.add("show");
+          /* 面板出来了，顶上那条任务提示就别再占着地方 */
+          var bar = document.querySelector(".task-bar");
+          if (bar) bar.style.opacity = "0";
           say("这间屋子你转完啦。回去的路上小心一点。");
         }, 600);
       }
@@ -1072,7 +996,9 @@
     /* 开始 */
     function begin(quiet) {
       S.sound = S.sound !== false;
-      if (S.sound) Sound.start();
+      if (S.music === undefined) S.music = S.sound;
+      if (S.sfx === undefined) S.sfx = true;
+      if (S.music !== false) Sound.start();
       if (!quiet) Sound.blip("ok");
       var cover = document.getElementById("cover");
       if (cover) {
@@ -1110,16 +1036,33 @@
     });
 
     /* 转屏：取景框是按进来那一刻的宽高比算的，横竖一换就得重排。
-       进度都存在存档里，所以直接重新载入最省事，也不会丢东西。 */
+       进度都存在存档里，所以重新载入最省事，也不会丢东西。
+       —— 但这里必须非常小心：iPad 的 Safari 在加载时窗口尺寸会变好几次
+          （地址栏收起、工具栏重排），以前只要方向判定变一下就 reload，
+          结果老 iPad 上会自己刷个不停、页面一直空白。
+          现在只认「方向真的变了」，而且同一次会话只刷一次；
+          file:// 双击打开时干脆不刷，交给 CSS 自己缩放。 */
     (function () {
-      var ar0 = window.innerWidth / Math.max(1, window.innerHeight);
-      var tmr = null;
+      var KEYD = "cc-room-dir";
+      var tmr = null, done = false;
+      function dirNow() {
+        return (window.innerWidth / Math.max(1, window.innerHeight)) > 1 ? "L" : "P";
+      }
+      var startDir = dirNow();
+      try { sessionStorage.setItem(KEYD, startDir); } catch (e) {}
+
       function onTurn() {
+        if (done) return;
         clearTimeout(tmr);
         tmr = setTimeout(function () {
-          var ar1 = window.innerWidth / Math.max(1, window.innerHeight);
-          if ((ar0 > 1) !== (ar1 > 1)) location.href = location.pathname + "?from=door";
-        }, 320);
+          var now = dirNow();
+          if (now === startDir) return;              /* 方向没变，别刷 */
+          done = true;
+          try { sessionStorage.setItem(KEYD, now); } catch (e) {}
+          /* file:// 下带查询串有的浏览器会当作文件名，打不开；这种就不刷了 */
+          if (location.protocol === "file:") return;
+          location.replace(location.pathname + location.search);
+        }, 420);
       }
       window.addEventListener("orientationchange", onTurn);
       window.addEventListener("resize", onTurn);
@@ -1128,6 +1071,7 @@
     return {
       S: S, say: say, Sound: Sound, Voice: Voice, art: art,
       Say: say, Save: save,           /* 页面里买完东西要立刻存盘 */
+      setTask: setTask, Check: checkAll, TaskLayer: taskLayer,
       /* 场景 y%（设计坐标）→ 视口 y%，页面自己摆物件时要用同一套投影，不然竖屏会漂 */
       projY: projY, vx: vx,
       CloseSheet: function(){ var m = document.getElementById("mask"); if (m) m.classList.remove("show"); }

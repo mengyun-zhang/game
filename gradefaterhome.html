@@ -14,7 +14,7 @@
     box-shadow:inset 0 0 0 6px #3a4356, 0 10px 24px rgba(20,20,30,.3);
   }
   .tv-screen{
-    position:relative;aspect-ratio:16/9;overflow:hidden;
+    position:relative;height:0;padding-top:56.25%;overflow:hidden;
     background:linear-gradient(#a8dcf5 0%, #cfeafd 58%, #bfe0a4 58%, #a6d18c 100%);
   }
   .tv-sun{position:absolute;right:12%;top:10%;width:16%;aspect-ratio:1;border-radius:50%;
@@ -144,6 +144,19 @@
   .soup-row{display:flex;justify-content:center;margin:4px 0 6px}
   .soup-txt{text-align:center;font-size:14px;color:#5a5347;line-height:1.65}
   .soup-txt b{color:#c9705f}
+  /* 外公请你喝汤时，头顶飘起来的一碗 */
+  .sup-bubble{
+    position:fixed;left:50%;top:52%;transform:translate(-50%,0);
+    z-index:70;pointer-events:none;
+    animation:supUp 2.6s ease-out forwards;
+  }
+  .sup-bubble svg{width:96px;height:96px;filter:drop-shadow(0 6px 12px rgba(80,60,40,.18))}
+  @keyframes supUp{
+    0%{opacity:0;transform:translate(-50%,10px) scale(.8)}
+    22%{opacity:1;transform:translate(-50%,-6px) scale(1)}
+    70%{opacity:1;transform:translate(-50%,-26px) scale(1)}
+    100%{opacity:0;transform:translate(-50%,-52px) scale(.96)}
+  }
 </style>
 </head>
 <body>
@@ -172,13 +185,13 @@
 
 <div class="room-done" id="roomDone">
   <h2>在外公家吃过饭啦</h2>
-  <p>萝卜汤喝完了，红包也收到了。<br>下次再来陪外公吃饭。</p>
+  <p>帮外公拔完了萝卜。<br>下次再来陪外公吃饭。</p>
   <button class="btn primary" onclick="location.href='index.html'">回小镇</button>
 </div>
 
 <div class="hongbao" id="hongbao">
   <div class="hb-top">外 公 的 红 包</div>
-  <div class="hb-num" id="hbNum">100</div>
+  <div class="hb-num" id="hbNum">6</div>
   <div class="hb-unit">颗 星 星</div>
   <div class="hb-seal">福</div>
 </div>
@@ -193,6 +206,7 @@
   </div>
 </div>
 
+<script src="ui.js"></script>
 <script src="room.js"></script>
 <script>
 document.getElementById("coverArt").innerHTML =
@@ -255,12 +269,12 @@ var NAR = (window.innerWidth / Math.max(1, window.innerHeight)) < 1;
 function ux(v){ return NAR ? (50 + (v - 50) / 0.62) : v; }
 var SC_TVX = NAR ? 26 : 24;      /* 电视靠左墙 */
 var SC_WX  = NAR ? 84 : 80;      /* 窗靠右 */
-var SC_TPX = ux(44);              /* 餐桌 */
+var SC_TPX = ux(50);              /* 大圆桌摆在正中间 */
 
 var room = Room.init({
   id: "gong",
   name: "外公外婆家",
-  avoid: [{ x1: 20, x2: 72, y1: 66, y2: 84 }],
+  avoid: [{ x1: 16, x2: 84, y1: 64, y2: 84 }],
   intro: "外公外婆家。外公说：吃饭了没有？先坐下，我给你盛碗萝卜汤。",
   scene: {
     wall: "#f7e9d6", floor: "#e0c9a8", base: "#c9ad8b",
@@ -274,10 +288,8 @@ var room = Room.init({
       { t: "frame", x: 66, y: 30, w: 10, h: 12, c1: "#f7a8bd", c2: "#d9b48f", motif: "heart" },
       /* 吊灯 */
       { t: "lamp", x: 50, y: 12, w: 12, h: 14 },
-      /* 餐桌：压到画面下沿，只露出桌沿和一桌菜，人是站在桌后面的 */
-      { t: "table", x: SC_TPX, y: 80, w: 58, h: 18, c1: "#d9a25c", c2: "#b3803f", c3: "#e8c08a" },
-      /* 沙发 */
-      { t: "sofa", x: 88, y: 72, w: 18, h: 17, c1: "#8fa9c8", c2: "#6f8bab" },
+      /* 大圆桌：一家人围着坐，桌子居中，人排在桌子两侧和后面 */
+      { t: "roundtable", x: SC_TPX, y: NAR ? 82 : 79, w: NAR ? 90 : 64, h: NAR ? 34 : 21, c1: "#d9a25c", c2: "#b3803f", c3: "#f6e7cd" },
       /* 盆栽 */
       { t: "plant", x: 6, y: 80, w: 9, h: 15 },
       /* 地毯 */
@@ -286,8 +298,8 @@ var room = Room.init({
   },
   people: [
     {
-      id: "waigong", name: "外公", art: "grandpa", voice: "grandpa", x: ux(22), y: 62, size: 108,
-      roam: { x1: ux(22) - 5, x2: ux(22) + 5, y1: 61, y2: 65 },
+      id: "waigong", name: "外公", art: "grandpa", voice: "grandpa", x: ux(19), y: 61, size: NAR ? 106 : 100,
+      roam: { x1: ux(17) - 4, x2: ux(17) + 4, y1: 60, y2: 63 },
       talk: [
         "回来啦？先坐下，萝卜汤刚熬好。",
         "地里的萝卜今年长得特别好，一个个都胖。",
@@ -301,8 +313,8 @@ var room = Room.init({
       ]
     },
     {
-      id: "waipo", name: "外婆", art: "grandma", voice: "grandma", x: ux(40), y: 63, size: 104,
-      roam: { x1: ux(40) - 5, x2: ux(40) + 5, y1: 62, y2: 66 },
+      id: "waipo", name: "外婆", art: "grandma", voice: "grandma", x: ux(37), y: 59.5, size: NAR ? 102 : 96,
+      roam: { x1: ux(37) - 4, x2: ux(37) + 4, y1: 58.5, y2: 61.5 },
       talk: [
         "外婆给你挑了一块最嫩的。",
         "汤里放了萝卜和排骨，甜着呢。",
@@ -316,8 +328,8 @@ var room = Room.init({
       ]
     },
     {
-      id: "baba", name: "爸爸", art: "dad", voice: "dad", x: ux(58), y: 62, size: 108,
-      roam: { x1: ux(58) - 5, x2: ux(58) + 5, y1: 61, y2: 65 },
+      id: "baba", name: "爸爸", art: "dad", voice: "dad", x: ux(63), y: 59.5, size: NAR ? 106 : 100,
+      roam: { x1: ux(63) - 4, x2: ux(63) + 4, y1: 58.5, y2: 61.5 },
       talk: [
         "外公的汤，一年比一年好喝。",
         "吃完饭我陪你去院子里走走。",
@@ -331,8 +343,8 @@ var room = Room.init({
       ]
     },
     {
-      id: "jiujiu", name: "舅舅", art: "uncle", voice: "uncle", x: ux(76), y: 64, size: 102,
-      roam: { x1: ux(76) - 5, x2: ux(76) + 5, y1: 63, y2: 67 },
+      id: "jiujiu", name: "舅舅", art: "uncle", voice: "uncle", x: ux(81), y: 61, size: NAR ? 102 : 96,
+      roam: { x1: ux(83) - 4, x2: ux(83) + 4, y1: 60, y2: 63 },
       talk: [
         "我小时候也爱喝这个汤。",
         "吃完饭舅舅陪你看电视。",
@@ -346,8 +358,8 @@ var room = Room.init({
       ]
     },
     {
-      id: "mama", name: "妈妈", art: "mom", voice: "mom", x: ux(30), y: 71.5, size: 104,
-      roam: { x1: ux(30) - 5, x2: ux(30) + 5, y1: 70.5, y2: 73.5 },
+      id: "mama", name: "妈妈", art: "mom", voice: "mom", x: ux(8), y: 72, size: NAR ? 108 : 98,
+      roam: { x1: ux(8) - 3, x2: ux(8) + 3, y1: 71, y2: 74 },
       talk: [
         "谢谢外公，外婆也坐下来吃吧。",
         "她今天在镇上玩了一整天。",
@@ -361,8 +373,8 @@ var room = Room.init({
       ]
     },
     {
-      id: "cheng", name: "澄澄", art: "girl", voice: "girl", x: ux(47), y: 72.5, size: 96,
-      roam: { x1: ux(47) - 5, x2: ux(47) + 5, y1: 71.5, y2: 74.5 },
+      id: "cheng", name: "澄澄", art: "girl", voice: "girl", x: ux(92), y: 72, size: NAR ? 100 : 90,
+      roam: { x1: ux(92) - 3, x2: ux(92) + 3, y1: 71, y2: 74 },
       talk: [
         "外公，我还要一碗！",
         "这个萝卜是甜的吗？",
@@ -399,25 +411,25 @@ var room = Room.init({
     {
       id: "soup", name: "萝卜汤",
       html: dishSvg("soup"),
-      x: SC_TPX - 6,  y: 77.2,
+      x: SC_TPX - 26, y: NAR ? 80.2 : 77.6,
       act: function(el, say){ say("外公的萝卜汤，热气腾腾的。"); openSoup(); }
     },
     {
       id: "fish", name: "红烧鱼",
       html: dishSvg("fish"),
-      x: SC_TPX + 6,  y: 77.2,
+      x: SC_TPX - 9,  y: NAR ? 81.2 : 78.6,
       act: function(el, say){ say("还有一条鱼，外公说吃鱼聪明。"); openSoup(); }
     },
     {
       id: "meat", name: "红烧肉",
       html: dishSvg("meat"),
-      x: SC_TPX + 18, y: 76.8,
+      x: SC_TPX + 9,  y: NAR ? 81.2 : 78.6,
       act: function(el, say){ say("红烧肉炖得烂烂的，一抿就化。"); openSoup(); }
     },
     {
       id: "veg", name: "青菜",
       html: dishSvg("veggie"),
-      x: SC_TPX - 18, y: 76.8,
+      x: SC_TPX + 26, y: NAR ? 80.2 : 77.6,
       act: function(el, say){ say("还有一盘青菜，外公自己种的。"); openSoup(); }
     }
   ]
@@ -651,35 +663,60 @@ function dropIn(el){
 function finishGame(){
   var S = room.S;
   var first = !(S.gong && S.gong.red);
-  var got = first ? 100 : 5;
 
-  openSheet(
-    '<button class="close">✕</button>' +
-    '<h2>' + (first ? "外公给你一个红包" : "外公又给你一颗糖") + '</h2>' +
-    '<p class="sub">' + (first
-      ? "五根萝卜全拔出来了，外公笑得眼睛都眯起来了。<br>他从口袋里掏出一个红包，塞到你手里。"
-      : "萝卜拔得真利索。外公说红包上次给过啦，这次给你一颗水果糖。") + '</p>' +
-    '<div class="soup-row">' + Room.art("carrot", 96) + '</div>' +
-    '<div class="soup-txt">收下 <b>' + got + '</b> 颗星星</div>' +
-    '<div class="row"><button class="btn warm" id="hbTake">收下红包</button></div>'
-  );
-  document.getElementById("hbTake").onclick = function(){
-    closeSheet();
-    /* 点了「收下」才真的进账，孩子能看见星星涨上去 */
-    S.gong = S.gong || {};
-    S.gong.red = true;
-    S.stars = (S.stars || 0) + got;
-    room.Save();
-    paintStar();
-    showHongbao(got);
-    if (first){
+  if (first){
+    /* —— 第一次：外公给红包，6 颗星星 —— */
+    openSheet(
+      '<button class="close">✕</button>' +
+      '<h2>外公给你一个红包</h2>' +
+      '<p class="sub">五根萝卜全拔出来了，外公笑得眼睛都眯起来了。<br>他从口袋里掏出一个红包，塞到你手里。</p>' +
+      '<div class="soup-row">' + Room.art("carrot", 88) + '</div>' +
+      '<div class="soup-txt">收下 <b>6</b> 颗星星</div>' +
+      '<div class="row"><button class="btn warm" id="hbTake">收下红包</button></div>'
+    );
+    document.getElementById("hbTake").onclick = function(){
+      closeSheet();
+      /* 点了「收下」才真的进账，孩子能看见星星涨上去 */
+      S.gong = S.gong || {};
+      S.gong.red = true;
+      S.stars = (S.stars || 0) + 6;
+      room.Save();
+      paintStar();
+      showHongbao(6);
       setTimeout(function(){
         var d = document.getElementById("roomDone");
         if (d) d.classList.add("show");
       }, 2600);
-    }
+    };
+    room.Say("全拔完啦，外公给你一个红包。", { who:"grandpa" });
+    return;
+  }
+
+  /* —— 之后再来：红包给过了，外公改请你喝萝卜汤 —— */
+  openSheet(
+    '<button class="close">✕</button>' +
+    '<h2>外公熬了一锅萝卜汤</h2>' +
+    '<p class="sub">萝卜拔得真利索。外公说："红包上回给过啦，<br>今天留下来，喝碗汤再走。"</p>' +
+    '<div class="soup-row">' + dishSvg("soup") + '</div>' +
+    '<div class="soup-txt">热腾腾的，喝一口，<br>从喉咙一直暖到肚子里。</div>' +
+    '<div class="row"><button class="btn warm" id="hbSoup">喝一碗</button></div>'
+  );
+  document.getElementById("hbSoup").onclick = function(){
+    closeSheet();
+    room.Say("慢点喝，锅里还有。", { who:"grandpa" });
+    /* 头顶飘一碗汤，做个「喝了」的反馈 */
+    var el = document.createElement("div");
+    el.className = "sup-bubble";
+    el.innerHTML = dishSvg("soup");
+    document.body.appendChild(el);
+    setTimeout(function(){ if (el.parentNode) el.parentNode.removeChild(el); }, 2600);
+    room.Sound.blip("good");
+    setTimeout(function(){
+      var d = document.getElementById("roomDone");
+      if (d) d.classList.add("show");
+    }, 2400);
   };
-  room.Say(first ? "全拔完啦，外公给你一个红包。" : "全拔完啦，外公给你一颗糖。", { who:"grandpa" });
+  room.Say("全拔完啦。外公说，喝碗汤再走。", { who:"grandpa" });
 }
 
 function showHongbao(n){

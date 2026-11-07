@@ -239,3 +239,55 @@ body{
   .room-done p{font-size:15px}
   .peep .idleb{font-size:13px;padding:5px 12px}
 }
+
+/* ---------- 任务层：进屋以后要做的那件小事 ----------
+   提示条贴在 hud 下面；可点的小东西直接落在场景里，和家具用同一套投影 */
+.task-layer{position:absolute;top:0;right:0;bottom:0;left:0;pointer-events:none;z-index:6}
+
+.task-bar{
+  position:fixed;left:50%;top:calc(84px + env(safe-area-inset-top));
+  transform:translateX(-50%);z-index:32;
+  display:flex;align-items:center;gap:10px;max-width:min(520px,90vw);
+  background:rgba(255,253,248,.97);border:2px solid #f0e2c8;border-radius:999px;
+  padding:8px 18px;box-shadow:0 8px 20px rgba(63,58,50,.14);
+  font-size:13.5px;line-height:1.4;color:#4a4438;text-align:center;
+  opacity:0;transition:opacity .25s;pointer-events:none;
+}
+.task-bar .task-txt{flex:1}
+.task-bar .task-n{flex:0 0 auto;font-weight:800;color:#c98a2a;letter-spacing:.5px}
+.task-bar .task-n:empty{display:none}
+
+.titem{
+  position:absolute;transform:translate(-50%,-50%);
+  border:none;background:transparent;padding:2px;cursor:pointer;
+  pointer-events:auto;border-radius:14px;
+  transition:left .42s cubic-bezier(.34,1.26,.44,1),top .42s cubic-bezier(.34,1.26,.44,1),transform .16s,opacity .3s;
+}
+.titem:active{transform:translate(-50%,-50%) scale(.92)}
+.titem svg{display:block;filter:drop-shadow(0 4px 7px rgba(70,60,45,.18))}
+/* 选中：放大 + 一圈金边，孩子能看出「现在拿的是这个」 */
+.titem.hold{transform:translate(-50%,-50%) scale(1.2);z-index:2}
+.titem.hold svg{filter:drop-shadow(0 0 0 3px #f5b83d) drop-shadow(0 6px 10px rgba(70,60,45,.22))}
+.titem.gone{opacity:0;transform:translate(-50%,-50%) scale(.55);pointer-events:none}
+.titem.settled{pointer-events:none}
+/* 放进筐里的积木加一圈白边，不然和同色的筐糊成一片 */
+.titem.settled svg{filter:drop-shadow(0 0 0 2px #fffdf8) drop-shadow(0 4px 6px rgba(70,60,45,.22))}
+.titem.shake{animation:tshake .34s}
+@keyframes tshake{0%,100%{transform:translate(-50%,-50%)}30%{transform:translate(-56%,-50%)}70%{transform:translate(-44%,-50%)}}
+
+/* 有任务的时候，说话气泡挪到上面去。
+   任务是要动手的，对话框压在下面会正好盖住要点的地方；
+   挪到墙面那一块，反正那里本来就空着。 */
+body.has-task .speech{
+  bottom:auto;top:calc(166px + env(safe-area-inset-top));
+  transform:translateX(-50%) translateY(-6px);
+}
+body.has-task .speech.show{transform:translateX(-50%) translateY(0)}
+
+@media (max-width:420px){
+  .task-bar{font-size:12.5px;padding:7px 14px;gap:8px}
+}
+@media (min-width:641px) and (max-width:1200px){
+  .task-bar{font-size:15px;padding:10px 22px;top:calc(92px + env(safe-area-inset-top))}
+  body.has-task .speech{top:calc(176px + env(safe-area-inset-top))}
+}

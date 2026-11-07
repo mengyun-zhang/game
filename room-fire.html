@@ -16,7 +16,7 @@
 <div class="hud">
   <div class="brand">
     <h1>消防站</h1>
-    <p>点一点叔叔和小狗</p>
+    <p>点一点人，帮叔叔装车</p>
   </div>
   <div class="tools">
     <button id="btnBack" title="回小镇" aria-label="回小镇">
@@ -29,7 +29,7 @@
 
 <div class="room-done" id="roomDone">
   <h2>消防站转完啦</h2>
-  <p>叔叔和小狗都跟你说过话了，<br>装备也认识过了。回小镇吧。</p>
+  <p>说过话了，三样装备也装上车了。<br>回小镇吧。</p>
   <button class="btn primary" onclick="location.href='index.html'">回小镇</button>
 </div>
 
@@ -43,6 +43,7 @@
   </div>
 </div>
 
+<script src="ui.js"></script>
 <script src="room.js"></script>
 <script>
 document.getElementById("coverArt").innerHTML =
@@ -135,22 +136,85 @@ var room = Room.init({
         el.style.transform = "translate(-50%,-100%) translateY(-30px) rotate(-10deg)";
         setTimeout(function(){ el.style.transform = ""; }, 1100);
         say("这顶红色的头盔很结实，也很轻，能护住头。");
+        pack("helmet");
       }
     },
     {
       id: "cone", name: "路锥", art: "cone", x: 26, y: 78, size: 88,
       act: function(el, say){
         say("橙色的路锥放在地上，是提醒别人这里要小心。");
+        pack("cone");
       }
     },
     {
       id: "hose", name: "水带", art: "hose", x: 87, y: 54, size: 96,
       act: function(el, say){
         say("这条水带很长很长，能一直拉到火场那边。");
+        pack("hose");
       }
     }
   ]
 });
+
+/* ===================================================================
+   进屋的第一件小事：帮消防员装车
+   -------------------------------------------------------------------
+   要出车了，得把三样东西装上去：头盔、水带、路锥。
+   点对了，东西上面会打一个勾；点错了不扣分，只是再说一遍要找什么。
+   这三样本来就是屋里的东西，不用另画——找到它们，就算帮上忙了。
+   =================================================================== */
+var pack = (function(){
+  var fire = room.S.rooms.fire;
+  if (fire && fire.done) return function(){};    /* 以前装过了 */
+
+  var NEED = [
+    { id: "helmet", name: "头盔", x: 13, y: 54 },
+    { id: "cone",   name: "路锥", x: 26, y: 78 },
+    { id: "hose",   name: "水带", x: 87, y: 54 }
+  ];
+  var tl = room.TaskLayer({ hint: "要出车了。帮他找三样：头盔、水带、路锥。", count: [0, 3] });
+  var got = {};
+  /* 三样没装齐，就先别弹「转完啦」 */
+  room.setTask(function(){ return Object.keys(got).length >= 3; });
+
+  function tickSVG(){
+    return '<svg viewBox="-12 -12 24 24" width="26" height="26" style="display:block">' +
+      '<circle cx="0" cy="0" r="10" fill="#4f9e6b"/>' +
+      '<path d="M-4.6,0.4 L-1.4,3.6 L4.8,-3" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>' +
+    '</svg>';
+  }
+
+  return function(id){
+    if (got[id]) return;
+    var item = NEED.filter(function(n){ return n.id === id; })[0];
+    if (!item) return;
+    got[id] = true;
+    var n = Object.keys(got).length;
+    tl.count(n, 3);
+    var mark = document.createElement("div");
+    mark.className = "titem";
+    mark.style.pointerEvents = "none";
+    mark.innerHTML = tickSVG();
+    var DX = (window.innerWidth / Math.max(1, window.innerHeight)) < 1 ? 5.6 : 3.6;
+    tl.put(mark, item.x + DX, item.y - 10);
+    mark.animate(
+      [{ transform: "translate(-50%,-50%) scale(.2)", opacity: 0 },
+       { transform: "translate(-50%,-50%) scale(1.15)", opacity: 1 },
+       { transform: "translate(-50%,-50%) scale(1)", opacity: 1 }],
+      { duration: 380, easing: "ease-out" }
+    );
+    room.Sound.blip("ok");
+    if (n === 3){
+      tl.hint("三样都装好啦。去看看消防车，再跟叔叔说说话吧。");
+      room.Say("头盔、水带、路锥，三样都装好了。消防车可以出发啦。");
+      setTimeout(function(){ tl.hint(""); }, 2800);
+      room.Check();
+      return;
+    }
+    var left = NEED.filter(function(x){ return !got[x.id]; }).map(function(x){ return x.name; });
+    tl.hint("装好一样。" + (left.length ? "还差：" + left.join("、") + "。" : ""));
+  };
+})();
 
 var _go=document.getElementById("goBtn");
 if(_go) _go.addEventListener("click", function(){

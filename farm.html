@@ -310,34 +310,21 @@
 
 <div class="mask" id="mask"><div class="sheet" id="sheet"></div></div>
 
+<script src="ui.js"></script>
 <script src="room.js"></script>
 <script>
 (function(){
   var Room = window.Room;
   var S = Room.load();
 
-  /* ---------------- 商品表（和 index.html 保持一致） ---------------- */
-  var ITEMS = [
-    { id:"apple",  name:"苹果", cost:2, cat:"food" },
-    { id:"bread",  name:"面包", cost:2, cat:"food" },
-    { id:"candy",  name:"糖果", cost:3, cat:"food" },
-    { id:"balloon",name:"气球", cost:3, cat:"toy" },
-    { id:"bubble", name:"泡泡", cost:2, cat:"toy" },
-    { id:"teddy",  name:"小熊", cost:5, cat:"toy" },
-    { id:"kite",   name:"风筝", cost:6, cat:"toy" },
-    { id:"seed_rose",   name:"玫瑰花种子", cost:3, cat:"seed", grow:"rose",   short:"玫瑰" },
-    { id:"seed_potato", name:"土豆种子",   cost:2, cat:"seed", grow:"potato", short:"土豆" },
-    { id:"seed_carrot", name:"萝卜种子",   cost:2, cat:"seed", grow:"carrot", short:"萝卜" },
-    { id:"seed_tomato", name:"番茄种子",   cost:3, cat:"seed", grow:"tomato", short:"番茄" },
-    { id:"seed_corn",   name:"玉米种子",   cost:4, cat:"seed", grow:"corn",   short:"玉米" },
-    { id:"pet_chick", name:"小鸡", cost:4, cat:"pet", grow:"chick", short:"小鸡" },
-    { id:"pet_pig",   name:"小猪", cost:5, cat:"pet", grow:"pig",   short:"小猪" },
-    { id:"pet_duck",  name:"小鸭", cost:4, cat:"pet", grow:"duck",  short:"小鸭" }
-  ];
-  function byId(id){ for (var i=0;i<ITEMS.length;i++) if (ITEMS[i].id===id) return ITEMS[i]; return null; }
-  function sellPrice(it){ return Math.round(it.cost * 3); }
-  function giftPrice(it){ return Math.round(it.cost * 5); }
-  function itemArt(it, size){ return it && it.grow ? Room.art(it.grow, size) : Room.art(it ? it.id : "star", size); }
+  /* ---------------- 商品表：直接取公共层那份 ----------------
+     以前农场自己抄了一份，只有种子和幼崽；价格一改就得跟着改三处。
+     现在种什么、卖多少钱、送人回多少礼，全站只有一处在算。 */
+  var ITEMS = CC.itemsOf("seed").concat(CC.itemsOf("pet"));
+  var byId = CC.itemById;
+  function sellPrice(it){ return CC.sellPrice(it); }
+  function giftPrice(it){ return CC.giftPrice(it); }
+  function itemArt(it, size){ return Room.art(CC.itemGrow(it), size); }
 
   /* ---------------- 存档 ---------------- */
   S.farm = S.farm || { plots: [] };
@@ -697,7 +684,7 @@
     Room.save(); render(); closeSheet();
     Sound.blip("good");
     floatNum("+" + gp + " ★", i);
-    say("你把" + it.short + "送给了" + folk.name + "，" + folk.name + "开心得直点头。愿意分享的人，星星也会多一些。");
+    say("你把" + it.short + "送给了" + folk.name + "，" + folk.name + "开心得直点头，还回送你一份小礼物。");
     Voice.say("你把" + it.short + "送给了" + folk.name + "。愿意分享，真好。");
   }
 

@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>故事屋 · 澄澄的小镇</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --bg:#f4eddd; --card:#fffdf7; --ink:#3b352c; --muted:#877f6e;
+  --line:#e8e0cd; --accent:#4f7a5e; --accent-soft:#e8f2ea;
+  --gold:#e9a52e; --seal:#c0563f; --paper:#faf6ea;
+  --shadow:0 6px 18px rgba(59,53,44,.10);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+button{font-family:inherit;touch-action:manipulation}
+html,body{height:100%;margin:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--ink);overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+
+/* ---------- 顶栏 ---------- */
+.hud{
+  position:fixed;left:0;right:0;top:0;z-index:30;pointer-events:none;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 0;
+}
+.brand{background:rgba(255,253,247,.95);border:1px solid var(--line);border-radius:16px;padding:8px 14px;box-shadow:var(--shadow);pointer-events:auto}
+.brand h1{margin:0;font-size:16px;letter-spacing:.5px}
+.brand p{margin:2px 0 0;font-size:11px;color:var(--muted)}
+.tools{display:flex;gap:8px;pointer-events:auto}
+.tools button{
+  height:38px;min-width:38px;padding:0 10px;border-radius:13px;border:1px solid var(--line);
+  background:rgba(255,253,247,.95);color:#5b5548;font-size:13px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:5px;box-shadow:var(--shadow);cursor:pointer;
+}
+.tools button:active{transform:scale(.96)}
+.tools .star-n{color:#b8791c}
+
+/* ---------- 地图 ---------- */
+.mapwrap{position:fixed;top:0;right:0;bottom:0;left:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.map{
+  position:relative;width:100%;max-width:720px;margin:0 auto;
+  background:
+    /* 书页中缝：一条很淡的竖影，像摊开的一本书 */
+    linear-gradient(90deg, transparent 0 49.3%, rgba(176,160,128,.10) 50%, transparent 50.7% 100%),
+    repeating-linear-gradient(180deg, rgba(180,168,140,.09) 0 1px, transparent 1px 34px),
+    linear-gradient(180deg,#fbf6e8 0%,#f6efdd 55%,#f0e7d1 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.55) inset, 0 0 26px rgba(150,132,100,.06) inset;
+}
+.map svg.path{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+
+/* 节点做成小书签：圆角方块 + 左侧书脊 */
+.node{
+  position:absolute;width:76px;height:76px;margin-left:-38px;margin-top:-38px;
+  border-radius:14px 18px 18px 14px;border:none;padding:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#fffdf7,#f3ecdc);
+  box-shadow:0 5px 0 #dbd0b8, 0 8px 16px rgba(59,53,44,.14);
+  transition:transform .14s, box-shadow .14s;
+  font-size:24px;font-weight:800;color:#8b8272;
+}
+.node::before{
+  content:"";position:absolute;left:0;top:0;bottom:0;width:9px;
+  border-radius:14px 0 0 14px;background:#d9cbb0;
+}
+.node:active{transform:translateY(2px)}
+.node .num{position:absolute;font-size:22px;font-weight:800;line-height:1}
+.node .cap{
+  position:absolute;left:50%;top:calc(100% + 11px);transform:translateX(-50%);z-index:3;
+  white-space:nowrap;font-size:12.5px;font-weight:700;color:#6d6555;
+  background:rgba(255,253,247,.92);border-radius:9px;padding:2px 8px;box-shadow:0 2px 6px rgba(59,53,44,.10);
+}
+.node .badge{
+  position:absolute;right:-5px;top:-5px;width:26px;height:26px;border-radius:50%;
+  background:var(--gold);color:#fff;font-size:13px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.16);
+}
+.node.done{background:linear-gradient(180deg,#8fd0a4,#5cb37c);box-shadow:0 5px 0 #3f8f5d, 0 8px 16px rgba(59,53,44,.16)}
+.node.done::before{background:#3f8f5d}
+.node.done .num,.node.done .cap{color:#fff}
+.node.done .cap{background:rgba(88,150,110,.94)}
+.node.now{
+  background:linear-gradient(180deg,#ffe6a8,#f3b83f);color:#8a5a12;
+  box-shadow:0 5px 0 #c98d26, 0 0 0 8px rgba(243,184,63,.20), 0 10px 22px rgba(59,53,44,.18);
+  animation:pulse 1.8s ease-in-out infinite;
+}
+.node.now::before{background:#c98d26}
+.node.now .num{color:#7a4d0d}
+.node.now .cap{background:#f3b83f;color:#fff}
+@keyframes pulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.node.lock{background:linear-gradient(180deg,#efeade,#e2dbcb);box-shadow:0 5px 0 #cfc7b5;color:#b3aa98}
+.node.lock::before{background:#cfc7b5}
+.node.lock .cap{color:#a9a08d}
+.node.lock .num{opacity:.5}
+.node .lockico{position:absolute;bottom:6px;right:6px;width:18px;height:18px;opacity:.7}
+
+.peak{position:absolute;left:0;right:0;display:flex;justify-content:center;pointer-events:none}
+.peak .flag{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  background:rgba(255,253,247,.95);border:1px dashed #d8cfb6;border-radius:18px;
+  padding:10px 18px;box-shadow:var(--shadow);text-align:center;
+}
+.peak b{font-size:13px;color:#6b5540}
+.peak span{font-size:11.5px;color:var(--muted)}
+
+/* ---------- 封面 ---------- */
+.cover{
+  position:fixed;top:0;right:0;bottom:0;left:0;z-index:60;
+  background:linear-gradient(180deg,#faf4e4,#eef3e8);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+  transition:opacity .35s;
+}
+.cover.gone{opacity:0;pointer-events:none}
+.cover .box{max-width:460px;text-align:center}
+.cover h1{font-size:26px;margin:10px 0 8px;letter-spacing:1px}
+.cover p{color:#6d6555;font-size:14px;line-height:1.75;margin:0 0 20px}
+.cover .btn{font-size:16px;padding:14px 34px}
+
+.btn{
+  border:none;border-radius:16px;padding:12px 22px;font-size:15px;font-weight:700;
+  background:#fff;color:#5b5548;border:1px solid var(--line);cursor:pointer;
+  box-shadow:0 4px 0 #e2d9c6;
+}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 #e2d9c6}
+.btn.primary{background:var(--accent);color:#fff;border-color:#3f8a5b;box-shadow:0 4px 0 #3f8a5b}
+.btn.gold{background:var(--gold);color:#fff;border-color:#c98d26;box-shadow:0 4px 0 #c98d26}
+
+/* ---------- 关卡面板 ---------- */
+.mask{
+  position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;
+  background:rgba(45,42,34,.44);display:flex;align-items:flex-end;justify-content:center;
+  padding:0;opacity:0;pointer-events:none;transition:opacity .24s;
+}
+.mask.show{opacity:1;pointer-events:auto}
+.sheet{
+  position:relative;width:100%;max-width:760px;max-height:94vh;
+  background:var(--card);border-radius:26px 26px 0 0;
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+  transform:translateY(24px);transition:transform .26s;overflow:auto;
+  box-shadow:0 -10px 40px rgba(40,34,24,.20);
+}
+.mask.show .sheet{transform:none}
+.sheet .x{
+  position:absolute;right:12px;top:12px;width:34px;height:34px;border:none;border-radius:12px;
+  background:#f1ece0;color:#8a8272;font-size:16px;line-height:1;cursor:pointer;z-index:3;
+}
+.lv-head{padding-right:42px}
+.lv-no{display:inline-block;background:var(--accent-soft);color:#3f7a55;font-size:11.5px;
+  font-weight:800;border-radius:9px;padding:3px 9px;margin-bottom:6px}
+.lv-head h2{margin:0 0 4px;font-size:21px}
+.lv-head p{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
+.lv-stage{margin-top:14px;min-height:260px}
+
+/* 通用件 */
+.tray{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0}
+.tile{
+  width:62px;height:62px;border-radius:16px;border:1px solid var(--line);background:#fff;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:0 3px 0 #e6ddca;transition:transform .12s,box-shadow .12s;position:relative;
+}
+.tile svg{pointer-events:none}
+.tile:active{transform:translateY(2px)}
+.tile.sel{box-shadow:0 0 0 3px #f5b83d, 0 3px 0 #e6ddca;transform:translateY(-3px)}
+.tile.ok{opacity:.32;pointer-events:none}
+.tile.bad{animation:shake .34s}
+.tile.drag{position:fixed;z-index:80;pointer-events:none;transform:scale(1.1) rotate(-3deg);box-shadow:0 12px 26px rgba(0,0,0,.2)}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+.drop{
+  border-radius:18px;border:2px dashed #d5cdb9;background:#fbf8ee;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  padding:10px;min-height:96px;transition:border-color .15s,background .15s,transform .15s;
+}
+.drop .dl{font-size:12.5px;font-weight:700;color:#6d6555}
+.drop.hot{border-color:var(--accent);background:#eaf6ee;transform:scale(1.03)}
+.drop.full{border-style:solid;border-color:#8fd0a4;background:#f0faf3}
+
+.opts{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:16px 0 6px}
+.opt{
+  min-width:76px;height:76px;border-radius:20px;border:1px solid var(--line);background:#fff;
+  font-size:30px;font-weight:800;color:#4a4437;cursor:pointer;box-shadow:0 4px 0 #e6ddca;
+  display:flex;align-items:center;justify-content:center;padding:0 14px;
+}
+.opt:active{transform:translateY(2px);box-shadow:0 2px 0 #e6ddca}
+.opt.ok{background:#e6f4e8;border-color:#8fd0a4}
+.opt.bad{animation:shake .34s}
+
+.sayline{margin-top:12px;text-align:center;font-size:14px;color:#4f6b56;min-height:22px;line-height:1.6}
+
+/* 第 2 关的对话框 */
+.bubble-line{
+  position:relative;margin:6px auto 14px;max-width:400px;
+  background:var(--paper);border:2px solid #e8dfc8;border-radius:20px;
+  padding:18px 20px;text-align:center;
+}
+.bubble-line .who{font-size:22px;font-weight:800;line-height:1.5;color:#3b352c}
+.bubble-line .tip{margin-top:6px;font-size:12.5px;color:var(--muted)}
+.bubble-line::after{
+  content:"";position:absolute;left:50%;bottom:-11px;margin-left:-9px;
+  width:18px;height:18px;background:var(--paper);border-right:2px solid #e8dfc8;border-bottom:2px solid #e8dfc8;
+  transform:rotate(45deg);
+}
+
+/* 第 5 关的字形卡 */
+.glyphcard{
+  width:96px;height:96px;border-radius:16px;background:var(--paper);
+  border:2px solid #e6dcc4;display:flex;align-items:center;justify-content:center;
+}
+.glyphcard svg{width:64px;height:64px}
+
+/* 第 6 关的听故事 */
+.storybox{
+  background:var(--paper);border:2px solid #e8dfc8;border-radius:20px;
+  padding:18px 20px;font-size:15px;line-height:2;color:#4a4437;
+}
+.storybox p{margin:0 0 8px}
+.storybox p:last-child{margin-bottom:0}
+.replay{
+  display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);
+  background:#fff;border-radius:12px;padding:7px 14px;font-size:13px;font-weight:700;
+  color:#5b5548;cursor:pointer;box-shadow:0 3px 0 #e6ddca;
+}
+.replay:active{transform:translateY(2px);box-shadow:0 1px 0 #e6ddca}
+
+/* 完成面板 */
+.donebox{text-align:center;padding:6px 4px 4px}
+.donebox h2{margin:8px 0 6px;font-size:22px}
+.donebox p{margin:0 0 16px;color:var(--muted);font-size:13.5px;line-height:1.75}
+.donebox .row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.starfly{position:fixed;z-index:90;font-size:22px;pointer-events:none;animation:fly 1s ease-out forwards}
+@keyframes fly{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-90px) scale(1.5)}}
+
+@media (min-width:820px){
+  .mask{align-items:center;padding:22px}
+  .sheet{border-radius:26px;max-height:88vh}
+}
+@media (max-width:390px){
+  .node{width:68px;height:68px;margin-left:-34px;margin-top:-34px}
+  .node .cap{font-size:10.5px;padding:2px 6px}
+  .sheet{padding:16px 14px calc(16px + env(safe-area-inset-bottom))}
+  .lv-stage{min-height:220px}
+}
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="brand">
+    <h1>故事屋</h1>
+    <p>小镇图书馆 · 读一读，猜一猜</p>
+  </div>
+  <div class="tools">
+    <button id="btnStar" title="我的星星">
+      <svg width="15" height="15" viewBox="-12 -12 24 24"><path d="M0,-10 L3,-3 L10,-2.6 L4.8,2.2 L6.6,9.6 L0,5.6 L-6.6,9.6 L-4.8,2.2 L-10,-2.6 L-3,-3 Z" fill="#f0a832"/></svg>
+      <span class="star-n" id="starNum">0</span>
+    </button>
+    <button id="btnBack" title="回小镇">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 11 L12 4 L20 11"/><path d="M6.5 10 L6.5 19 L17.5 19 L17.5 10"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div class="mapwrap" id="mapWrap">
+  <div class="map" id="map">
+    <svg class="path" id="pathSvg" preserveAspectRatio="none"></svg>
+    <div id="nodes"></div>
+  </div>
+</div>
+
+<div class="mask" id="mask">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<div class="cover" id="cover">
+  <div class="box">
+    <div id="coverArt" style="display:flex;justify-content:center;align-items:flex-end;gap:4px"></div>
+    <h1>故事屋</h1>
+    <p>图书馆的角落里有一间小屋，<br>里面有会说话的书。</p>
+    <button class="go btn primary" id="goBtn">推门进去</button>
+    <div class="small" style="margin-top:12px;font-size:11.5px;color:#9a9282">点「推门进去」后会有轻轻的声音</div>
+  </div>
+</div>
+
+<script src="ui.js"></script>
+<script src="room.js"></script>
+<script>
+var S = Room.load();
+S.books = S.books || { cleared:{}, times:{} };
+S.books.cleared = S.books.cleared || {};
+S.books.times = S.books.times || {};
+
+/* ------------------------------------------------------------------
+   额外的图形：room.js 里没有的，这里补
+   ------------------------------------------------------------------ */
+var MORE = {
+  /* 象形字：山 */
+  glyphShan:'<path d="M-16,10 L-9,2 L-5,6 L0,-8 L5,6 L9,2 L16,10 Z" fill="none" stroke="#4a4437" stroke-width="3.2" stroke-linejoin="round"/>'
+    + '<path d="M-16,10 L16,10" stroke="#4a4437" stroke-width="3.2" stroke-linecap="round"/>',
+  /* 象形字：日 */
+  glyphRi:'<rect x="-11" y="-12" width="22" height="24" rx="4" fill="none" stroke="#4a4437" stroke-width="3.2"/>'
+    + '<path d="M-11,0 L11,0" stroke="#4a4437" stroke-width="3.2"/>',
+  /* 象形字：月 */
+  glyphYue:'<path d="M6,-14 A14,14 0 1 0 6,14 A11,11 0 0 1 6,-14 Z" fill="none" stroke="#4a4437" stroke-width="3.2" stroke-linejoin="round"/>'
+    + '<path d="M-2,-4 L-2,4" stroke="#4a4437" stroke-width="3" stroke-linecap="round"/>',
+  /* 象形字：水 */
+  glyphShui:'<path d="M0,-14 L0,14" stroke="#4a4437" stroke-width="3.2" stroke-linecap="round"/>'
+    + '<path d="M-9,-8 C-13,-3 -13,4 -9,9" stroke="#4a4437" stroke-width="2.8" fill="none" stroke-linecap="round"/>'
+    + '<path d="M9,-8 C13,-3 13,4 9,9" stroke="#4a4437" stroke-width="2.8" fill="none" stroke-linecap="round"/>'
+    + '<path d="M-4,-2 L-7,4 M4,-2 L7,4" stroke="#4a4437" stroke-width="2.4" stroke-linecap="round"/>',
+
+  /* 山（图） */
+  mountain:'<path d="M-18,10 L-6,-8 L2,2 L8,-6 L18,10 Z" fill="#8fb08a"/>'
+    + '<path d="M-6,-8 L-3,-3 L-9,-3 Z" fill="#fffdf7"/>'
+    + '<path d="M8,-6 L10,-1 L5,-1 Z" fill="#fffdf7"/>',
+  /* 河（图） */
+  river:'<rect x="-18" y="-2" width="36" height="12" rx="6" fill="#a9d0f0"/>'
+    + '<path d="M-14,2 C-9,-2 -4,6 1,2 C6,-2 11,6 16,2" stroke="#fffdf7" stroke-width="2.4" fill="none" stroke-linecap="round"/>'
+    + '<path d="M-8,-12 L-3,-6 L-13,-6 Z" fill="#8fb08a"/><path d="M10,-12 L15,-6 L5,-6 Z" fill="#8fb08a"/>',
+
+  /* 树（高） */
+  treeTall:'<rect x="-3" y="2" width="6" height="14" rx="2" fill="#a8804f"/>'
+    + '<circle cx="0" cy="-6" r="11" fill="#8fc97e"/><circle cx="-7" cy="2" r="8" fill="#7fbf6f"/>'
+    + '<circle cx="7" cy="2" r="8" fill="#7fbf6f"/>',
+  /* 树（矮） */
+  treeShort:'<rect x="-2.5" y="8" width="5" height="8" rx="2" fill="#a8804f"/>'
+    + '<circle cx="0" cy="3" r="8" fill="#8fc97e"/><circle cx="-5" cy="8" r="6" fill="#7fbf6f"/>'
+    + '<circle cx="5" cy="8" r="6" fill="#7fbf6f"/>',
+  /* 雪花 */
+  snow:'<g stroke="#8ec7e8" stroke-width="2.6" stroke-linecap="round">'
+    + '<path d="M0,-13 L0,13"/><path d="M-11,-6.5 L11,6.5"/><path d="M-11,6.5 L11,-6.5"/>'
+    + '<path d="M0,-9 L-3.4,-11.4 M0,-9 L3.4,-11.4 M0,9 L-3.4,11.4 M0,9 L3.4,11.4"/></g>',
+
+  /* 太阳 */
+  sun:'<circle cx="0" cy="0" r="8" fill="#ffd75e"/>'
+    + '<g stroke="#f0b23f" stroke-width="2.4" stroke-linecap="round">'
+    + '<path d="M0,-12 L0,-15.5"/><path d="M0,12 L0,15.5"/><path d="M-12,0 L-15.5,0"/><path d="M12,0 L15.5,0"/>'
+    + '<path d="M-8.6,-8.6 L-11,-11"/><path d="M8.6,-8.6 L11,-11"/><path d="M-8.6,8.6 L-11,11"/><path d="M8.6,8.6 L11,11"/></g>',
+  /* 月亮 */
+  moon:'<path d="M3,-12 A12.5,12.5 0 1 0 3,12 A10,10 0 0 1 3,-12 Z" fill="#f2d06b"/>'
+    + '<circle cx="-5" cy="-3" r="1.8" fill="#e3bd4c"/><circle cx="-3" cy="4" r="1.4" fill="#e3bd4c"/>',
+
+  /* 骨头 */
+  bone:'<path d="M-12,-4 a4,4 0 1 0 0,8 L12,4 a4,4 0 1 0 0,-8 Z" fill="#f0e6d2" stroke="#d6c9ad" stroke-width="1.6"/>',
+
+  /* 小老鼠 */
+  mouse:'<ellipse cx="0" cy="3" rx="11" ry="8" fill="#b9b3ab"/>'
+    + '<circle cx="-7" cy="-5" r="5.5" fill="#cdc7bf"/><circle cx="7" cy="-5" r="5.5" fill="#cdc7bf"/>'
+    + '<circle cx="0" cy="5" r="7" fill="#d6d0c8"/>'
+    + '<circle cx="-2.6" cy="3" r="1.5" fill="#3b352c"/><circle cx="2.6" cy="3" r="1.5" fill="#3b352c"/>'
+    + '<circle cx="0" cy="6.4" r="1.3" fill="#e8949c"/>'
+    + '<path d="M11,6 C17,4 18,10 13,11" stroke="#b9b3ab" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
+};
+
+function gart(k, size){
+  if (MORE[k]) return '<svg viewBox="-20 -20 40 40" width="'+size+'" height="'+size+'" aria-hidden="true" style="display:block;overflow:visible">'+MORE[k]+'</svg>';
+  try { return Room.art(k, size); } catch(e){ return ''; }
+}
+
+/* ------------------------------------------------------------------
+   六关
+   ------------------------------------------------------------------ */
+var LEVELS = [
+  { n:1, name:"小种子长大了", tip:"先种下，再发芽，最后开花。按顺序摆好。", type:"storyOrder", stage:"故事顺序", icon:"seedbag" },
+  { n:2, name:"谁在说话",     tip:"听一听这句话，猜猜是谁说的。",         type:"whoSays",    stage:"听懂话",   icon:"cat" },
+  { n:3, name:"儿歌接龙",     tip:"念一念，接下来该说哪一句？",         type:"rhyme",      stage:"韵律",     icon:"rabbit" },
+  { n:4, name:"找相反",       tip:"大的配小的，高的配矮的。",             type:"opposite",   stage:"词语",     icon:"treeTall" },
+  { n:5, name:"字长什么样",   tip:"很久以前的人，把看到的东西画成了字。", type:"glyph",      stage:"前识字",   icon:"glyphShan" },
+  { n:6, name:"听完故事答一答", tip:"听一个小故事，再回答问题。",          type:"listenStory",stage:"听故事",   icon:"grandpa" }
+];
+var TOTAL = LEVELS.length;
+
+function clearedN(n){ return !!S.books.cleared[n]; }
+function openN(n){ return n === 1 || clearedN(n - 1); }
+function progressN(){ var c = 0; for (var i = 1; i <= TOTAL; i++) if (clearedN(i)) c++; return c; }
+
+function save(){ try { Room.save(); } catch(e){} }
+function paintStar(){
+  var el = document.getElementById("starNum");
+  if (el) el.textContent = (S.stars || 0);
+}
+
+/* ------------------------------------------------------------------
+   地图
+   ------------------------------------------------------------------ */
+var GAP = 178, PAD_TOP = 176, PAD_BOT = 186;
+var NODE_POS = [];
+
+function computePos(){
+  NODE_POS = [];
+  var h = PAD_TOP + (TOTAL - 1) * GAP + PAD_BOT;
+  for (var i = 0; i < TOTAL; i++){
+    var y = h - PAD_BOT - i * GAP;
+    var x = 50 + 24 * Math.sin(i * 1.15 + 0.4);
+    NODE_POS.push({ x: x, y: y });
+  }
+  return h;
+}
+
+function buildMap(){
+  var map = document.getElementById("map");
+  var h = computePos();
+  map.style.height = h + "px";
+
+  var svg = document.getElementById("pathSvg");
+  svg.setAttribute("viewBox", "0 0 1000 " + h);
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", h);
+  var d = "";
+  for (var i = 0; i < NODE_POS.length; i++){
+    var p = NODE_POS[i], px = p.x * 10, py = p.y;
+    if (i === 0) d += "M" + px + "," + py;
+    else {
+      var q = NODE_POS[i - 1], qx = q.x * 10, qy = q.y;
+      var mx = (qx + px) / 2, my = (qy + py) / 2;
+      d += " Q" + qx + "," + qy + " " + mx + "," + my;
+      d += " Q" + px + "," + py + " " + px + "," + py;
+    }
+  }
+  svg.innerHTML =
+    '<path d="' + d + '" fill="none" stroke="#e8dfc9" stroke-width="20" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".85"/>' +
+    '<path d="' + d + '" fill="none" stroke="#fffdf7" stroke-width="11" stroke-linecap="round" stroke-dasharray="1 26" vector-effect="non-scaling-stroke"/>';
+
+  var box = document.getElementById("nodes");
+  box.innerHTML = "";
+  LEVELS.forEach(function(L, i){
+    var p = NODE_POS[i];
+    var st = clearedN(L.n) ? "done" : (openN(L.n) ? (L.n === firstOpen() ? "now" : "open") : "lock");
+    var b = document.createElement("button");
+    b.className = "node " + st;
+    b.style.left = p.x + "%";
+    b.style.top = p.y + "px";
+    b.dataset.n = L.n;
+    var inner = clearedN(L.n)
+      ? '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 L9.5 18 L20 6.5"/></svg>'
+      : '<span class="num">' + L.n + '</span>' +
+        (openN(L.n) ? '' : '<svg class="lockico" viewBox="0 0 24 24" fill="none" stroke="#b3ab9b" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2.6"/><path d="M8.4 11 V8.4 a3.6 3.6 0 0 1 7.2 0 V11"/></svg>');
+    b.innerHTML = inner + '<span class="cap">' + L.name + '</span>' +
+      (clearedN(L.n) ? '<span class="badge">★</span>' : '');
+    b.addEventListener("click", function(){ tapLevel(L, b); });
+    box.appendChild(b);
+  });
+
+  var old = document.querySelector(".peak"); if (old) old.remove();
+  var peak = document.createElement("div");
+  peak.className = "peak";
+  peak.style.top = "44px";
+  var done = progressN();
+  peak.innerHTML = '<div class="flag"><b>' +
+    (done >= TOTAL ? "六页都读完啦" : "已经读完 " + done + " 个故事") +
+    '</b><span>' +
+    (done >= TOTAL ? "这本书合上了，故事还在你心里" : "往下走，还有新的故事") +
+    '</span></div>';
+  document.getElementById("nodes").appendChild(peak);
+
+  setTimeout(function(){
+    var wrap = document.getElementById("mapWrap");
+    var cur = document.querySelector(".node.now") || document.querySelector(".node.done:last-of-type");
+    var target = cur ? (cur.offsetTop - window.innerHeight * 0.55) : 0;
+    wrap.scrollTop = Math.max(0, target);
+  }, 60);
+}
+
+function firstOpen(){
+  for (var i = 1; i <= TOTAL; i++) if (!clearedN(i)) return i;
+  return TOTAL;
+}
+
+var _toastT = null;
+function toastLine(txt){
+  var d = document.getElementById("tipToast");
+  if (!d){
+    d = document.createElement("div");
+    d.id = "tipToast";
+    d.style.cssText = "position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translateX(-50%);" +
+      "background:rgba(59,53,44,.92);color:#fff;font-size:13px;padding:9px 16px;border-radius:12px;z-index:95;" +
+      "max-width:88vw;text-align:center;line-height:1.5;transition:opacity .25s";
+    document.body.appendChild(d);
+  }
+  d.textContent = txt;
+  d.style.opacity = "1";
+  clearTimeout(_toastT);
+  _toastT = setTimeout(function(){ d.style.opacity = "0"; }, 2000);
+}
+
+function tapLevel(L, el){
+  Room.Sound.blip("tap");
+  if (!openN(L.n)){
+    Room.Voice.say("这一页还没翻开呢，先把第 " + (L.n - 1) + " 个故事读完吧。");
+    toastLine("先把第 " + (L.n - 1) + " 关读完，这一关就开了");
+    el.animate([{transform:"translateX(0)"},{transform:"translateX(-6px)"},{transform:"translateX(6px)"},{transform:"translateX(0)"}],{duration:280});
+    return;
+  }
+  openLevel(L.n);
+}
+
+/* ------------------------------------------------------------------
+   关卡外壳
+   ------------------------------------------------------------------ */
+var curLevel = null;
+
+function openLevel(n){
+  var L = LEVELS[n - 1];
+  curLevel = L;
+  var sheet = document.getElementById("sheet");
+  sheet.innerHTML =
+    '<button class="x" id="lvClose">✕</button>' +
+    '<div class="lv-head"><span class="lv-no">第 ' + n + ' 关 · ' + L.stage + '</span>' +
+    '<h2>' + L.name + '</h2><p>' + L.tip + '</p></div>' +
+    '<div class="lv-stage" id="lvStage"></div>' +
+    '<div class="sayline" id="lvSay"></div>';
+  document.getElementById("mask").classList.add("show");
+  document.getElementById("lvClose").onclick = closeLevel;
+  var stage = document.getElementById("lvStage");
+  try {
+    RENDER[L.type](stage, L, function(){ winLevel(L); });
+  } catch (e) {
+    stage.innerHTML = '<p style="text-align:center;color:#8a8272">这一关没打开，换一关试试。</p>';
+  }
+}
+function closeLevel(){
+  document.getElementById("mask").classList.remove("show");
+  curLevel = null;
+}
+function lvSay(t){
+  var el = document.getElementById("lvSay");
+  if (el) el.textContent = t;
+}
+function say(t, opts){
+  lvSay(t);
+  try { Room.Voice.say(t, opts); } catch(e){}
+}
+
+/* 五角星和别处是同一颗，画法收在 ui.js 里 */
+var starSVG = CC.starSVG;
+
+function winLevel(L){
+  var first = !clearedN(L.n);
+  var add = first ? 5 : 1;
+  if (first) S.books.cleared[L.n] = true;
+  S.books.times[L.n] = (S.books.times[L.n] || 0) + 1;
+  S.stars = (S.stars || 0) + add;
+  save();
+  paintStar();
+  Room.Sound.blip("good");
+
+  var all = progressN() >= TOTAL;
+  var sheet = document.getElementById("sheet");
+  sheet.innerHTML =
+    '<div class="donebox">' +
+      '<div>' + starSVG(all ? 56 : 52, "#e9a52e") + '</div>' +
+      '<h2>' + (all ? "六个故事都读完了" : "读完啦") + '</h2>' +
+      '<p>' + (all
+        ? "故事屋里的书你都翻过一遍了。<br>想再听哪个故事，回去点它就行。"
+        : "得到 " + add + " 颗星星。" + (first ? "<br>下一页翻开了，往下走一格。" : "<br>再读一次，也有一点点星星。")) + '</p>' +
+      '<div class="row">' +
+        '<button class="btn primary" id="dkBack">回书架</button>' +
+        (first && L.n < TOTAL ? '<button class="btn gold" id="dkNext">下一个故事</button>' : '') +
+      '</div>' +
+    '</div>';
+  document.getElementById("dkBack").onclick = function(){
+    closeLevel(); buildMap();
+  };
+  var nx = document.getElementById("dkNext");
+  if (nx) nx.onclick = function(){
+    document.getElementById("mask").classList.remove("show");
+    buildMap();
+    openLevel(L.n + 1);
+  };
+  try { Room.Voice.say(all ? "六个故事，你都读完啦。" : "读完啦，得到 " + add + " 颗星星。"); } catch(e){}
+
+  for (var i = 0; i < 5; i++){
+    (function(i){
+      setTimeout(function(){
+        var s = document.createElement("div");
+        s.className = "starfly";
+        s.textContent = "★";
+        s.style.color = "#e9a52e";
+        s.style.left = (30 + Math.random() * 40) + "%";
+        s.style.top = (40 + Math.random() * 20) + "%";
+        document.body.appendChild(s);
+        setTimeout(function(){ s.remove(); }, 1000);
+      }, i * 90);
+    })(i);
+  }
+}
+
+/* ------------------------------------------------------------------
+   拖拽工具
+   ------------------------------------------------------------------ */
+function makeDraggable(tile, onDrop, onTap){
+  var sx = 0, sy = 0, dragging = false, ghost = null, moved = false;
+
+  tile.addEventListener("pointerdown", function(e){
+    if (tile.classList.contains("ok")) return;
+    e.preventDefault();
+    sx = e.clientX; sy = e.clientY; dragging = true; moved = false;
+    try { tile.setPointerCapture(e.pointerId); } catch(err){}
+  });
+
+  tile.addEventListener("pointermove", function(e){
+    if (!dragging) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!moved && Math.abs(dx) + Math.abs(dy) < 6) return;
+    if (!moved){
+      moved = true;
+      var r = tile.getBoundingClientRect();
+      ghost = tile.cloneNode(true);
+      ghost.classList.add("drag");
+      ghost.style.width = r.width + "px";
+      ghost.style.height = r.height + "px";
+      ghost.style.left = (e.clientX - r.width / 2) + "px";
+      ghost.style.top = (e.clientY - r.height / 2) + "px";
+      document.body.appendChild(ghost);
+      tile.style.opacity = ".32";
+    }
+    if (ghost){
+      ghost.style.left = (e.clientX - ghost.offsetWidth / 2) + "px";
+      ghost.style.top = (e.clientY - ghost.offsetHeight / 2) + "px";
+    }
+    highlightUnder(e.clientX, e.clientY);
+  });
+
+  function end(e){
+    if (!dragging) return;
+    dragging = false;
+    tile.style.opacity = "";
+    if (ghost){ ghost.remove(); ghost = null; }
+    document.querySelectorAll(".drop.hot").forEach(function(d){ d.classList.remove("hot"); });
+    if (!moved){ if (onTap) onTap(); return; }
+    var target = dropUnder(e.clientX, e.clientY);
+    if (onDrop) onDrop(target, tile, e.clientX, e.clientY);
+  }
+  tile.addEventListener("pointerup", end);
+  tile.addEventListener("pointercancel", function(){
+    dragging = false; tile.style.opacity = "";
+    if (ghost){ ghost.remove(); ghost = null; }
+    document.querySelectorAll(".drop.hot").forEach(function(d){ d.classList.remove("hot"); });
+  });
+}
+function dropUnder(x, y){
+  var el = document.elementFromPoint(x, y);
+  while (el && !(el.classList && el.classList.contains("drop"))) el = el.parentNode;
+  return el;
+}
+function highlightUnder(x, y){
+  document.querySelectorAll(".drop.hot").forEach(function(d){ d.classList.remove("hot"); });
+  var d = dropUnder(x, y);
+  if (d) d.classList.add("hot");
+}
+function nearRect(el, x, y, pad){
+  var r = el.getBoundingClientRect();
+  pad = pad || 26;
+  return x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad;
+}
+
+/* =====================================================================
+   六关玩法
+   ===================================================================== */
+var RENDER = {};
+
+/* ---- 1. 故事排排队：种子 → 发芽 → 开花 ---- */
+RENDER.storyOrder = function(stage, L, win){
+  /* 两组「从小到大」轮着出：花和树。故事结构一样，换一套图形，
+     孩子第二次玩会有新鲜感，但难度没变。 */
+  var SETS = [
+    [ { id:"seedbag", word:"先种下种子" },
+      { id:"sprout",  word:"再发出小芽" },
+      { id:"flower",  word:"最后开花了" } ],
+    [ { id:"sprout",    word:"先是一棵小苗" },
+      { id:"treeShort", word:"再长高一点" },
+      { id:"treeTall",  word:"最后长成大树" } ]
+  ];
+  var steps = SETS[Math.floor(Math.random() * SETS.length)];
+  var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px">';
+  steps.forEach(function(s, i){
+    html += '<div class="drop so" data-i="' + i + '" style="min-height:118px">' +
+      '<span class="dl">第 ' + (i + 1) + ' 步</span>' +
+      '<span style="font-size:11.5px;color:#b0a794;margin-top:2px">' + s.word + '</span></div>';
+  });
+  html += '</div><div class="tray" id="soTray">';
+  steps.slice().sort(function(){ return Math.random() - .5; }).forEach(function(s){
+    html += '<div class="tile so2" data-id="' + s.id + '" style="width:76px;height:76px">' + gart(s.id, 56) + '</div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  say(steps[0].word + "，" + steps[1].word + "，" + steps[2].word + "。按这个顺序摆好。", { who:"teacher" });
+
+  var left = 3;
+  stage.querySelectorAll(".so2").forEach(function(tile){
+    makeDraggable(tile, function(target){
+      if (!target) return;
+      var i = +target.dataset.i;
+      if (steps[i].id === tile.dataset.id){
+        tile.remove();
+        target.classList.add("full");
+        target.innerHTML = gart(tile.dataset.id, 56) +
+          '<span class="dl">第 ' + (i + 1) + ' 步</span>';
+        Room.Sound.blip("ok");
+        left--;
+        if (left === 0){
+          say("从小到大的顺序，排对啦。", { who:"teacher" });
+          setTimeout(win, 520);
+        } else {
+          say(steps[i].word + "。", { who:"teacher" });
+        }
+      } else {
+        tile.classList.add("bad");
+        setTimeout(function(){ tile.classList.remove("bad"); }, 360);
+        Room.Sound.blip("soft");
+        say("这一步不对哦，谁在最前面呢？", { who:"teacher" });
+      }
+    }, function(){
+      tile.classList.add("sel");
+      setTimeout(function(){ tile.classList.remove("sel"); }, 300);
+    });
+  });
+};
+
+/* ---- 2. 谁在说话 ---- */
+RENDER.whoSays = function(stage, L, win){
+  var cast = [
+    { id:"cat",  name:"小猫", line:"喵——我饿了，想喝点牛奶。", opt:{ pitch:1.62, rate:1.0 },
+      choice:["cat","dog","duck"] },
+    { id:"dog",  name:"小狗", line:"汪汪！我来看家，谁都别想进来。", opt:{ pitch:0.78, rate:0.92 },
+      choice:["duck","dog","cat"] },
+    { id:"duck", name:"小鸭", line:"嘎嘎，跟我一起去水里玩吧。", opt:{ pitch:1.32, rate:1.08 },
+      choice:["cat","duck","dog"] }
+  ];
+  var pick = cast[Math.floor(Math.random() * cast.length)];
+
+  var html = '<div class="bubble-line"><div class="who">“' + pick.line + '”</div>' +
+    '<div class="tip">这是谁在说话？</div></div>' +
+    '<div style="display:flex;justify-content:center;margin-bottom:12px">' +
+      '<button class="replay" id="wsAgain">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9 A8 8 0 1 1 4 15"/><path d="M4 4 L4 9 L9 9"/></svg>' +
+        '再听一遍</button>' +
+    '</div><div class="opts" id="wsOpts">';
+  pick.choice.forEach(function(id, i){
+    html += '<button class="opt ws" data-id="' + id + '" style="flex-direction:column;min-width:96px;height:auto;padding:10px 6px">' +
+      gart(id, 54) + '<span style="font-size:12.5px;font-weight:700;color:#6d6555;margin-top:4px">' +
+      (id === "cat" ? "小猫" : id === "dog" ? "小狗" : "小鸭") + '</span></button>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+
+  function speak(){ try { Room.Voice.say(pick.line, pick.opt); } catch(e){} }
+  setTimeout(speak, 380);
+  lvSay("听一听，这是谁的声音？");
+  document.getElementById("wsAgain").onclick = function(){
+    Room.Sound.blip("tap"); speak();
+  };
+
+  var done = false;
+  stage.querySelectorAll(".ws").forEach(function(b){
+    b.addEventListener("click", function(){
+      if (done) return;
+      if (b.dataset.id === pick.id){
+        done = true;
+        b.classList.add("ok");
+        Room.Sound.blip("ok");
+        say("对啦，是" + pick.name + "。", { who:"teacher" });
+        setTimeout(win, 620);
+      } else {
+        b.classList.add("bad");
+        setTimeout(function(){ b.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft");
+        say("不是它。再听一遍，叫声是谁的？", { who:"teacher" });
+      }
+    });
+  });
+};
+
+/* ---- 3. 儿歌接龙 ---- */
+RENDER.rhyme = function(stage, L, win){
+  /* 三首儿歌轮着出，重玩不会一模一样 */
+  var pool = [
+    { head:"小白兔，白又白，两只耳朵竖起来。", ans:"爱吃萝卜和青菜", ansIco:"carrot",
+      wrong:[{ t:"爱吃骨头和肉", i:"bone" },{ t:"爱吃小鱼和小虾", i:"fish" }] },
+    { head:"小老鼠，上灯台，偷油吃，下不来。", ans:"喵喵喵，猫来了", ansIco:"cat",
+      wrong:[{ t:"汪汪汪，狗来了", i:"dog" },{ t:"嘎嘎嘎，鸭来了", i:"duck" }] },
+    { head:"一闪一闪亮晶晶，满天都是小星星。", ans:"挂在天上放光明", ansIco:"star",
+      wrong:[{ t:"掉进河里找不见", i:"river" },{ t:"躲进云里不出来", i:"moon" }] }
+  ];
+  var k = pool[Math.floor(Math.random() * pool.length)];
+
+  var html = '<div class="bubble-line"><div class="who">' + k.head + '</div>' +
+    '<div class="tip">接下来，该说哪一句？</div></div>' +
+    '<div style="display:flex;justify-content:center;margin-bottom:10px">' +
+      '<button class="replay" id="rhAgain">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9 A8 8 0 1 1 4 15"/><path d="M4 4 L4 9 L9 9"/></svg>' +
+        '再念一遍</button>' +
+    '</div><div class="opts" id="rhOpts" style="flex-direction:column;align-items:center;gap:10px">';
+
+  var opts = [{ t:k.ans, i:k.ansIco, ok:true }].concat(k.wrong.map(function(w){
+    return { t:w.t, i:w.i, ok:false };
+  })).sort(function(){ return Math.random() - .5; });
+
+  opts.forEach(function(o, idx){
+    html += '<button class="opt rh" data-i="' + idx + '" style="flex:0 0 100%;max-width:420px;height:auto;min-height:64px;' +
+      'justify-content:flex-start;gap:12px;padding:8px 16px;font-size:15px;font-weight:700">' +
+      '<span style="width:40px;height:40px;flex:0 0 40px">' + gart(o.i, 38) + '</span>' +
+      '<span style="text-align:left;line-height:1.4">' + o.t + '</span></button>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+
+  function speakHead(){ try { Room.Voice.say(k.head, { who:"teacher" }); } catch(e){} }
+  setTimeout(speakHead, 380);
+  lvSay("跟着念一遍，再选下一句。");
+  document.getElementById("rhAgain").onclick = function(){ Room.Sound.blip("tap"); speakHead(); };
+
+  var done = false;
+  stage.querySelectorAll(".rh").forEach(function(b){
+    b.addEventListener("click", function(){
+      if (done) return;
+      var o = opts[+b.dataset.i];
+      /* 点哪个都先念出来，孩子能听到整句 */
+      try { Room.Voice.say(o.t, { who:"teacher" }); } catch(e){}
+      if (o.ok){
+        done = true;
+        b.classList.add("ok");
+        Room.Sound.blip("ok");
+        lvSay(k.head + k.ans);
+        setTimeout(win, 900);
+      } else {
+        b.classList.add("bad");
+        setTimeout(function(){ b.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft");
+        lvSay("这一句不太顺，再听听前面的。");
+      }
+    });
+  });
+};
+
+/* ---- 4. 找相反 ---- */
+RENDER.opposite = function(stage, L, win){
+  var pairs = [
+    { left:"bigApple",  lname:"大", right:"smallApple", rname:"小" },
+    { left:"treeTall",  lname:"高", right:"treeShort",  rname:"矮" },
+    { left:"sun",       lname:"热", right:"snow",       rname:"冷" }
+  ];
+  function face(id, sz){
+    if (id === "bigApple")   return '<div style="transform:scale(1.5)">' + gart("apple", sz) + '</div>';
+    if (id === "smallApple") return '<div style="transform:scale(.72)">' + gart("apple", sz) + '</div>';
+    return gart(id, sz);
+  }
+
+  var html = '<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-bottom:14px">';
+  pairs.forEach(function(p, i){
+    html += '<div class="drop op" data-i="' + i + '" style="width:104px;min-height:112px;background:#fbf8ee">' +
+      '<div style="height:62px;display:flex;align-items:center">' + face(p.left, 52) + '</div>' +
+      '<span class="dl">' + p.lname + '</span></div>';
+  });
+  html += '</div><div class="tray" id="opTray">';
+  pairs.slice().sort(function(){ return Math.random() - .5; }).forEach(function(p){
+    html += '<div class="tile op2" data-id="' + p.right + '" data-i="' + pairs.indexOf(p) + '" style="width:72px;height:72px">' +
+      face(p.right, 52) + '</div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  say("大的旁边放小的，高的旁边放矮的，热的旁边放冷的。", { who:"teacher" });
+
+  var left = 3;
+  stage.querySelectorAll(".op2").forEach(function(tile){
+    makeDraggable(tile, function(target){
+      if (!target) return;
+      var i = +target.dataset.i;
+      if (pairs[i].right === tile.dataset.id){
+        tile.remove();
+        target.classList.add("full");
+        target.innerHTML = '<div style="height:62px;display:flex;align-items:center">' + face(pairs[i].right, 52) + '</div>' +
+          '<span class="dl">' + pairs[i].rname + '</span>';
+        Room.Sound.blip("ok");
+        left--;
+        if (left === 0){
+          say("大和小、高和矮、热和冷，都配对啦。", { who:"teacher" });
+          setTimeout(win, 520);
+        }
+      } else {
+        tile.classList.add("bad");
+        setTimeout(function(){ tile.classList.remove("bad"); }, 360);
+        Room.Sound.blip("soft");
+        say("这个不是它的相反哦，再看看。", { who:"teacher" });
+      }
+    }, function(){
+      tile.classList.add("sel");
+      setTimeout(function(){ tile.classList.remove("sel"); }, 300);
+    });
+  });
+};
+
+/* ---- 5. 字长什么样 ---- */
+RENDER.glyph = function(stage, L, win){
+  /* 四个字里随机挑三个，重玩会换一组 */
+  var items = [
+    { glyph:"glyphShan", pic:"mountain", word:"山", hint:"三个尖尖连在一起，就是山" },
+    { glyph:"glyphRi",   pic:"sun",      word:"日", hint:"方方的一块，中间一横，就是太阳" },
+    { glyph:"glyphYue",  pic:"moon",     word:"月", hint:"弯弯的一钩，就是月亮" },
+    { glyph:"glyphShui", pic:"river",    word:"水", hint:"中间一条，两边流开，就是水" }
+  ].sort(function(){ return Math.random() - .5; }).slice(0, 3);
+
+  var html = '<p style="text-align:center;color:#8a8272;font-size:12.5px;margin:0 0 12px">' +
+    '古时候的人，把看到的东西画成了字</p>' +
+    '<div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">';
+  items.forEach(function(it, i){
+    html += '<div class="drop gl" data-i="' + i + '" style="width:104px;min-height:116px;background:#fbf8ee">' +
+      '<div class="glyphcard" style="width:76px;height:76px;border:none;background:transparent">' +
+      gart(it.glyph, 60) + '</div><span class="dl">像什么？</span></div>';
+  });
+  html += '</div><div class="tray" id="glTray">';
+  items.slice().sort(function(){ return Math.random() - .5; }).forEach(function(it){
+    html += '<div class="tile gl2" data-pic="' + it.pic + '" data-i="' + items.indexOf(it) + '" ' +
+      'style="width:76px;height:76px">' + gart(it.pic, 54) + '</div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  say("这些是很久很久以前的字。看看它们，像不像下面的东西？", { who:"teacher" });
+
+  var left = 3;
+  stage.querySelectorAll(".gl2").forEach(function(tile){
+    makeDraggable(tile, function(target){
+      if (!target) return;
+      var i = +target.dataset.i;
+      if (items[i].pic === tile.dataset.pic){
+        tile.remove();
+        target.classList.add("full");
+        target.innerHTML = '<div class="glyphcard" style="width:76px;height:76px;border:none;background:transparent">' +
+          gart(items[i].glyph, 60) + '</div>' +
+          '<span class="dl" style="font-size:16px;color:#3f7a55">' + items[i].word + '</span>';
+        Room.Sound.blip("ok");
+        left--;
+        if (left === 0){
+          say(items[0].word + "、" + items[1].word + "、" + items[2].word + "，这三个字你都认出来了。", { who:"teacher" });
+          setTimeout(win, 560);
+        } else {
+          say(items[i].hint + "。", { who:"teacher" });
+        }
+      } else {
+        tile.classList.add("bad");
+        setTimeout(function(){ tile.classList.remove("bad"); }, 360);
+        Room.Sound.blip("soft");
+        say("再看看，这个字哪里尖、哪里圆？", { who:"teacher" });
+      }
+    }, function(){
+      tile.classList.add("sel");
+      setTimeout(function(){ tile.classList.remove("sel"); }, 300);
+    });
+  });
+};
+
+/* ---- 6. 听完故事答一答 ---- */
+RENDER.listenStory = function(stage, L, win){
+  var pool = [
+    {
+      lines:["今天早上，外婆给澄澄煮了一个鸡蛋。",
+             "澄澄把鸡蛋掰成两半，一半给自己，一半给外公。",
+             "外公笑着说：澄澄真懂事。"],
+      q:"澄澄把鸡蛋分给了谁？",
+      opts:[{ t:"外公", i:"grandpa", ok:true }, { t:"小狗", i:"dog" }, { t:"小猫", i:"cat" }]
+    },
+    {
+      lines:["下雨了，豆豆没有带伞。",
+             "朵朵把伞举高一点，两个人一起走回家。",
+             "豆豆说：谢谢你，明天我把小风车给你玩。"],
+      q:"是谁把伞借给了豆豆？",
+      opts:[{ t:"朵朵", i:"girl2", ok:true }, { t:"老师", i:"teacher" }, { t:"阿福", i:"dog" }]
+    },
+    {
+      lines:["外公在院子里种了三根萝卜。",
+             "第一根长得最大，第二根有点小，第三根最细。",
+             "外公说：最大的那根，留给澄澄。"],
+      q:"外公把哪一根留给澄澄？",
+      opts:[{ t:"最大的", i:"carrot", ok:true }, { t:"有点小的", i:"potato" }, { t:"最细的", i:"sprout" }]
+    }
+  ];
+  var k = pool[Math.floor(Math.random() * pool.length)];
+
+  var html = '<div class="storybox" id="stBox">';
+  k.lines.forEach(function(t){ html += '<p>' + t + '</p>'; });
+  html += '</div>' +
+    '<div style="display:flex;justify-content:center;margin:12px 0 6px">' +
+      '<button class="replay" id="stAgain">' +
+        '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9 A8 8 0 1 1 4 15"/><path d="M4 4 L4 9 L9 9"/></svg>' +
+        '再听一遍</button>' +
+    '</div>' +
+    '<p style="text-align:center;font-size:15px;font-weight:800;margin:10px 0 4px">' + k.q + '</p>' +
+    '<div class="opts" id="stOpts">';
+  k.opts.forEach(function(o, i){
+    html += '<button class="opt st" data-i="' + i + '" style="flex-direction:column;min-width:96px;height:auto;padding:10px 8px">' +
+      gart(o.i, 48) + '<span style="font-size:12.5px;font-weight:700;color:#6d6555;margin-top:4px">' + o.t + '</span></button>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+
+  var full = k.lines.join("");
+  function speakStory(){
+    try { Room.Voice.say(full, { who:"grandpa" }); } catch(e){}
+  }
+  setTimeout(speakStory, 380);
+  lvSay("先听外公把故事讲完，再回答问题。");
+  document.getElementById("stAgain").onclick = function(){ Room.Sound.blip("tap"); speakStory(); };
+
+  var done = false;
+  stage.querySelectorAll(".st").forEach(function(b){
+    b.addEventListener("click", function(){
+      if (done) return;
+      var o = k.opts[+b.dataset.i];
+      if (o.ok){
+        done = true;
+        b.classList.add("ok");
+        Room.Sound.blip("ok");
+        say("对啦，是" + o.t + "。", { who:"grandpa" });
+        setTimeout(win, 640);
+      } else {
+        b.classList.add("bad");
+        setTimeout(function(){ b.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft");
+        say("再听一遍故事，答案就在里面。", { who:"grandpa" });
+      }
+    });
+  });
+};
+
+/* ------------------------------------------------------------------
+   启动
+   ------------------------------------------------------------------ */
+paintStar();
+buildMap();
+
+(function(){
+  var cv = document.getElementById("cover");
+  var art = document.getElementById("coverArt");
+  if (art) art.innerHTML = gart("book", 64) + gart("star", 44);
+  var go = document.getElementById("goBtn");
+  function begin(){
+    try { Room.Sound.start(); } catch(e){}
+    cv.classList.add("gone");
+    setTimeout(function(){ if (cv.parentNode) cv.parentNode.removeChild(cv); }, 420);
+    setTimeout(function(){
+      try { Room.Voice.say("故事屋的门开了。从第一个故事开始吧。", { who:"teacher" }); } catch(e){}
+    }, 500);
+  }
+  if (go) go.addEventListener("click", begin);
+  if (S.entered) setTimeout(begin, 60);
+})();
+
+document.getElementById("btnBack").onclick = function(){ location.href = "index.html"; };
+document.getElementById("btnStar").onclick = function(){
+  try { Room.Voice.say("你现在有 " + (S.stars || 0) + " 颗星星。"); } catch(e){}
+  toastLine("现在有 " + (S.stars || 0) + " 颗星星");
+};
+</script>
+</body>
+</html>

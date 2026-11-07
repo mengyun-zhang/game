@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<title>游戏馆 · 澄澄的小镇</title>
+<link rel="icon" href="data:,">
+<style>
+:root{
+  --bg:#dff0e4; --card:#fffdf8; --ink:#3f3a32; --muted:#7c8b80;
+  --line:#e7e0d2; --accent:#4f9e6b; --accent-soft:#e6f4e8;
+  --gold:#f0a832; --red:#e8737d; --blue:#6aa6d8; --wall:#f6e7d2;
+  --shadow:0 6px 18px rgba(63,58,50,.10);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+button{font-family:inherit;touch-action:manipulation}
+html,body{height:100%;margin:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--ink);overflow:hidden;-webkit-font-smoothing:antialiased;
+}
+
+/* ---------- 顶栏 ---------- */
+.hud{
+  position:fixed;left:0;right:0;top:0;z-index:30;pointer-events:none;
+  display:flex;align-items:flex-start;justify-content:space-between;
+  padding:calc(10px + env(safe-area-inset-top)) 14px 0;
+}
+.brand{background:rgba(255,253,248,.94);border:1px solid var(--line);border-radius:16px;padding:8px 14px;box-shadow:var(--shadow);pointer-events:auto}
+.brand h1{margin:0;font-size:16px;letter-spacing:.5px}
+.brand p{margin:2px 0 0;font-size:11px;color:var(--muted)}
+.tools{display:flex;gap:8px;pointer-events:auto}
+.tools button{
+  height:38px;min-width:38px;padding:0 10px;border-radius:13px;border:1px solid var(--line);
+  background:rgba(255,253,248,.94);color:#5b5548;font-size:13px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;gap:5px;box-shadow:var(--shadow);cursor:pointer;
+}
+.tools button:active{transform:scale(.96)}
+.tools .star-n{color:#b8791c}
+
+/* ---------- 地图 ---------- */
+.mapwrap{position:fixed;top:0;right:0;bottom:0;left:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+.map{
+  position:relative;width:100%;max-width:600px;margin:0 auto;
+  background:linear-gradient(180deg,#e7f6ea 0%,#dcefe1 45%,#d2e9d9 100%);
+  box-shadow:0 0 0 1px rgba(255,255,255,.5) inset;
+}
+.map svg.path{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+
+.node{
+  position:absolute;width:74px;height:74px;margin-left:-37px;margin-top:-37px;
+  border-radius:50%;border:none;padding:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#fffdf8,#f3ecdd);
+  box-shadow:0 5px 0 #d8cdb6, 0 8px 16px rgba(63,58,50,.16);
+  transition:transform .14s, box-shadow .14s;
+  font-size:24px;font-weight:800;color:#8b8272;
+}
+.node:active{transform:translateY(2px)}
+.node .num{position:absolute;font-size:22px;font-weight:800;line-height:1}
+.node .cap{
+  position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);
+  white-space:nowrap;font-size:11.5px;font-weight:700;color:#6d7d72;
+  background:rgba(255,253,248,.9);border-radius:9px;padding:2px 8px;box-shadow:0 2px 6px rgba(63,58,50,.10);
+}
+.node .badge{
+  position:absolute;right:-4px;top:-4px;width:26px;height:26px;border-radius:50%;
+  background:var(--gold);color:#fff;font-size:13px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.16);
+}
+.node.done{background:linear-gradient(180deg,#8fd0a4,#5cb37c);box-shadow:0 5px 0 #3f8f5d, 0 8px 16px rgba(63,58,50,.18)}
+.node.done .num,.node.done .cap{color:#fff}
+.node.done .cap{background:rgba(88,150,110,.92)}
+.node.now{
+  background:linear-gradient(180deg,#ffe08a,#f5b83d);color:#8a5a12;
+  box-shadow:0 5px 0 #c98d26, 0 0 0 8px rgba(245,184,61,.22), 0 10px 22px rgba(63,58,50,.2);
+  animation:pulse 1.7s ease-in-out infinite;
+}
+.node.now .num{color:#7a4d0d}
+.node.now .cap{background:#f5b83d;color:#fff}
+@keyframes pulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.node.lock{background:linear-gradient(180deg,#efece3,#e3ded2);box-shadow:0 5px 0 #cfc9ba;color:#b3ab9b}
+.node.lock .cap{color:#a9a293}
+.node.lock .num{opacity:.55}
+.node .lockico{position:absolute;bottom:6px;right:6px;width:18px;height:18px;opacity:.7}
+
+.peak{
+  position:absolute;left:0;right:0;display:flex;justify-content:center;pointer-events:none;
+}
+.peak .flag{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  background:rgba(255,253,248,.94);border:1px dashed #cfe0d3;border-radius:18px;
+  padding:10px 18px;box-shadow:var(--shadow);
+}
+.peak b{font-size:13px;color:#4f7a5e}
+.peak span{font-size:11.5px;color:var(--muted)}
+
+/* ---------- 封面 ---------- */
+.cover{
+  position:fixed;top:0;right:0;bottom:0;left:0;z-index:60;
+  background:linear-gradient(180deg,#f7f3e6,#e9f3ea);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+  transition:opacity .35s;
+}
+.cover.gone{opacity:0;pointer-events:none}
+.cover .box{max-width:460px;text-align:center}
+.cover h1{font-size:26px;margin:10px 0 6px}
+.cover p{color:#6f7d72;font-size:14px;line-height:1.7;margin:0 0 20px}
+.cover .btn{font-size:16px;padding:14px 34px}
+
+.btn{
+  border:none;border-radius:16px;padding:12px 22px;font-size:15px;font-weight:700;
+  background:#fff;color:#5b5548;border:1px solid var(--line);cursor:pointer;
+  box-shadow:0 4px 0 #e2d9c6;
+}
+.btn:active{transform:translateY(2px);box-shadow:0 2px 0 #e2d9c6}
+.btn.primary{background:var(--accent);color:#fff;border-color:#3f8a5b;box-shadow:0 4px 0 #3f8a5b}
+.btn.gold{background:var(--gold);color:#fff;border-color:#c98d26;box-shadow:0 4px 0 #c98d26}
+
+/* ---------- 关卡面板 ---------- */
+.mask{
+  position:fixed;top:0;right:0;bottom:0;left:0;z-index:50;
+  background:rgba(45,52,45,.42);display:flex;align-items:flex-end;justify-content:center;
+  padding:0;opacity:0;pointer-events:none;transition:opacity .24s;
+}
+.mask.show{opacity:1;pointer-events:auto}
+.sheet{
+  position:relative;width:100%;max-width:760px;max-height:94vh;
+  background:var(--card);border-radius:26px 26px 0 0;
+  padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+  transform:translateY(24px);transition:transform .26s;overflow:auto;
+  box-shadow:0 -10px 40px rgba(30,40,32,.22);
+}
+.mask.show .sheet{transform:none}
+.sheet .x{
+  position:absolute;right:12px;top:12px;width:34px;height:34px;border:none;border-radius:12px;
+  background:#f1ece0;color:#8a8272;font-size:16px;line-height:1;cursor:pointer;
+}
+.lv-head{padding-right:42px}
+.lv-no{display:inline-block;background:var(--accent-soft);color:#3f7a55;font-size:11.5px;
+  font-weight:800;border-radius:9px;padding:3px 9px;margin-bottom:6px}
+.lv-head h2{margin:0 0 4px;font-size:21px}
+.lv-head p{margin:0;font-size:13px;color:var(--muted);line-height:1.6}
+.lv-stage{margin-top:14px;min-height:280px}
+
+/* 关卡里的通用件 */
+.tray{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin:14px 0}
+.tile{
+  width:62px;height:62px;border-radius:16px;border:1px solid var(--line);background:#fff;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:0 3px 0 #e6ddca;transition:transform .12s,box-shadow .12s;
+  position:relative;
+}
+.tile svg{pointer-events:none}
+.tile:active{transform:translateY(2px)}
+.tile.sel{box-shadow:0 0 0 3px #f5b83d, 0 3px 0 #e6ddca;transform:translateY(-3px)}
+.tile.ok{opacity:.35;pointer-events:none}
+.tile.bad{animation:shake .34s}
+.tile.drag{position:fixed;z-index:80;pointer-events:none;transform:scale(1.12) rotate(-4deg);box-shadow:0 12px 26px rgba(0,0,0,.22)}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+
+.drop{
+  border-radius:18px;border:2px dashed #cfd8cb;background:#fbf8ef;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+  padding:10px;min-height:96px;transition:border-color .15s,background .15s,transform .15s;
+}
+.drop .dl{font-size:12.5px;font-weight:700;color:#6d7d72}
+.drop.hot{border-color:var(--accent);background:#eaf6ee;transform:scale(1.03)}
+.drop.full{border-style:solid;border-color:#8fd0a4;background:#f0faf3}
+
+.opts{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:16px 0 6px}
+.opt{
+  min-width:74px;height:74px;border-radius:20px;border:1px solid var(--line);background:#fff;
+  font-size:30px;font-weight:800;color:#4a4437;cursor:pointer;box-shadow:0 4px 0 #e6ddca;
+  display:flex;align-items:center;justify-content:center;padding:0 14px;
+}
+.opt:active{transform:translateY(2px);box-shadow:0 2px 0 #e6ddca}
+.opt.ok{background:#e6f4e8;border-color:#8fd0a4;color:#3f7a55}
+.opt.bad{animation:shake .34s}
+
+/* 一句话 + 一个小喇叭：孩子不识字，随时能再听一遍 */
+.sayrow{display:flex;align-items:center;gap:10px;margin-top:12px}
+.sayline{
+  flex:1;text-align:center;font-size:14px;color:#4f6b56;min-height:22px;line-height:1.6;
+}
+.sayhear{
+  flex:0 0 auto;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);
+  background:#fff;color:#5f7a67;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 0 #e6ddca;cursor:pointer;padding:0;transition:transform .1s,box-shadow .1s;
+}
+.sayhear:active{transform:translateY(2px);box-shadow:0 0 0 #e6ddca}
+.sayhear.ring{animation:ring .5s ease-out}
+@keyframes ring{0%{box-shadow:0 0 0 0 rgba(95,122,103,.35)}100%{box-shadow:0 0 0 14px rgba(95,122,103,0)}}
+.counter{position:absolute;right:14px;top:14px;background:var(--accent-soft);color:#3f7a55;
+  font-size:13px;font-weight:800;border-radius:10px;padding:4px 10px}
+
+@media (min-width:820px){
+  .mask{align-items:center;padding:22px}
+  .sheet{border-radius:26px;max-height:88vh}
+}
+
+/* 完成面板 */
+.donebox{text-align:center;padding:6px 4px 4px}
+.donebox .big{font-size:44px;line-height:1;margin-bottom:8px}
+.donebox h2{margin:0 0 6px;font-size:22px}
+.donebox p{margin:0 0 16px;color:var(--muted);font-size:13.5px;line-height:1.7}
+.donebox .row{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.starfly{position:fixed;z-index:90;font-size:22px;pointer-events:none;animation:fly 1s ease-out forwards}
+@keyframes fly{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-90px) scale(1.5)}}
+
+/* 拼图 / 找不同 / 翻牌 专用 */
+.gridpuz{display:grid;gap:6px;justify-content:center;margin:0 auto}
+.pcell{background:#fff;border-radius:12px;border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+
+.mcards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;max-width:340px;margin:0 auto}
+.mcard{height:clamp(84px,26vw,106px);border-radius:16px;border:1px solid var(--line);background:#fff;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;position:relative;transition:transform .2s}
+.mcard .back{position:absolute;left:0;right:0;top:0;bottom:0;border-radius:15px;background:
+  repeating-linear-gradient(45deg,#cfe6d6 0 8px,#c3ddcc 8px 16px);display:flex;align-items:center;justify-content:center;font-size:22px}
+.mcard.flip .back{display:none}
+.mcard.open{box-shadow:0 0 0 3px #f5b83d}
+
+.diffstage{position:relative;width:100%;max-width:520px;margin:0 auto;border-radius:18px;overflow:hidden;border:1px solid var(--line)}
+.diffstage svg{display:block;width:100%;height:auto}
+.hotspot{position:absolute;border-radius:50%;border:3px dashed transparent;cursor:pointer}
+.hotspot.found{border-color:#f5b83d;background:rgba(245,184,61,.22)}
+</style>
+</head>
+<body>
+
+<div class="hud">
+  <div class="brand">
+    <h1>游戏馆</h1>
+    <p>一关一关往上走</p>
+  </div>
+  <div class="tools">
+    <button id="btnStar" title="我的星星">
+      <svg width="18" height="18" viewBox="-12 -12 24 24" aria-hidden="true"><path d="M0,-9 L2.6,-2.9 L9,-2.4 L4.2,1.9 L5.7,8.2 L0,4.8 L-5.7,8.2 L-4.2,1.9 L-9,-2.4 L-2.6,-2.9 Z" fill="#f0a832"/></svg>
+      <span class="star-n" id="starNum">0</span>
+    </button>
+    <button id="btnBack" title="回小镇" aria-label="回小镇">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 11 L12 4 L20 11"/><path d="M6.5 10 L6.5 19 L17.5 19 L17.5 10"/>
+      </svg>
+    </button>
+  </div>
+</div>
+
+<div class="mapwrap" id="mapWrap">
+  <div class="map" id="map">
+    <svg class="path" id="pathSvg" preserveAspectRatio="none"></svg>
+    <div id="nodes"></div>
+  </div>
+</div>
+
+<div class="cover" id="cover">
+  <div class="box">
+    <div id="coverArt" style="display:flex;justify-content:center;gap:6px;align-items:flex-end"></div>
+    <h1>游戏馆</h1>
+    <p>一共 20 关，从第 1 关开始，<br>过一关开一关。想玩哪一关，点它就行。</p>
+    <button class="btn primary" id="goBtn">进去看看</button>
+  </div>
+</div>
+
+<div class="mask" id="mask"><div class="sheet" id="sheet"></div></div>
+
+<script src="ui.js"></script>
+<script src="room.js"></script>
+<script>
+/* =====================================================================
+   游戏馆 · 20 关
+   参考「3-5 岁幼儿启蒙益智 20 关」的分层设计：
+     1-5   颜色、图形
+     6-10  数量、数字
+     11-15 生活常识、分类
+     16-20 专注力、逻辑
+   每关一个小玩法，全部用点击和拖拽完成，不设倒计时、答错不扣分。
+   进度存在和小镇共用的那条存档里。
+   ===================================================================== */
+var S = Room.load();
+S.games = S.games || { cleared:{}, times:{} };
+
+/* ---------------- 补一些 room.js 里没有的图形 ---------------- */
+var MORE = {
+  fish:'<path d="M-13,0 C-7,-9 4,-9 9,-2 L14,-6 L13,6 L9,2 C4,9 -7,9 -13,0 Z" fill="#7fb3d8"/>'
+      +'<circle cx="-6" cy="-1.6" r="1.5" fill="#37474f"/><path d="M-2,-4 C1,-6 4,-5 5,-2" stroke="#fff" stroke-width="1.4" fill="none" opacity=".7"/>',
+  turtle:'<ellipse cx="0" cy="1" rx="11" ry="7.5" fill="#7fae74"/><path d="M-11,1 a11,7.5 0 0 1 22,0" fill="#9ccb8e"/>'
+      +'<circle cx="10" cy="-3.4" r="4.4" fill="#a8d49a"/><circle cx="11.4" cy="-4.2" r="1.1" fill="#37474f"/>'
+      +'<path d="M-6,8 L-7,11 M0,8.4 L0,11.6 M6,8 L7,11" stroke="#6f9c66" stroke-width="2" stroke-linecap="round"/>',
+  banana:'<path d="M-9,-8 C-9,4 0,11 9,7 C11,6 11,3 9,3 C2,5 -5,-1 -6,-8 Z" fill="#f6d365"/>'
+      +'<path d="M-9,-8 L-7,-11" stroke="#c9a13b" stroke-width="2.4" stroke-linecap="round"/>',
+  grape:'<circle cx="-4" cy="-5" r="4" fill="#9d8bc4"/><circle cx="4" cy="-5" r="4" fill="#a997ce"/>'
+      +'<circle cx="0" cy="0" r="4" fill="#8f7cb8"/><circle cx="-4.6" cy="5" r="3.8" fill="#a997ce"/>'
+      +'<circle cx="4.6" cy="5" r="3.8" fill="#9d8bc4"/><path d="M0,-9 L0,-14" stroke="#7a9a63" stroke-width="2" stroke-linecap="round"/>',
+  cabbage:'<circle cx="0" cy="1" r="10" fill="#a9d993"/><path d="M0,-9 C-4,-4 -4,4 0,10 C4,4 4,-4 0,-9 Z" fill="#c6e7b4"/>'
+      +'<path d="M-8,-4 C-6,2 -3,6 0,9" stroke="#8fc97e" stroke-width="1.6" fill="none"/>',
+  pepper:'<path d="M-3,-8 C-8,-6 -9,2 -6,7 C-3,11 3,11 6,7 C9,2 8,-6 3,-8 Z" fill="#e4574c"/>'
+      +'<path d="M0,-8 L0,-13" stroke="#6da45f" stroke-width="2.6" stroke-linecap="round"/>',
+  cup:'<path d="M-8,-5 L8,-5 L6.4,9 L-6.4,9 Z" fill="#bfe0f2" stroke="#8db9d0" stroke-width="1.4"/>'
+      +'<path d="M-8,-5 C-6,-2 6,-2 8,-5" fill="#dff0fa"/><ellipse cx="0" cy="-5" rx="8" ry="2.2" fill="#eaf6fb"/>',
+  brush:'<rect x="-9" y="-2" width="18" height="6" rx="3" fill="#9ecbe4"/>'
+      +'<rect x="-4" y="-8" width="8" height="7" rx="2" fill="#fff" stroke="#cfd8dc" stroke-width="1.2"/>'
+      +'<path d="M-3,-8 L-3,-12 M0,-8 L0,-12.6 M3,-8 L3,-12" stroke="#7fb3d8" stroke-width="1.8" stroke-linecap="round"/>',
+  towel:'<rect x="-9" y="-9" width="18" height="18" rx="4" fill="#f7bcc8"/>'
+      +'<rect x="-9" y="-2" width="18" height="5" fill="#fdf3e2" opacity=".8"/>'
+      +'<path d="M-6,7 L-6,10 M0,7 L0,10 M6,7 L6,10" stroke="#e0a3b1" stroke-width="1.6" stroke-linecap="round"/>',
+  shoe:'<path d="M-11,4 L-11,-1 C-6,-1 -4,-6 1,-6 C6,-6 8,-3 12,1 L12,5 L-11,5 Z" fill="#8fa9c8"/>'
+      +'<path d="M-11,4 L12,4 L12,6.4 L-11,6.4 Z" fill="#6f8bab"/>',
+  coat:'<path d="M-9,-6 L-3,-9 L3,-9 L9,-6 L7,10 L-7,10 Z" fill="#e8a87c"/>'
+      +'<path d="M-3,-9 L0,-6 L3,-9" fill="#f6d365"/><path d="M0,-6 L0,10" stroke="#c98a5e" stroke-width="1.6"/>',
+  shirt:'<path d="M-9,-6 L-3,-9 L3,-9 L9,-6 L6,0 L6,10 L-6,10 L-6,0 Z" fill="#a9d0f0"/>'
+      +'<path d="M-3,-9 L0,-6 L3,-9" fill="#cfe6f7"/>',
+  sun:'<circle cx="0" cy="0" r="7" fill="#ffd75e"/>'
+      +'<g stroke="#f6b93b" stroke-width="2.2" stroke-linecap="round"><path d="M0,-11 L0,-14"/><path d="M0,11 L0,14"/><path d="M-11,0 L-14,0"/><path d="M11,0 L14,0"/><path d="M-8,-8 L-10,-10"/><path d="M8,-8 L10,-10"/><path d="M-8,8 L-10,10"/><path d="M8,8 L10,10"/></g>',
+  moon:'<path d="M2,-10 A10,10 0 1 0 2,10 A8,8 0 0 1 2,-10 Z" fill="#f6d365"/>',
+  lamp:'<path d="M0,-10 L0,-4" stroke="#c8bda6" stroke-width="2"/><path d="M-9,-4 L9,-4 L6,6 L-6,6 Z" fill="#ffe08a"/>'
+      +'<circle cx="0" cy="1" r="3" fill="#fff6cf"/>',
+  block:'<rect x="-9" y="-9" width="18" height="18" rx="3" fill="#f6b93b"/><circle cx="0" cy="0" r="4" fill="#fff" opacity=".55"/>',
+  clock:'<circle cx="0" cy="0" r="10" fill="#fff" stroke="#c8bda6" stroke-width="2"/><path d="M0,0 L0,-6 M0,0 L4,2" stroke="#8a8272" stroke-width="2" stroke-linecap="round"/>',
+  bird:'<ellipse cx="0" cy="1" rx="7" ry="6" fill="#7fb3d8"/><circle cx="5" cy="-4" r="4" fill="#a9d0f0"/>'
+      +'<path d="M9,-4 L13,-2.6 L9,-1.4 Z" fill="#f6b93b"/><circle cx="6" cy="-5" r="1" fill="#37474f"/>'
+      +'<path d="M-6,0 L-12,-3 L-10,3 Z" fill="#6aa6d8"/>',
+  owl:'<ellipse cx="0" cy="1" rx="9" ry="10" fill="#b79c7e"/><circle cx="-3.4" cy="-2" r="3.6" fill="#fff"/><circle cx="3.4" cy="-2" r="3.6" fill="#fff"/>'
+      +'<circle cx="-3.4" cy="-2" r="1.6" fill="#37474f"/><circle cx="3.4" cy="-2" r="1.6" fill="#37474f"/>'
+      +'<path d="M-2,-6 L0,-9 L2,-6 Z" fill="#8a6f52"/><path d="M-3,10 L-4,13 M3,10 L4,13" stroke="#8a6f52" stroke-width="2" stroke-linecap="round"/>',
+  ball2:'<circle cx="0" cy="0" r="10" fill="#7fb3d8"/><path d="M-10,0 A10,10 0 0 1 10,0" fill="#a9d0f0"/>'
+      +'<path d="M-10,0 A10,10 0 0 0 10,0" fill="#f6d365"/>',
+  car2:'<path d="M-12,2 L-12,-2 L-7,-2 L-4,-7 L5,-7 L8,-2 L12,-2 L12,2 Z" fill="#e8737d"/>'
+      +'<circle cx="-6" cy="4" r="3.4" fill="#4a4038"/><circle cx="7" cy="4" r="3.4" fill="#4a4038"/>'
+      +'<circle cx="-2" cy="-4" r="1.6" fill="#fff" opacity=".7"/>'
+};
+function gart(k, size){
+  if (MORE[k]) {
+    return '<svg viewBox="-18 -18 36 36" width="'+size+'" height="'+size+'" aria-hidden="true" style="display:block;overflow:visible">'+MORE[k]+'</svg>';
+  }
+  try { return Room.art(k, size); } catch(e){ return ''; }
+}
+
+/* ---------------- 关卡表 ---------------- */
+var LEVELS = [
+  { n:1,  name:"颜色对对碰", tip:"红的和红的放一起，三个颜色各回各家。", type:"pairColor",  stage:"基础认知", icon:"ball2" },
+  { n:2,  name:"圆形找朋友", tip:"把圆圆的东西都点出来。", type:"tapAll", stage:"基础认知", icon:"ball2",
+    data:{ want:"round", items:["ball2","clock","apple","block","star","cup"] } },
+  { n:3,  name:"彩色花朵填充", tip:"花瓣是什么颜色，就给它补上同色的花瓣。", type:"petals", stage:"基础认知" },
+  { n:4,  name:"方形大搜索", tip:"小房间里方形的东西，一个一个点出来。", type:"tapAll", stage:"基础认知", icon:"block",
+    data:{ want:"square", items:["block","teddy","car2","book","bread","cup"] } },
+  { n:5,  name:"颜色排序", tip:"照上面的样子，红、黄、蓝，排成一排。", type:"orderColor", stage:"基础认知" },
+
+  { n:6,  name:"数一数水果", tip:"数一数有几个，点出那个数字。", type:"countAnswer", stage:"数量数字" },
+  { n:7,  name:"喂小动物", tip:"一只小动物吃一份，别多也别少。", type:"feed", stage:"数量数字" },
+  { n:8,  name:"数字找影子", tip:"把数字拖到它自己的影子上。", type:"shadow", stage:"数量数字" },
+  { n:9,  name:"花朵配数量", tip:"数数有几朵花，拖一个一样的数字过来。", type:"matchCount", stage:"数量数字" },
+  { n:10, name:"少了哪一个", tip:"1、2、3……少了一个，是哪一个呢？", type:"missingNum", stage:"数量数字" },
+
+  { n:11, name:"水果蔬菜分家", tip:"水果放水果篮，蔬菜放蔬菜篮。", type:"basket", stage:"生活常识",
+    data:{ a:{ label:"水果", ico:"apple", ids:["apple","banana","grape"] }, b:{ label:"蔬菜", ico:"cabbage", ids:["cabbage","carrot","tomato"] },
+           items:["apple","cabbage","banana","carrot","grape","tomato"] } },
+  { n:12, name:"陆地还是水里", tip:"会游水的放水里，会走路的放地上。", type:"basket", stage:"生活常识",
+    data:{ a:{ label:"水里", ico:"fish", ids:["fish","duck","turtle"] }, b:{ label:"地上", ico:"dog", ids:["dog","cat","rabbit"] },
+           items:["fish","dog","duck","cat","turtle","rabbit"] } },
+  { n:13, name:"生活用品找一找", tip:"把刷牙、洗脸、喝水用的东西点出来。", type:"tapAll", stage:"生活常识", icon:"cup",
+    data:{ want:"life", items:["cup","teddy","brush","ball2","towel","kite"] } },
+  { n:14, name:"白天和黑夜", tip:"白天用的放太阳这边，晚上用的放月亮这边。", type:"basket", stage:"生活常识",
+    data:{ a:{ label:"白天", ico:"sun", ids:["sun","bird","lamp"] }, b:{ label:"黑夜", ico:"moon", ids:["moon","owl","star"] },
+           items:["sun","moon","bird","owl","lamp","star"] } },
+  { n:15, name:"夏天和冬天", tip:"短袖放夏天，棉袄放冬天。", type:"basket", stage:"生活常识",
+    data:{ a:{ label:"夏天", ico:"shirt", ids:["shirt","shoe","balloon"] }, b:{ label:"冬天", ico:"coat", ids:["coat","towel","lamp"] },
+           items:["shirt","coat","shoe","towel","balloon","lamp"] } },
+
+  { n:16, name:"图形拼一拼", tip:"把碎块拖回自己的位置，拼成一张图。", type:"puzzle", stage:"专注逻辑" },
+  { n:17, name:"记忆翻牌", tip:"翻开两张一样的，就能配对。", type:"memory", stage:"专注逻辑" },
+  { n:18, name:"规律接龙", tip:"看看前面是怎么排的，接下来该谁？", type:"pattern", stage:"专注逻辑" },
+  { n:19, name:"找不同", tip:"两张图有三处不一样，点出来。", type:"spot", stage:"专注逻辑" },
+  { n:20, name:"终极大闯关", tip:"把学过的都用上，四道小题全对就通关。", type:"final", stage:"专注逻辑" }
+];
+var TOTAL = LEVELS.length;
+
+function clearedN(n){ return !!(S.games.cleared && S.games.cleared[n]); }
+function openN(n){ return n === 1 || clearedN(n - 1); }
+function progressN(){ var c = 0; for (var i = 1; i <= TOTAL; i++) if (clearedN(i)) c++; return c; }
+
+/* ---------------- 存档 ---------------- */
+function save(){ try { Room.save(); } catch(e){} }
+function paintStar(){
+  var el = document.getElementById("starNum");
+  if (el) el.textContent = (S.stars || 0);
+}
+
+/* ---------------- 地图 ---------------- */
+var GAP = 128, PAD_TOP = 150, PAD_BOT = 150;
+var NODE_POS = [];
+function computePos(){
+  NODE_POS = [];
+  var h = PAD_TOP + (TOTAL - 1) * GAP + PAD_BOT;
+  for (var i = 0; i < TOTAL; i++){
+    var y = h - PAD_BOT - i * GAP;              /* 第 1 关在最下面 */
+    var x = 50 + 27 * Math.sin(i * 0.92 + 0.3);
+    NODE_POS.push({ x: x, y: y });
+  }
+  return h;
+}
+function buildMap(){
+  var map = document.getElementById("map");
+  var h = computePos();
+  map.style.height = h + "px";
+
+  /* 虚线小路 */
+  var svg = document.getElementById("pathSvg");
+  svg.setAttribute("viewBox", "0 0 1000 " + h);
+  svg.setAttribute("width", "100%");
+  svg.setAttribute("height", h);
+  var d = "";
+  for (var i = 0; i < NODE_POS.length; i++){
+    var p = NODE_POS[i], px = p.x * 10, py = p.y;
+    if (i === 0) d += "M" + px + "," + py;
+    else {
+      var q = NODE_POS[i - 1], qx = q.x * 10, qy = q.y;
+      var mx = (qx + px) / 2, my = (qy + py) / 2;
+      d += " Q" + qx + "," + qy + " " + mx + "," + my;
+      d += " Q" + px + "," + py + " " + px + "," + py;
+    }
+  }
+  svg.innerHTML =
+    '<path d="' + d + '" fill="none" stroke="#c8ddc9" stroke-width="26" stroke-linecap="round" vector-effect="non-scaling-stroke" opacity=".75"/>' +
+    '<path d="' + d + '" fill="none" stroke="#fdfaf0" stroke-width="18" stroke-linecap="round" stroke-dasharray="2 22" vector-effect="non-scaling-stroke"/>';
+
+  var box = document.getElementById("nodes");
+  box.innerHTML = "";
+  LEVELS.forEach(function(L, i){
+    var p = NODE_POS[i];
+    var st = clearedN(L.n) ? "done" : (openN(L.n) ? (L.n === firstOpen() ? "now" : "open") : "lock");
+    var b = document.createElement("button");
+    b.className = "node " + st;
+    b.style.left = p.x + "%";
+    b.style.top = p.y + "px";
+    b.dataset.n = L.n;
+    var inner = clearedN(L.n)
+      ? '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 L9.5 18 L20 6.5"/></svg>'
+      : (openN(L.n) ? '<span class="num">' + L.n + '</span>'
+         : '<span class="num">' + L.n + '</span><svg class="lockico" viewBox="0 0 24 24" fill="none" stroke="#b3ab9b" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2.6"/><path d="M8.4 11 V8.4 a3.6 3.6 0 0 1 7.2 0 V11"/></svg>');
+    b.innerHTML = inner + '<span class="cap">' + L.name + '</span>' +
+      (clearedN(L.n) ? '<span class="badge">★</span>' : '');
+    b.addEventListener("click", function(){ tapLevel(L, b); });
+    box.appendChild(b);
+  });
+
+  /* 顶部旗子 */
+  var old = document.querySelector(".peak"); if (old) old.remove();
+  var peak = document.createElement("div");
+  peak.className = "peak";
+  peak.style.top = "40px";
+  var done = progressN();
+  peak.innerHTML = '<div class="flag"><b>' + (done >= TOTAL ? "20 关全过啦" : "已经过了 " + done + " 关") + '</b>' +
+                   '<span>' + (done >= TOTAL ? "整座游戏馆都是你的了" : "接着往上走，下一关在等你") + '</span></div>';
+  document.getElementById("nodes").appendChild(peak);
+
+  /* 滚到当前关 */
+  setTimeout(function(){
+    var wrap = document.getElementById("mapWrap");
+    var cur = document.querySelector(".node.now") || document.querySelector(".node.done:last-of-type");
+    var target = cur ? (cur.offsetTop - window.innerHeight * 0.55) : 0;
+    wrap.scrollTop = Math.max(0, target);
+  }, 60);
+}
+function firstOpen(){
+  for (var i = 1; i <= TOTAL; i++) if (!clearedN(i)) return i;
+  return TOTAL;
+}
+function tapLevel(L, el){
+  Room.Sound.blip("tap");
+  if (!openN(L.n)){
+    Room.Voice.say("这一关还没开呢，先把第 " + (L.n - 1) + " 关过了吧。");
+    toastLine("先把第 " + (L.n - 1) + " 关过了，这一关就开了");
+    el.animate([{transform:"translateX(0)"},{transform:"translateX(-6px)"},{transform:"translateX(6px)"},{transform:"translateX(0)"}],{duration:280});
+    return;
+  }
+  openLevel(L.n);
+}
+
+var _toastT = null;
+function toastLine(txt){
+  var d = document.getElementById("tipToast");
+  if (!d){
+    d = document.createElement("div");
+    d.id = "tipToast";
+    d.style.cssText = "position:fixed;left:50%;bottom:calc(26px + env(safe-area-inset-bottom));transform:translateX(-50%);" +
+      "background:rgba(63,58,50,.9);color:#fff;font-size:13px;padding:9px 16px;border-radius:12px;z-index:95;" +
+      "max-width:88vw;text-align:center;line-height:1.5;transition:opacity .25s";
+    document.body.appendChild(d);
+  }
+  d.textContent = txt;
+  d.style.opacity = "1";
+  clearTimeout(_toastT);
+  _toastT = setTimeout(function(){ d.style.opacity = "0"; }, 2000);
+}
+
+/* ---------------- 关卡外壳 ---------------- */
+var curLevel = null;
+function openLevel(n){
+  var L = LEVELS[n - 1];
+  curLevel = L;
+  var sheet = document.getElementById("sheet");
+  sheet.innerHTML =
+    '<button class="x" id="lvClose">✕</button>' +
+    '<div class="lv-head"><span class="lv-no">第 ' + n + ' 关 · ' + L.stage + '</span>' +
+    '<h2>' + L.name + '</h2><p>' + L.tip + '</p></div>' +
+    '<div class="lv-stage" id="lvStage"></div>' +
+    '<div class="sayrow">' +
+      '<div class="sayline" id="lvSay"></div>' +
+      '<button class="sayhear" id="lvHear" aria-label="再听一遍" title="再听一遍">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+          '<path d="M4 9.5 L8 9.5 L13 5.5 L13 18.5 L8 14.5 L4 14.5 Z"/>' +
+          '<path d="M16.6 8.6 C18.2 10.2 18.2 13.8 16.6 15.4"/>' +
+          '<path d="M19.2 6 C22 8.8 22 15.2 19.2 18"/>' +
+        '</svg>' +
+      '</button>' +
+    '</div>';
+  document.getElementById("mask").classList.add("show");
+  document.getElementById("lvClose").onclick = closeLevel;
+  var hear = document.getElementById("lvHear");
+  if (hear) hear.onclick = hearAgain;
+  _sayText = "";
+  var stage = document.getElementById("lvStage");
+  try {
+    RENDER[L.type](stage, L, function(){ winLevel(L); });
+  } catch (e) {
+    stage.innerHTML = '<p style="text-align:center;color:#8a8272">这一关没打开，换一关试试。</p>';
+  }
+  /* 有的关自己不吭声，那就把这一关的提示念出来，别让孩子对着空屏发呆；
+     顺带让右下角那个小喇叭亮一下——告诉她「这句话还能再听」。 */
+  setTimeout(function(){
+    if (!curLevel || curLevel.n !== L.n) return;
+    if (!_sayText) lvSay(L.tip);
+    var hb = document.getElementById("lvHear");
+    if (hb){ hb.classList.remove("ring"); void hb.offsetWidth; hb.classList.add("ring"); }
+  }, 420);
+}
+function closeLevel(){
+  document.getElementById("mask").classList.remove("show");
+  curLevel = null;
+  clearTimeout(_sayTimer);
+  try { Room.Voice.stop(); } catch(e){}
+}
+/* 屏幕上写一句，同时念出来。
+   孩子不识字，题目不能只挂在屏幕上——这一句才是她真正「看到」的题。
+   连着改两次时只念最后一句，免得两句话叠在一起听不清。 */
+var _sayText = "", _sayTimer = null;
+function lvSay(t, quiet){
+  var el = document.getElementById("lvSay");
+  if (el) el.textContent = t;
+  _sayText = t || "";
+  clearTimeout(_sayTimer);
+  if (quiet || !t) return;
+  _sayTimer = setTimeout(function(){
+    if (!curLevel) return;                     /* 关卡已经关了就别念了 */
+    try { Room.Voice.say(t, { who: "teacher" }); } catch(e){}
+  }, 150);
+}
+/* 再听一遍：念当前这一句；没有就念这一关的提示 */
+function hearAgain(){
+  if (!curLevel) return;
+  var t = _sayText || (curLevel.name + "。" + curLevel.tip);
+  try { Room.Voice.stop(); } catch(e){}
+  try { Room.Voice.say(t, { who: "teacher", force: true }); } catch(e){}
+  var b = document.getElementById("lvHear");
+  if (b){ b.classList.remove("ring"); void b.offsetWidth; b.classList.add("ring"); }
+}
+
+/* 五角星和别处是同一颗，画法收在 ui.js 里 */
+var starSVG = CC.starSVG;
+function winLevel(L){
+  var first = !clearedN(L.n);
+  var add = first ? 5 : 1;
+  if (first) S.games.cleared[L.n] = true;
+  S.games.times = S.games.times || {};
+  S.games.times[L.n] = (S.games.times[L.n] || 0) + 1;
+  S.stars = (S.stars || 0) + add;
+  save();
+  paintStar();
+  Room.Sound.blip("good");
+
+  var all = progressN() >= TOTAL;
+  var sheet = document.getElementById("sheet");
+  sheet.innerHTML =
+    '<div class="donebox">' +
+      '<div class="big">' + (all ? starSVG(56,"#f0a832") : starSVG(52,"#f0a832")) + '</div>' +
+      '<h2>' + (all ? "20 关全过啦" : "过啦！") + '</h2>' +
+      '<p>' + (all ? "整座游戏馆都走完了，你真棒。<br>想玩哪一关，回去再点它就行。"
+                    : "得到 " + add + " 颗星星。" + (first ? "<br>下一关开了，往上走一格吧。" : "<br>再玩一次也有一点点星星。")) + '</p>' +
+      '<div class="row">' +
+        '<button class="btn primary" id="dkBack">回地图</button>' +
+        (first && L.n < TOTAL ? '<button class="btn gold" id="dkNext">下一关</button>' : '') +
+      '</div>' +
+    '</div>';
+  document.getElementById("dkBack").onclick = function(){
+    closeLevel(); buildMap();
+  };
+  var nx = document.getElementById("dkNext");
+  if (nx) nx.onclick = function(){
+    document.getElementById("mask").classList.remove("show");
+    buildMap();
+    openLevel(L.n + 1);
+  };
+  try { Room.Voice.say(all ? "太厉害了，二十关全过了。" : "过啦，得到 " + add + " 颗星星。"); } catch(e){}
+
+  /* 星星往上飘 */
+  for (var i = 0; i < 5; i++){
+    (function(i){
+      setTimeout(function(){
+        var s = document.createElement("div");
+        s.className = "starfly";
+        s.textContent = "★";
+        s.style.color = "#f0a832";
+        s.style.left = (30 + Math.random() * 40) + "%";
+        s.style.top = (40 + Math.random() * 20) + "%";
+        document.body.appendChild(s);
+        setTimeout(function(){ s.remove(); }, 1000);
+      }, i * 90);
+    })(i);
+  }
+}
+
+/* ---------------- 拖拽 / 点选 小工具 ---------------- */
+function canDrag(el){ return el && el.classList; }
+function makeDraggable(tile, onDrop, onTap){
+  var sx = 0, sy = 0, dragging = false, ghost = null, moved = false;
+
+  tile.addEventListener("pointerdown", function(e){
+    if (tile.classList.contains("ok")) return;
+    e.preventDefault();
+    sx = e.clientX; sy = e.clientY; dragging = true; moved = false;
+    try { tile.setPointerCapture(e.pointerId); } catch(err){}
+  });
+
+  tile.addEventListener("pointermove", function(e){
+    if (!dragging) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    if (!moved && Math.abs(dx) + Math.abs(dy) < 6) return;
+    if (!moved){
+      moved = true;
+      var r = tile.getBoundingClientRect();
+      ghost = tile.cloneNode(true);
+      ghost.classList.add("drag");
+      ghost.style.width = r.width + "px";
+      ghost.style.height = r.height + "px";
+      ghost.style.left = (e.clientX - r.width / 2) + "px";
+      ghost.style.top = (e.clientY - r.height / 2) + "px";
+      document.body.appendChild(ghost);
+      tile.style.opacity = ".35";
+    }
+    if (ghost){
+      ghost.style.left = (e.clientX - ghost.offsetWidth / 2) + "px";
+      ghost.style.top = (e.clientY - ghost.offsetHeight / 2) + "px";
+    }
+    highlightUnder(e.clientX, e.clientY);
+  });
+
+  function end(e){
+    if (!dragging) return;
+    dragging = false;
+    tile.style.opacity = "";
+    if (ghost){ ghost.remove(); ghost = null; }
+    document.querySelectorAll(".drop.hot").forEach(function(d){ d.classList.remove("hot"); });
+    if (!moved){ if (onTap) onTap(); return; }
+    var target = dropUnder(e.clientX, e.clientY);
+    if (target && onDrop) onDrop(target, tile, e.clientX, e.clientY);
+    else if (onDrop) onDrop(null, tile, e.clientX, e.clientY);
+  }
+  tile.addEventListener("pointerup", end);
+  tile.addEventListener("pointercancel", function(){
+    dragging = false; tile.style.opacity = "";
+    if (ghost){ ghost.remove(); ghost = null; }
+    document.querySelectorAll(".drop.hot").forEach(function(d){ d.classList.remove("hot"); });
+  });
+}
+function dropUnder(x, y){
+  var el = document.elementFromPoint(x, y);
+  while (el && !(el.classList && el.classList.contains("drop"))) el = el.parentNode;
+  return el;
+}
+function highlightUnder(x, y){
+  document.querySelectorAll(".drop.hot").forEach(function(d){ d.classList.remove("hot"); });
+  var d = dropUnder(x, y);
+  if (d) d.classList.add("hot");
+}
+function nearRect(el, x, y, pad){
+  var r = el.getBoundingClientRect();
+  pad = pad || 26;
+  return x > r.left - pad && x < r.right + pad && y > r.top - pad && y < r.bottom + pad;
+}
+
+/* =====================================================================
+   各关玩法
+   ===================================================================== */
+var RENDER = {};
+
+/* ---- 1. 颜色对对碰 ---- */
+RENDER.pairColor = function(stage, L, win){
+  /* 五个颜色里随机挑三个：玩过一遍再来，颜色不会一模一样 */
+  var colors = [
+    { c:"#e8737d", name:"红色" },
+    { c:"#f6c045", name:"黄色" },
+    { c:"#6aa6d8", name:"蓝色" },
+    { c:"#8fc97e", name:"绿色" },
+    { c:"#b79ce0", name:"紫色" }
+  ].sort(function(){ return Math.random() - .5; }).slice(0, 3);
+  var html = '<div class="tray" id="pcTray">';
+  colors.concat(colors).sort(function(){ return Math.random() - .5; }).forEach(function(k, i){
+    html += '<div class="tile pc" data-c="' + k.c + '" style="width:56px;height:56px;border-radius:16px;background:' + k.c + '"></div>';
+  });
+  html += '</div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px">';
+  colors.forEach(function(k){
+    html += '<div class="drop pcdrop" data-c="' + k.c + '" style="min-height:84px;background:' + k.c + '22;border-color:' + k.c + '66">' +
+            '<div style="width:40px;height:40px;border-radius:12px;border:3px dashed ' + k.c + '"></div>' +
+            '<span class="dl" style="color:' + k.c + '">' + k.name + '</span></div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay("把一样颜色的方块，放到一样颜色的格子里。");
+
+  var left = 6;
+  stage.querySelectorAll(".pc").forEach(function(tile){
+    makeDraggable(tile, function(target){
+      if (!target) return;
+      if (target.dataset.c === tile.dataset.c){
+        tile.remove();
+        target.classList.add("full");
+        target.innerHTML = '<div style="width:40px;height:40px;border-radius:12px;background:' + tile.dataset.c + '"></div>' +
+                           '<span class="dl" style="color:' + tile.dataset.c + '">好了</span>';
+        Room.Sound.blip("ok");
+        left--;
+        if (left === 0){ lvSay("三个颜色都回家了。"); setTimeout(win, 420); }
+      } else {
+        tile.classList.add("bad");
+        setTimeout(function(){ tile.classList.remove("bad"); }, 360);
+        Room.Sound.blip("soft");
+        lvSay("再看看，这两个颜色不一样。");
+      }
+    }, function(){
+      tile.classList.add("sel");
+      setTimeout(function(){ tile.classList.remove("sel"); }, 300);
+    });
+  });
+};
+
+/* ---- 2 / 4 / 13. 点出所有目标 ---- */
+RENDER.tapAll = function(stage, L, win){
+  var want = L.data.want, ids = L.data.items.slice();
+  var targetN = want === "round" ? 3 : (want === "square" ? 3 : 3);
+  /* 让答案固定可数：每一组里刚好 3 个对的 */
+  var okSet = {
+    round:  ["ball2","clock","apple"],
+    square: ["block","book","bread"],
+    life:   ["cup","brush","towel"]
+  }[want];
+  var list = ids.slice().sort(function(){ return Math.random() - .5; });
+  var html = '<div class="gridpuz" style="grid-template-columns:repeat(3,1fr);max-width:330px">';
+  list.forEach(function(id){
+    html += '<button class="tile ti" data-id="' + id + '" style="width:96px;height:96px;border-radius:20px">' + gart(id, 62) + '</button>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay(want === "life" ? "牙刷、杯子、毛巾……点出来。" : "仔细看一看，点出" + (want === "round" ? "圆圆的" : "方方的") + "东西。");
+
+  var found = 0;
+  stage.querySelectorAll(".ti").forEach(function(b){
+    b.addEventListener("click", function(){
+      var id = b.dataset.id;
+      if (okSet.indexOf(id) >= 0){
+        b.classList.add("ok");
+        Room.Sound.blip("ok");
+        found++;
+        if (found >= targetN){ lvSay("全找到了。"); setTimeout(win, 380); }
+      } else {
+        b.classList.add("bad");
+        setTimeout(function(){ b.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft");
+        lvSay("这个不太像，再找找看。");
+      }
+    });
+  });
+};
+
+/* ---- 3. 花朵填充花瓣 ---- */
+RENDER.petals = function(stage, L, win){
+  var flowers = [
+    { c:"#e8737d", name:"红" },
+    { c:"#f6c045", name:"黄" },
+    { c:"#6aa6d8", name:"蓝" }
+  ];
+  var html = '<div style="display:flex;justify-content:space-around;margin:6px 0 16px">';
+  flowers.forEach(function(f, i){
+    html += '<div class="flow" data-c="' + f.c + '" style="position:relative;width:88px;height:88px">' +
+      '<svg viewBox="-40 -40 80 80" width="88" height="88">' +
+        '<circle cx="0" cy="0" r="13" fill="' + f.c + '"/>' +
+        '<g class="petalSlot" fill="none" stroke="' + f.c + '" stroke-width="2.4" stroke-dasharray="5 5">' +
+          '<ellipse cx="0" cy="-25" rx="10" ry="12"/>' +
+          '<ellipse cx="24" cy="8" rx="10" ry="12" transform="rotate(120 24 8)"/>' +
+          '<ellipse cx="-24" cy="8" rx="10" ry="12" transform="rotate(-120 -24 8)"/>' +
+        '</g>' +
+      '</svg></div>';
+  });
+  html += '</div><div class="tray" id="ptTray">';
+  var pool = [];
+  flowers.forEach(function(f){ for (var k = 0; k < 3; k++) pool.push(f); });
+  pool.sort(function(){ return Math.random() - .5; }).forEach(function(f){
+    html += '<div class="tile pt" data-c="' + f.c + '" style="width:58px;height:58px;border-radius:16px;background:#fff">' +
+      '<svg viewBox="-20 -20 40 40" width="40" height="40"><ellipse cx="0" cy="0" rx="13" ry="15" fill="' + f.c + '"/></svg></div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay("每朵花缺三片花瓣，拖一样颜色的过去。");
+
+  var need = 9, done = 0;
+  stage.querySelectorAll(".pt").forEach(function(tile){
+    makeDraggable(tile, function(target){
+      if (!target) return;
+      var flow = target.closest(".flow");
+      if (!flow) return;
+      if (flow.dataset.c !== tile.dataset.c){
+        tile.classList.add("bad"); setTimeout(function(){ tile.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft"); lvSay("颜色对不上，换一片试试。");
+        return;
+      }
+      var svg = flow.querySelector("svg");
+      var slots = svg.querySelectorAll(".petalSlot");
+      if (!slots.length){ return; }
+      var slot = slots[slots.length - 1];
+      var parent = slot.parentNode;
+      var g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+      g.innerHTML = slot.innerHTML;
+      g.setAttribute("fill", tile.dataset.c);
+      g.removeAttribute("stroke");
+      g.setAttribute("stroke", "none");
+      parent.insertBefore(g, slot);
+      slot.remove();
+      tile.remove();
+      Room.Sound.blip("ok");
+      done++;
+      if (done >= need){ lvSay("三朵花都开好了。"); setTimeout(win, 420); }
+    });
+  });
+  /* 让整朵花也能接住：把 drop 语义挂到 .flow 上 */
+  stage.querySelectorAll(".flow").forEach(function(f){
+    f.classList.add("drop");
+    f.style.border = "none";
+    f.style.background = "transparent";
+    f.style.minHeight = "0";
+  });
+};
+
+/* ---- 5. 颜色排序 ---- */
+RENDER.orderColor = function(stage, L, win){
+  var seq = ["#e8737d","#f6c045","#6aa6d8"];
+  var names = {"#e8737d":"红","#f6c045":"黄","#6aa6d8":"蓝"};
+  var html = '<p style="text-align:center;color:#8a8272;font-size:12.5px;margin:0 0 6px">照着这个样子排</p>' +
+    '<div style="display:flex;justify-content:center;gap:10px;margin-bottom:14px">';
+  seq.forEach(function(c){ html += '<div style="width:52px;height:52px;border-radius:14px;background:' + c + '"></div>'; });
+  html += '</div><div class="tray" id="ocTray">';
+  var pool = seq.concat(seq).sort(function(){ return Math.random() - .5; });
+  pool.forEach(function(c){
+    html += '<div class="tile oc" data-c="' + c + '" style="width:56px;height:56px;border-radius:16px;background:' + c + '"></div>';
+  });
+  html += '</div><div id="ocDone" style="display:flex;justify-content:center;gap:10px;margin-top:6px;min-height:56px"></div>';
+  stage.innerHTML = html;
+  lvSay("第一个要红色的，点一下红色的方块。");
+
+  var step = 0;
+  stage.querySelectorAll(".oc").forEach(function(t){
+    t.addEventListener("click", function(){
+      if (t.classList.contains("ok")) return;
+      if (t.dataset.c === seq[step]){
+        t.classList.add("ok");
+        var d = document.createElement("div");
+        d.style.cssText = "width:44px;height:44px;border-radius:12px;background:" + t.dataset.c;
+        document.getElementById("ocDone").appendChild(d);
+        Room.Sound.blip("ok");
+        step++;
+        if (step >= 3){ lvSay("红、黄、蓝，排好了。"); setTimeout(win, 420); }
+        else lvSay("对，下一个要" + names[seq[step]] + "色的。");
+      } else {
+        t.classList.add("bad");
+        setTimeout(function(){ t.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft");
+        lvSay("顺序不对哦，看看第一个是什么颜色。");
+      }
+    });
+  });
+};
+
+/* ---- 6. 数一数水果 ---- */
+RENDER.countAnswer = function(stage, L, win){
+  var fruits = ["apple","banana","grape","tomato","carrot"];
+  var f = fruits[Math.floor(Math.random() * fruits.length)];
+  var n = 2 + Math.floor(Math.random() * 3);          /* 2~4 个 */
+  var html = '<div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin:8px 0 18px" id="caRow">';
+  for (var i = 0; i < n; i++) html += '<div style="width:64px;height:64px">' + gart(f, 64) + '</div>';
+  html += '</div><div class="opts" id="caOpts">';
+  for (var k = 1; k <= 5; k++) html += '<button class="opt" data-n="' + k + '">' + k + '</button>';
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay("数一数，这里有几个？");
+
+  var found = false;
+  stage.querySelectorAll(".opt").forEach(function(b){
+    b.addEventListener("click", function(){
+      if (found) return;
+      if (+b.dataset.n === n){
+        found = true;
+        b.classList.add("ok");
+        Room.Sound.blip("ok");
+        lvSay("对，一共 " + n + " 个。");
+        setTimeout(win, 480);
+      } else {
+        b.classList.add("bad");
+        setTimeout(function(){ b.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft");
+        lvSay("再数一遍，一个一个点着数。");
+      }
+    });
+  });
+};
+
+/* ---- 7. 喂小动物 ---- */
+RENDER.feed = function(stage, L, win){
+  var animals = [
+    { id:"chick", food:"corn",  word:"小鸡", unit:"粒玉米" },
+    { id:"rabbit",food:"carrot",word:"小兔", unit:"根胡萝卜" },
+    { id:"cat",   food:"fish",  word:"小猫", unit:"条小鱼" },
+    { id:"pig",   food:"apple", word:"小猪", unit:"个苹果" }
+  ];
+  var a = animals[Math.floor(Math.random() * animals.length)];
+  var need = 2 + Math.floor(Math.random() * 2);
+  var html = '<div style="display:flex;justify-content:center;align-items:flex-end;gap:18px;margin:10px 0 16px">' +
+      '<div style="text-align:center">' + gart(a.id, 92) + '<div style="font-size:12px;color:#7c8b80;margin-top:4px">' + a.word + '</div></div>' +
+      '<div class="drop" id="fdBowl" style="width:104px;min-height:84px"><span class="dl">饭碗</span>' +
+        '<b id="fdNum" style="font-size:18px;color:#4f7a5e">0 / ' + need + '</b></div>' +
+    '</div><div class="tray" id="fdTray">';
+  for (var i = 0; i < need + 2; i++){
+    html += '<div class="tile fd" data-f="' + a.food + '" style="width:58px;height:58px">' + gart(a.food, 44) + '</div>';
+  }
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay(a.word + "要吃 " + need + " " + a.unit + "，一份一份喂给它。");
+
+  var got = 0;
+  var bowl = document.getElementById("fdBowl");
+  stage.querySelectorAll(".fd").forEach(function(t){
+    makeDraggable(t, function(target, el, x, y){
+      var hit = target || (nearRect(bowl, x, y, 40) ? bowl : null);
+      if (!hit){ return; }
+      hit.classList.add("full");
+      setTimeout(function(){ hit.classList.remove("full"); }, 260);
+      got++;
+      document.getElementById("fdNum").textContent = Math.min(got, need) + " / " + need;
+      Room.Sound.blip("ok");
+      t.classList.add("ok");
+      if (got >= need){ lvSay("吃完了，谢谢你。"); setTimeout(win, 460); }
+      else lvSay("还差 " + (need - got) + " 份。");
+    });
+  });
+};
+
+/* ---- 8. 数字找影子 ---- */
+RENDER.shadow = function(stage, L, win){
+  var nums = [1,2,3].sort(function(){ return Math.random() - .5; });
+  var html = '<div style="display:flex;justify-content:center;gap:14px;margin:10px 0 18px">';
+  nums.forEach(function(n){
+    html += '<div class="drop sh" data-n="' + n + '" style="width:92px;height:104px;border-color:#dfe6db">' +
+      '<span style="font-size:52px;font-weight:800;color:#dcd6c6;line-height:1">' + n + '</span>' +
+      '<span class="dl">影子</span></div>';
+  });
+  html += '</div><div class="tray" id="shTray">';
+  nums.slice().sort(function(){ return Math.random() - .5; }).forEach(function(n){
+    html += '<div class="tile sh2" data-n="' + n + '" style="width:62px;height:62px">' +
+      '<span style="font-size:32px;font-weight:800;color:#4a4437">' + n + '</span></div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay("影子淡淡的，看看每个影子是数字几。");
+
+  var left = 3;
+  stage.querySelectorAll(".sh2").forEach(function(t){
+    makeDraggable(t, function(target, el, x, y){
+      if (!target){ return; }
+      if (target.dataset.n === t.dataset.n){
+        target.classList.add("full");
+        target.innerHTML = '<span style="font-size:52px;font-weight:800;color:#4f7a5e;line-height:1">' + t.dataset.n + '</span><span class="dl">对上了</span>';
+        t.remove();
+        Room.Sound.blip("ok");
+        left--;
+        if (left === 0){ lvSay("三个数字都找到影子了。"); setTimeout(win, 420); }
+      } else {
+        t.classList.add("bad"); setTimeout(function(){ t.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft"); lvSay("这个影子不是它，再看看。");
+      }
+    });
+  });
+};
+
+/* ---- 9. 花朵配数量 ---- */
+RENDER.matchCount = function(stage, L, win){
+  var n = 3 + Math.floor(Math.random() * 3);        /* 3~5 朵 */
+  var html = '<div class="drop" id="mcBox" style="margin:6px 0 16px;background:#f6fbf7">' +
+      '<div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center">';
+  for (var i = 0; i < n; i++) html += '<div style="width:46px;height:46px">' + gart("flower", 46) + '</div>';
+  html += '</div><span class="dl">数一数有几朵</span></div><div class="opts" id="mcOpts">';
+  var opts = [n-1, n, n+1].filter(function(x){ return x >= 1 && x <= 6; });
+  if (opts.indexOf(n) < 0) opts.push(n);
+  opts = opts.filter(function(x, i){ return opts.indexOf(x) === i; }).sort(function(a,b){ return a - b; });
+  opts.forEach(function(x){ html += '<div class="tile mc" data-n="' + x + '" style="width:64px;height:64px;font-size:28px;font-weight:800;color:#4a4437">' + x + '</div>'; });
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay("一共几朵花？把那个数字拖到花上。");
+
+  var box = document.getElementById("mcBox");
+  stage.querySelectorAll(".mc").forEach(function(t){
+    makeDraggable(t, function(target, el, x, y){
+      var hit = target || (nearRect(box, x, y, 40) ? box : null);
+      if (!hit) return;
+      if (+t.dataset.n === n){
+        box.classList.add("full");
+        box.querySelector(".dl").textContent = "答对了，是 " + n + " 朵";
+        Room.Sound.blip("ok");
+        lvSay("对，一共有 " + n + " 朵花。");
+        setTimeout(win, 520);
+      } else {
+        t.classList.add("bad"); setTimeout(function(){ t.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft"); lvSay("再数数看，慢慢数。");
+      }
+    });
+  });
+};
+
+/* ---- 10. 少了哪一个 ---- */
+RENDER.missingNum = function(stage, L, win){
+  var miss = 1 + Math.floor(Math.random() * 4);      /* 1~4 */
+  var html = '<div style="display:flex;justify-content:center;gap:10px;margin:16px 0 20px">';
+  for (var i = 1; i <= 5; i++){
+    if (i === miss) html += '<div style="width:62px;height:62px;border-radius:16px;border:2px dashed #cfd8cb;display:flex;align-items:center;justify-content:center;color:#c9c2b2;font-size:28px">?</div>';
+    else html += '<div style="width:62px;height:62px;border-radius:16px;background:#f0f6f1;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;color:#4a4437">' + i + '</div>';
+  }
+  html += '</div><div class="opts" id="mnOpts">';
+  var opts = [miss, miss - 1, miss + 1, 1, 5].filter(function(x, i, a){
+    return x >= 1 && x <= 5 && a.indexOf(x) === i;
+  }).slice(0, 3);
+  if (opts.indexOf(miss) < 0) opts[0] = miss;
+  opts.sort(function(a,b){ return a - b; });
+  opts.forEach(function(x){ html += '<button class="opt" data-n="' + x + '">' + x + '</button>'; });
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay("从一数到五，中间少了一个数。");
+
+  var done = false;
+  stage.querySelectorAll(".opt").forEach(function(b){
+    b.addEventListener("click", function(){
+      if (done) return;
+      if (+b.dataset.n === miss){
+        done = true; b.classList.add("ok");
+        Room.Sound.blip("ok");
+        lvSay("补上了，是 " + miss + "。");
+        setTimeout(win, 460);
+      } else {
+        b.classList.add("bad"); setTimeout(function(){ b.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft"); lvSay("伸出手指，从一数到五试试。");
+      }
+    });
+  });
+};
+
+
+/* ---- 11-15. 分篮子 ---- */
+RENDER.basket = function(stage, L, win){
+  var d = L.data;
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:6px 0 14px">';
+  ["a","b"].forEach(function(k){
+    var g = d[k];
+    html += '<div class="drop bk" data-k="' + k + '" style="min-height:104px">' +
+      '<div style="display:flex;align-items:center;gap:6px">' + gart(g.ico, 34) +
+      '<span style="font-size:14px;font-weight:800;color:#4f7a5e">' + g.label + '</span></div>' +
+      '<div class="bkitems" style="display:flex;gap:4px;flex-wrap:wrap;justify-content:center;min-height:38px"></div>' +
+      '</div>';
+  });
+  html += '</div><div class="tray" id="bkTray">';
+  d.items.slice().sort(function(){ return Math.random() - .5; }).forEach(function(id){
+    html += '<div class="tile bk2" data-id="' + id + '" style="width:64px;height:64px">' + gart(id, 46) + '</div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay("看看每个东西该去哪个篮子，拖过去。");
+
+  var left = d.items.length;
+  stage.querySelectorAll(".bk2").forEach(function(t){
+    makeDraggable(t, function(target){
+      if (!target) return;
+      var k = target.dataset.k;
+      var g = d[k];
+      if (g.ids.indexOf(t.dataset.id) >= 0){
+        Room.Sound.blip("ok");
+        var mini = document.createElement("div");
+        mini.style.cssText = "width:34px;height:34px";
+        mini.innerHTML = gart(t.dataset.id, 34);
+        target.querySelector(".bkitems").appendChild(mini);
+        t.remove();
+        left--;
+        if (left === 0){ lvSay("都分好了，真整齐。"); setTimeout(win, 420); }
+      } else {
+        t.classList.add("bad"); setTimeout(function(){ t.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft");
+        lvSay("这个好像不属于这一篮，再看看。");
+      }
+    });
+  });
+};
+
+/* ---- 16. 图形拼一拼 ---- */
+RENDER.puzzle = function(stage, L, win){
+  var SCENE =
+    '<rect x="0" y="0" width="300" height="200" fill="#dff0e4"/>' +
+    '<circle cx="248" cy="42" r="22" fill="#ffd75e"/>' +
+    '<rect x="0" y="132" width="300" height="68" fill="#bfe0b8"/>' +
+    '<path d="M96,132 L96,84 L150,48 L204,84 L204,132 Z" fill="#e8b96a"/>' +
+    '<path d="M84,88 L150,42 L216,88 Z" fill="#d4705f"/>' +
+    '<rect x="138" y="102" width="26" height="30" fill="#a8804f"/>' +
+    '<rect x="108" y="92" width="18" height="16" fill="#bfe6f7"/>' +
+    '<rect x="176" y="92" width="18" height="16" fill="#bfe6f7"/>' +
+    '<circle cx="52" cy="150" r="16" fill="#8fc97e"/><rect x="48" y="150" width="8" height="18" fill="#a8804f"/>' +
+    '<circle cx="250" cy="158" r="13" fill="#8fc97e"/><rect x="247" y="158" width="6" height="15" fill="#a8804f"/>';
+
+  var CW = 300 / 3, CH = 200 / 2;
+  var html = '<div class="gridpuz" id="pzBoard" style="grid-template-columns:repeat(3,' + 92 + 'px);gap:4px;margin-bottom:14px">';
+  for (var r = 0; r < 2; r++) for (var c = 0; c < 3; c++){
+    var i = r * 3 + c;
+    html += '<div class="pcell pzslot" data-i="' + i + '" style="width:92px;height:61px;overflow:hidden;background:#f3ecdd;position:relative">' +
+      '<svg viewBox="' + (c * CW) + ' ' + (r * CH) + ' ' + CW + ' ' + CH + '" width="92" height="61" preserveAspectRatio="none" style="opacity:.16">' + SCENE + '</svg></div>';
+  }
+  html += '</div><div class="tray" id="pzTray">';
+  var order = [0,1,2,3,4,5].sort(function(){ return Math.random() - .5; });
+  order.forEach(function(i){
+    var c = i % 3, r = Math.floor(i / 3);
+    html += '<div class="tile pz" data-i="' + i + '" style="width:92px;height:61px;padding:0;overflow:hidden;border-radius:10px">' +
+      '<svg viewBox="' + (c * CW) + ' ' + (r * CH) + ' ' + CW + ' ' + CH + '" width="92" height="61" preserveAspectRatio="none">' + SCENE + '</svg></div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay("把小图拖到一样的位置，拼成一幅画。");
+
+  var left = 6;
+  stage.querySelectorAll(".pz").forEach(function(t){
+    makeDraggable(t, function(target){
+      if (!target) return;
+      if (target.dataset.i === t.dataset.i){
+        var c = +t.dataset.i % 3, r = Math.floor(+t.dataset.i / 3);
+        target.style.background = "#fff";
+        target.innerHTML = '<svg viewBox="' + (c * CW) + ' ' + (r * CH) + ' ' + CW + ' ' + CH + '" width="92" height="61" preserveAspectRatio="none">' + SCENE + '</svg>';
+        t.remove();
+        Room.Sound.blip("ok");
+        left--;
+        if (left === 0){ lvSay("拼好了，是一栋小房子。"); setTimeout(win, 460); }
+      } else {
+        t.classList.add("bad"); setTimeout(function(){ t.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft"); lvSay("这块不在这里，看看它的花纹。");
+      }
+    });
+  });
+};
+
+/* ---- 17. 记忆翻牌 ---- */
+RENDER.memory = function(stage, L, win){
+  var pool = ["chick","apple","flower","cat","star","carrot"].sort(function(){ return Math.random() - .5; }).slice(0, 3);
+  var cards = pool.concat(pool).sort(function(){ return Math.random() - .5; });
+  var html = '<div class="mcards" id="mm">';
+  cards.forEach(function(id, i){
+    html += '<div class="mcard" data-id="' + id + '">' +
+      '<div class="back">?</div>' +
+      '<div class="face" style="display:none">' + gart(id, 54) + '</div>' +
+      '</div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay("翻开两张一样的，就能配对。");
+
+  var first = null, lock = false, pairs = 0;
+  stage.querySelectorAll(".mcard").forEach(function(c){
+    c.addEventListener("click", function(){
+      if (lock || c.classList.contains("flip")) return;
+      c.classList.add("flip");
+      c.querySelector(".face").style.display = "flex";
+      c.classList.add("open");
+      Room.Sound.blip("tap");
+      if (!first){ first = c; return; }
+      if (first === c) return;
+      var a = first, b = c;
+      lock = true;
+      if (a.dataset.id === b.dataset.id){
+        setTimeout(function(){
+          a.style.visibility = "hidden"; b.style.visibility = "hidden";
+          a.classList.remove("open"); b.classList.remove("open");
+          first = null; lock = false; pairs++;
+          Room.Sound.blip("ok");
+          if (pairs >= 3){ lvSay("三对都找到了。"); setTimeout(win, 420); }
+        }, 420);
+      } else {
+        setTimeout(function(){
+          [a, b].forEach(function(x){
+            x.classList.remove("flip","open");
+            x.querySelector(".face").style.display = "none";
+          });
+          first = null; lock = false;
+          Room.Sound.blip("soft");
+        }, 760);
+      }
+    });
+  });
+};
+
+/* ---- 18. 规律接龙 ---- */
+RENDER.pattern = function(stage, L, win){
+  var kinds = [
+    { seq:["ball2","block","ball2","block"], ans:"ball2", name:"圆、方、圆、方" },
+    { seq:["apple","apple","banana","apple","apple"], ans:"banana", name:"两个苹果一个香蕉" },
+    { seq:["flower","star","flower","star"], ans:"flower", name:"花、星、花、星" },
+    { seq:["carrot","carrot","corn","carrot","carrot"], ans:"corn", name:"两根萝卜一个玉米" }
+  ];
+  var k = kinds[Math.floor(Math.random() * kinds.length)];
+  var html = '<div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin:12px 0 18px">';
+  k.seq.forEach(function(id){ html += '<div style="width:54px;height:54px">' + gart(id, 54) + '</div>'; });
+  html += '<div style="width:54px;height:54px;border-radius:12px;border:2px dashed #cfd8cb;display:flex;align-items:center;justify-content:center;font-size:24px;color:#c9c2b2">?</div>';
+  html += '</div><div class="opts" id="ptOpts">';
+  var pool = ["star","ball2","block","apple","flower","carrot","corn"];
+  var opts = [k.ans];
+  pool.forEach(function(x){ if (opts.length < 3 && opts.indexOf(x) < 0) opts.push(x); });
+  k.seq.forEach(function(x){ if (opts.length < 3 && opts.indexOf(x) < 0) opts.push(x); });
+  opts = opts.filter(function(x, i, a){ return a.indexOf(x) === i; }).sort(function(){ return Math.random() - .5; });
+  opts.forEach(function(id){ html += '<button class="opt pt2" data-id="' + id + '" style="min-width:72px">' + gart(id, 44) + '</button>'; });
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay("看看前面是怎么排的，后面该放哪一个？");
+
+  var done = false;
+  stage.querySelectorAll(".pt2").forEach(function(b){
+    b.addEventListener("click", function(){
+      if (done) return;
+      if (b.dataset.id === k.ans){
+        done = true; b.classList.add("ok");
+        Room.Sound.blip("ok"); lvSay("接上啦。");
+        setTimeout(win, 460);
+      } else {
+        b.classList.add("bad"); setTimeout(function(){ b.classList.remove("bad"); }, 340);
+        Room.Sound.blip("soft"); lvSay("再看看前面的顺序。");
+      }
+    });
+  });
+};
+
+/* ---- 19. 找不同 ---- */
+RENDER.spot = function(stage, L, win){
+  function scene(alt){
+    var sun = alt ? "#f6b93b" : "#ffd75e";
+    var roof = alt ? "#d4705f" : "#e8737d";
+    var flowers = alt ? 2 : 3;
+    var s = '<svg viewBox="0 0 200 150" width="100%" style="display:block">' +
+      '<rect width="200" height="150" fill="#dff0e4"/>' +
+      '<rect y="96" width="200" height="54" fill="#bfe0b8"/>' +
+      '<circle cx="164" cy="30" r="14" fill="' + sun + '"/>' +
+      '<rect x="60" y="62" width="80" height="44" fill="#f3e3c6"/>' +
+      '<path d="M52,64 L100,32 L148,64 Z" fill="' + roof + '"/>' +
+      '<rect x="92" y="78" width="18" height="28" fill="#a8804f"/>' +
+      '<rect x="68" y="74" width="14" height="12" fill="#bfe6f7"/>' +
+      '<rect x="120" y="74" width="14" height="12" fill="#bfe6f7"/>' +
+      '<circle cx="30" cy="120" r="7" fill="#8fc97e"/><circle cx="46" cy="128" r="7" fill="#8fc97e"/>';
+    if (flowers === 3) s += '<circle cx="70" cy="124" r="7" fill="#f7a8bd"/>';
+    s += '<ellipse cx="146" cy="126" rx="12" ry="7" fill="#e8b96a"/>';
+    return s + '</svg>';
+  }
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' +
+      '<div class="diffstage">' + scene(false) + '</div>' +
+      '<div class="diffstage">' + scene(true) + '</div>' +
+    '</div><p style="text-align:center;font-size:12.5px;color:#8a8272;margin:10px 0 0">两幅画有三处不一样，点一下不一样的地方</p>';
+  stage.innerHTML = html;
+
+  /* 三处差异的位置（相对图片的百分比）：太阳颜色、屋顶颜色、少一朵花 */
+  var spots = [
+    { x: 82, y: 20, r: 12, tip:"太阳的颜色不一样" },
+    { x: 50, y: 32, r: 13, tip:"屋顶的颜色不一样" },
+    { x: 35, y: 83, r: 10, tip:"少了一朵花" }
+  ];
+  var wraps = stage.querySelectorAll(".diffstage");
+  var found = 0, hit = {};
+  lvSay("仔细看看这两幅画。");
+
+  wraps.forEach(function(w){
+    spots.forEach(function(s, i){
+      var d = document.createElement("div");
+      d.className = "hotspot";
+      d.style.left = s.x + "%";
+      d.style.top = s.y + "%";
+      d.style.width = (s.r * 2) + "%";
+      d.style.height = (s.r * 2.7) + "%";
+      d.style.transform = "translate(-50%,-50%)";
+      d.addEventListener("click", function(){
+        if (hit[i]) return;
+        hit[i] = true; found++;
+        d.classList.add("found");
+        Room.Sound.blip("ok");
+        lvSay(s.tip);
+        if (found >= 3){ lvSay("三处都找到了。"); setTimeout(win, 520); }
+      });
+      w.appendChild(d);
+    });
+  });
+};
+
+/* ---- 20. 终极大闯关 ---- */
+RENDER.final = function(stage, L, win){
+  var step = 0;
+  var qs = [
+    { /* 分类 */
+      q:"哪个是水果？",
+      opts:[{id:"apple", ok:true},{id:"carrot", ok:false},{id:"car", ok:false}],
+      icon:true
+    },
+    { /* 点数 */
+      q:"这里有几个苹果？",
+      count:"apple", n:4,
+      opts:[{t:"3",ok:false},{t:"4",ok:true},{t:"5",ok:false}]
+    },
+    { /* 规律 */
+      q:"接下来该谁？",
+      seq:["star","flower","star","flower"], ans:"star",
+      opts:[{t:"★",ok:true,id:"star"},{t:"●",ok:false,id:"ball2"},{t:"■",ok:false,id:"block"}]
+    },
+    { /* 找不同合并成"找出不同的那个" */
+      q:"哪一个和别的都不一样？",
+      opts:[{id:"chick",ok:false},{id:"chick2",ok:false},{id:"pig",ok:true}]
+    }
+  ];
+
+  function draw(){
+    var q = qs[step];
+    var html = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+      '<span class="lv-no" style="margin:0">第 ' + (step + 1) + " / 4 题</span></div>";
+    html += '<p style="text-align:center;font-size:16px;font-weight:700;margin:4px 0 14px">' + q.q + '</p>';
+
+    if (q.seq){
+      html += '<div style="display:flex;justify-content:center;gap:8px;margin-bottom:14px">';
+      q.seq.forEach(function(id){ html += '<div style="width:46px;height:46px">' + gart(id, 46) + '</div>'; });
+      html += '<div style="width:46px;height:46px;border-radius:10px;border:2px dashed #cfd8cb;display:flex;align-items:center;justify-content:center;color:#c9c2b2">?</div></div>';
+    }
+    if (q.count){
+      html += '<div style="display:flex;justify-content:center;gap:4px;margin-bottom:14px">';
+      for (var i = 0; i < q.n; i++) html += '<div style="width:42px;height:42px">' + gart(q.count, 42) + '</div>';
+      html += '</div>';
+    }
+    html += '<div class="opts">';
+    q.opts.forEach(function(o, i){
+      var face = o.icon ? gart(o.id, 46)
+               : (o.id ? gart(o.id === "chick2" ? "chick" : o.id, 46) : '<span style="font-size:30px">' + o.t + '</span>');
+      html += '<button class="opt fo" data-i="' + i + '" style="min-width:84px">' + face + '</button>';
+    });
+    html += '</div>';
+    stage.innerHTML = html;
+    lvSay("第 " + (step + 1) + " 题。");
+
+    stage.querySelectorAll(".fo").forEach(function(b){
+      b.addEventListener("click", function(){
+        var o = q.opts[+b.dataset.i];
+        if (o.ok){
+          b.classList.add("ok");
+          Room.Sound.blip("ok");
+          step++;
+          if (step >= qs.length){
+            lvSay("四道题全对了。");
+            setTimeout(win, 480);
+          } else {
+            setTimeout(draw, 340);
+          }
+        } else {
+          b.classList.add("bad"); setTimeout(function(){ b.classList.remove("bad"); }, 340);
+          Room.Sound.blip("soft");
+          lvSay("再想一想。");
+        }
+      });
+    });
+  }
+  draw();
+};
+
+/* ---------------- 启动 ---------------- */
+paintStar();
+buildMap();
+
+(function(){
+  var cv = document.getElementById("cover");
+  var art = document.getElementById("coverArt");
+  if (art) art.innerHTML = gart("book", 62) + gart("star", 46) + gart("chick", 54);
+  var go = document.getElementById("goBtn");
+  function begin(){
+    try { Room.Sound.start(); } catch(e){}
+    cv.classList.add("gone");
+    setTimeout(function(){ if (cv.parentNode) cv.parentNode.removeChild(cv); }, 420);
+    try { Room.Voice.say("游戏馆开了，从第一关开始吧。"); } catch(e){}
+  }
+  if (go) go.addEventListener("click", begin);
+  /* 已经进来过：直接开 */
+  if (S.entered) setTimeout(begin, 60);
+})();
+
+document.getElementById("btnBack").onclick = function(){ location.href = "index.html"; };
+document.getElementById("btnStar").onclick = function(){
+  Room.Voice.say("你现在有 " + (S.stars || 0) + " 颗星星。");
+  toastLine("现在有 " + (S.stars || 0) + " 颗星星");
+};
+
+</script>
+</body>
+</html>
