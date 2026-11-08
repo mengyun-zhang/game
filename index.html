@@ -14,7 +14,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#dff0e4">
 <link rel="icon" href="data:,">
-<title>澄澄的小镇</title>
+<title>音音的小镇</title>
+<script>
+/* ---------------------------------------------------------------------
+   封面提前判一次（必须在 <body> 画出第一帧之前跑完）
+   ---------------------------------------------------------------------
+   封面是写在 HTML 里的，下面几千行脚本要跑到很后面才决定删不删它，
+   所以从别的页面跳回来、或者刷新时，会先闪一下「你叫什么名字」再消失。
+   这里在解析页面时就按同一份存档判一遍，不该露脸的先把封面藏掉，
+   等主脚本跑到时再真正移除，孩子就看不到那一下闪。
+   —— 判定条件和主脚本完全一致：进过镇(S.entered) / 有名字(kidName)
+      / 带商店意图，满足任意一条就不显示封面。
+   只读不写：sessionStorage 里的记号留给 ui.js 去消费，这里不动它。
+--------------------------------------------------------------------- */
+(function(){
+  var show = true;
+  try{
+    var raw = localStorage.getItem("chengcheng-town-v2");
+    var S = raw ? JSON.parse(raw) : null;
+    if(S && typeof S === "object" &&
+       (S.entered || String(S.kidName || "").replace(/\s/g, ""))){
+      show = false;                                  /* 来过 / 有名字 → 直接开门 */
+    }
+  }catch(e){}
+  try{
+    if(/[?&]shop=/.test(location.search || "") || /shop=/.test(location.hash || "")) show = false;
+    if(sessionStorage.getItem("cc-ask-shop")) show = false;
+  }catch(e){}
+  try{
+    /* 从农场过来又没说要回小镇：那是来买东西的，不进封面（和主脚本同一条兜底） */
+    var ref = document.referrer || "";
+    if(/farm\.html/.test(ref) && !/[?&]back=1/.test(location.search || "")) show = false;
+  }catch(e){}
+  if(!show){ try{ document.documentElement.classList.add("no-cover"); }catch(e){ document.documentElement.className += " no-cover"; } }
+})();
+</script>
 <style>
   :root{
     --bg:#dff0e4; --card:#fffdf8; --ink:#3f3a32; --muted:#7c8b80;
@@ -475,6 +509,8 @@
   /* 开场封面 */
   .cover{position:fixed;top:0;right:0;bottom:0;left:0;;z-index:70;display:grid;place-items:center;padding:20px;
     background:radial-gradient(circle at 50% 30%, #eaf7e6, #c6e3bf 70%);transition:.5s}
+  /* 不该露脸时，页面一画出来就是藏着的（见 <head> 里那段提前判断） */
+  .no-cover .cover{display:none !important}
   .cover.hide{opacity:0 !important;pointer-events:none !important;visibility:hidden}
   .cover .box{text-align:center;max-width:380px}
   .cover h1{font-size:30px;letter-spacing:4px;margin:14px 0 6px}
@@ -592,7 +628,7 @@
 
 <div class="hud">
   <div class="brand">
-    <h1 id="brandName">我的小镇</h1>
+    <h1 id="brandName">音音的小镇</h1>
     <p>走一走，点一点，就能进屋玩</p>
   </div>
   <div class="hud-right">
@@ -620,10 +656,10 @@
 <div class="cover" id="cover">
   <div class="box">
     <div id="coverHero" style="width:150px;margin:0 auto"></div>
-    <h1 id="coverTitle">我的小镇</h1>
+    <h1 id="coverTitle">音音的小镇</h1>
     <p id="coverAsk">你叫什么名字呀？<br>写上名字，这里就是你的小镇了</p>
     <div class="name-row" id="nameRow">
-      <input id="heroName" maxlength="4" placeholder="比如：澄澄" autocomplete="off" aria-label="你的名字">
+      <input id="heroName" maxlength="4" placeholder="比如：音音" autocomplete="off" aria-label="你的名字">
     </div>
     <button class="go" onclick="beginTown()" id="btnBegin">开始</button>
     <div class="small">点「开始」后会有轻轻的背景音乐和讲解声音</div>
@@ -916,9 +952,9 @@ function toggleAudio(kind){
 
 /* 计时已经挪到 ui.js：进任何一页都在记，跨过午夜也不会算错天。 */
 
-/* 名字 → 各处称呼。没起名之前用「我的」，起名之后整站都改成小朋友的名字 */
+/* 名字 → 各处称呼。没起名之前先叫「音音」，起名之后整站都改成小朋友的名字 */
 function kidName(){ return (S.kidName||"").trim(); }
-function townTitle(){ return kidName() ? kidName()+"的小镇" : "我的小镇"; }
+function townTitle(){ return kidName() ? kidName()+"的小镇" : "音音的小镇"; }
 function homeName(){ return kidName() ? kidName()+"的家" : "我的家"; }
 function heroCall(){ return kidName() || "小朋友"; }
 
@@ -1645,7 +1681,8 @@ function girlSvg(size){
     '</svg>';
 }
 heroEl.innerHTML=girlSvg(64);
-document.getElementById("coverHero").innerHTML=girlSvg(150);
+var coverHeroEl=document.getElementById("coverHero");
+if(coverHeroEl) coverHeroEl.innerHTML=girlSvg(150);
 
 var heroPose={x:S.hero.x,y:S.hero.y,face:1,walk:0};
 var heroInner=heroEl.querySelector("svg");
@@ -4032,7 +4069,8 @@ function bLabel(b){
   return b.name;
 }
 
-/* 整站的名字都跟着小朋友改：标题、小镇名、家的名字 */
+/* 整站的名字都跟着小朋友改：标题、小镇名、家的名字。
+   还没填名字时 townTitle() 会给出「音音的小镇」，封面和标签页就用它当例子 */
 function applyNames(){
   var t = townTitle();
   document.title = t;
@@ -4042,8 +4080,8 @@ function applyNames(){
   if(ct) ct.textContent = t;
   paintHud();
 }
-/* 小朋友的称呼（用在家人的话里） */
-function childCall(){ return kidName() || "澄澄"; }
+/* 小朋友的称呼（用在家人的话里）。没填名字就叫「音音」 */
+function childCall(){ return kidName() || "音音"; }
 
 function paintHud(){  var v=0; BUILDINGS.forEach(function(b){ if(S.visited[b.id]) v++; });
   document.getElementById("pillStar").innerHTML=ico("star",15,"#f0a832")+"<em style='font-style:normal'>"+S.stars+"</em>";
@@ -4704,7 +4742,7 @@ if(S.entered || ASK_SHOP || kidName()){
       var v=_inp.value.replace(/\s/g,"").slice(0,4);
       if(v!==_inp.value) _inp.value=v;
       var _t=document.getElementById("coverTitle");
-      if(_t) _t.textContent = v ? v+"的小镇" : "我的小镇";
+      if(_t) _t.textContent = v ? v+"的小镇" : "音音的小镇";
     });
     _inp.addEventListener("keydown", function(e){ if(e.key==="Enter") beginTown(); });
   }
