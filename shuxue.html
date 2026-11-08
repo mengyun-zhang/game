@@ -314,14 +314,14 @@ function paintStar(){
 }
 paintStar();
 
-/* 完成一个游戏给星星：第一次 2 颗，之后每次 1 颗 */
+/* 完成一个游戏给星星：每次都是 2 颗，玩过没玩过一个数 */
 function award(gameId){
   var key = "g_" + gameId;
   var first = !room.S.mathDone;
   if (!room.S.mathDone) room.S.mathDone = {};
   var isNew = !room.S.mathDone[key];
   room.S.mathDone[key] = 1;
-  var n = isNew ? 2 : 1;
+  var n = 2;
   room.S.stars = (room.S.stars || 0) + n;
   room.Save();
   paintStar();

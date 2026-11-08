@@ -492,6 +492,20 @@
   .name-row input::placeholder{letter-spacing:2px;color:#b3c0b4;font-size:17px}
   .cover .small{margin-top:14px;font-size:11px;color:#8b9c90}
 
+  /* 第一次进镇：当面把开局的星星送出去 */
+  .welcome{position:fixed;top:0;right:0;bottom:0;left:0;z-index:90;display:grid;place-items:center;
+    padding:22px;background:rgba(58,48,34,.32);animation:wFade .3s ease both}
+  .welcome.out{opacity:0;transition:opacity .3s ease}
+  .wbox{width:100%;max-width:352px;background:#fffdf6;border-radius:22px;padding:22px 22px 20px;
+    text-align:center;box-shadow:0 20px 48px rgba(80,60,30,.24);
+    animation:wPop .42s cubic-bezier(.2,1.15,.4,1) both}
+  .wtown{font-size:12px;letter-spacing:3px;color:#b08a4a}
+  .wbox h2{margin:6px 0 8px;font-size:21px;letter-spacing:1px;color:#4a3f30}
+  .wbox p{margin:0 0 16px;font-size:13.5px;line-height:1.8;color:#7a6a56}
+  .wbox p b{color:#c9871c;font-size:17px}
+  @keyframes wFade{from{opacity:0}to{opacity:1}}
+  @keyframes wPop{from{opacity:0;transform:translateY(14px) scale(.94)}to{opacity:1;transform:none}}
+
   /* 手机：品牌名一行，按钮收成两行小方块，星星和按钮同一行 */
   @media (max-width:520px){
     .hud{padding:8px 10px;gap:5px;flex-wrap:wrap}
@@ -844,10 +858,10 @@ var BUILDINGS = [
     inside:"种下小种子，浇水，等它发芽。", game:"plant", by:"农场阿姨",
     hello:"@K@来啦，地里空空的，先挖坑，再放种子，最后浇水。", skill:"顺序与因果（三步）" },
 
-  /* 图书馆：故事屋，六个语言小关卡（在 books.html 里） */
+  /* 图书馆：故事屋，二十个语言小关卡（在 books.html 里） */
   { id:"lib", name:"小镇图书馆", ico:"book", x:1230, y:778, w:204, h:168, tone:"#e9dcc6", roof:"#a8804f",
-    inside:"六个故事，翻一页读一页。", game:"harvest", by:"管理员",
-    hello:"@K@故事屋开门啦，里面六个故事，一个接一个。", skill:"语言·叙事·韵律·前识字" },
+    inside:"二十个故事，翻一页读一页。", game:"harvest", by:"管理员",
+    hello:"@K@故事屋开门啦，里面有二十个故事，一个接一个。", skill:"语言·叙事·韵律·认图识字" },
 
   /* 游戏馆：整整 20 关，从第 1 关开始一关一关往上开（在 games.html 里） */
   { id:"games", name:"游戏馆", ico:"dice", x:1000, y:772, w:196, h:172, tone:"#ffefc9", roof:"#e09a54",
@@ -1804,6 +1818,7 @@ function openSheet(html){
 }
 function closeSheet(){
   mask.classList.remove("show");
+  SHOP_FROM = "";
   closeEnterRoom();
   Voice.stop();
   setTimeout(function(){ if(!mask.classList.contains("show")) sheet.innerHTML=""; },260);
@@ -1949,10 +1964,9 @@ function finish(say){
   if(gameDone) return;
   gameDone=true;
   var b=curBuilding;
-  var firstTime = b && !S.cleared[b.id];
   if(b){ S.cleared[b.id]=(S.cleared[b.id]||0)+1; S.flowers[b.id]=true; }
-  /* 第一次玩一个地方给 3 颗，够买最便宜的东西；重复玩给 1 颗 */
-  addStars(firstTime ? 3 : 1);
+  /* 每个地点每次都给 3 颗，第一次和后来一样，孩子不用算「什么时候再来最划算」 */
+  addStars(3);
   paintHud();
   Sound.blip("good");
   if(say) guide(say);
@@ -2982,7 +2996,9 @@ function paintShopSheet(catId){
   html += '</div>';
 
   html += '<div class="row" style="margin-top:14px"><button class="btn" onclick="openBag()">看看背包</button>' +
-          '<button class="btn primary" onclick="closeSheet()">继续逛</button></div>';
+          (SHOP_FROM === "farm"
+            ? '<button class="btn primary" onclick="location.href=\'farm.html\'">回农场种下</button>'
+            : '<button class="btn primary" onclick="closeSheet()">继续逛</button>') + '</div>';
   openSheet(html);
 }
 
@@ -4149,7 +4165,7 @@ function openHelp(){
     '<input type="file" id="importFile" accept=".json,application/json" style="display:none">' +
     '<div class="kv"><span>操作</span><span>电脑：方向键 / WASD；手机：左下摇杆；也可以点地面走</span></div>' +
     '<div class="kv"><span>进屋</span><span>走到房子门口点一下房子</span></div>' +
-    '<div class="kv"><span>星星</span><span>房间里第一次做完给 3 颗、重做 1 颗；游戏馆和故事屋每关 5 颗；外公的红包只给一次（6 颗）</span></div>' +
+    '<div class="kv"><span>星星</span><span>小镇每个地点每次 3 颗；游戏馆和故事屋每关 2 颗，每过五关亮一个奖杯再给 2 颗；数学天地每个游戏 2 颗；外公的红包只给一次（6 颗）；农场卖出比买进多一半</span></div>' +
     '<div class="kv"><span>语音讲解</span><span>每进一个地方会念一句引导语，说来话长时可以点「帮帮我」再听一遍</span></div>' +
     '<div class="kv"><span>声音分项</span><span style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">' +
       '<button class="sndbtn' + (audioOn("music") ? " on" : "") + '" onclick="toggleAudio(\'music\')">音乐</button>' +
@@ -4643,17 +4659,32 @@ function ico(name,size,color){
 paintSoundBtn();
 
 /* 存档在文件开头已经读好了（CC.load），这里不再重复读一遍 */
-/* 从农场点「去商店」过来：带 ?shop= 直接进商店，不再问名字 */
-var ASK_SHOP = null;
-try{
-  var _sm = /[?&]shop=([a-z]+)/.exec(location.search);
-  if(_sm) ASK_SHOP = ["food","toy","seed","pet"].indexOf(_sm[1]) >= 0 ? _sm[1] : "toy";
-}catch(e){}
+/* 从农场点「去商店」过来：直接进商店，不再问名字。
+   判断交给 ui.js：URL 参数、#哈希、上一次留下的记号，三条路都试一遍。 */
+var ASK_SHOP = CC.askShop();
+/* 从哪儿来的（目前只有农场）。买完能直接回去种，不用绕一趟小镇 */
+var SHOP_FROM = CC.shopFrom();
 
-/* 已经进过小镇了：从房间里回来时不再重新问一次「开始」 */
-if(S.entered || ASK_SHOP){
+/* 第三层保险：万一 URL 参数和 sessionStorage 都被吞了，
+   就看来路——从农场过来、又没说是「回小镇」的，那就是来买东西的。
+   农场的「回小镇」按钮会带上 back=1，所以这条不会误判。 */
+if(!ASK_SHOP){
+  try{
+    var _ref = document.referrer || "";
+    var _isBack = /[?&]back=1/.test(location.search || "");
+    if(/farm\.html/.test(_ref) && !_isBack){
+      ASK_SHOP = "seed"; SHOP_FROM = "farm";
+    }
+  }catch(e){}
+}
+
+/* 封面只在「真的还不知道她叫什么」的时候出现。
+   进过镇、或者有名字（哪怕是从农场直接进来的），都直接开门。
+   以前只看 entered 一个标志，存档一换、或者从别的页面跳过来，就会又回到取名页。 */
+if(S.entered || ASK_SHOP || kidName()){
   var _cv=document.getElementById("cover");
   if(_cv && _cv.parentNode) _cv.parentNode.removeChild(_cv);
+  if(!S.entered){ S.entered = true; save(); }
   S.sound=S.sound!==false;
   if(S.music===undefined) S.music=S.sound;      /* 老存档：从总开关继承 */
   if(S.sfx===undefined) S.sfx=true;
@@ -4692,10 +4723,30 @@ drawHero();
 paintHud();
 requestAnimationFrame(loop);
 
-/* 带 ?shop= 进来的：开场动画走完就把商店摊开，落在对应分类 */
+/* 带 shop 意图进来的：开场动画走完就把商店摊开，落在对应分类。
+   万一这一下被别的东西打断（封面还没撤干净、弹层正在关），再补一次。 */
 if(ASK_SHOP){
   S.entered = true; save();
-  setTimeout(function(){ paintShopSheet(ASK_SHOP); }, 900);
+  setTimeout(function(){ paintShopSheet(ASK_SHOP); cleanShopUrl(); }, 900);
+  setTimeout(function(){
+    var m=document.getElementById("mask");
+    if(!m || !m.classList.contains("show")) paintShopSheet(ASK_SHOP);
+  }, 1500);
+}
+
+/* 商店已经开了，就把地址里的 shop=… 擦掉。
+   不然孩子关掉商店、随手刷新一下，又会被弹一次。 */
+var _shopUrlCleaned = false;
+function cleanShopUrl(){
+  if(_shopUrlCleaned) return;
+  _shopUrlCleaned = true;
+  try{
+    var q = (location.search || "").replace(/^\?/, "");
+    var kept = q ? q.split("&").filter(function(kv){ return !/^(shop|from)=/.test(kv); }) : [];
+    var hash = (location.hash || "").replace(/#?shop=[a-z]+/, "");
+    var url = location.pathname + (kept.length ? "?" + kept.join("&") : "") + hash;
+    if(history.replaceState) history.replaceState(null, "", url);
+  }catch(e){}
 }
 
 /* 兜底：老版本 iPad Safari 万一没认出场地的尺寸（页面一片空白），
@@ -4712,11 +4763,55 @@ setTimeout(function(){
   }catch(e){}
 },1200);
 
+/* 第一次进镇：当面欢迎一下。
+   不送星星，只是报名字、认一认小镇，说完就让孩子自己去玩。 */
+function showWelcomeGift(){
+  if(document.getElementById("welcome")) return;
+  var nm = kidName();
+  var call = nm || "小朋友";
+  var town = nm ? nm + "的小镇" : "你的小镇";
+
+  S.gift = true; save();                 /* 只欢迎一次，以后刷新不再弹 */
+
+  /* 底部的「到某处门口了」提示条会跟弹层抢注意力，先收起来 */
+  var tb = document.getElementById("tipbar");
+  if(tb) tb.classList.remove("show");
+
+  var d = document.createElement("div");
+  d.className = "welcome";
+  d.id = "welcome";
+  d.innerHTML =
+    '<div class="wbox">' +
+      '<div class="wtown">' + town + '</div>' +
+      '<h2>欢迎你，' + call + '</h2>' +
+      '<p>这是' + town + '。<br>想去哪儿玩，走过去点一下就行。</p>' +
+      '<button class="btn primary" id="wGo">去小镇看看</button>' +
+    '</div>';
+  document.body.appendChild(d);
+
+  Sound.blip("good");
+  guide("欢迎你，" + call + "。这是" + town + "。", { who:"teacher", force:true });
+
+  document.getElementById("wGo").onclick = function(){
+    Sound.blip("tap");
+    d.classList.add("out");
+    setTimeout(function(){
+      if(d.parentNode) d.parentNode.removeChild(d);
+      showTip("用方向键或左下摇杆走一走，走到房子门口点一下就能进屋");
+      guide("用方向键或者摇杆走一走，走到房子门口点一下，就能进屋看看。", { who:"teacher" });
+    }, 300);
+  };
+}
+
 /* 点「开始」：解锁音频 → 淡入音乐 → 语音欢迎（注意：不能叫 startGame，
    那是小游戏的开局函数，重名会把这里覆盖掉） */
 function beginTown(){
   var cover=document.getElementById("cover");
   if(!cover) return;
+
+  /* 只有「本机第一次、刚在封面上填完名字」才当面欢迎。
+     从农场、商店跳进来的不算，进过镇的老存档也不算。 */
+  var firstGift = !S.entered && !S.gift && !ASK_SHOP;
 
   /* 第一次进来：把输入的名字记住（允许先不填，之后在「大人看这里」里补） */
   var inp = document.getElementById("heroName");
@@ -4727,7 +4822,7 @@ function beginTown(){
     save();
     applyNames();
     refreshHomeSign();
-    toast("这里是" + oldTown);
+    if(!firstGift) toast("这里是" + oldTown);
   }
 
   cover.classList.add("hide");
@@ -4743,14 +4838,19 @@ function beginTown(){
   if(S.sfx===undefined) S.sfx=true;
   if(audioOn("music")) Sound.start();
   Sound.blip("ok");
-  setTimeout(function(){
-    var tip="欢迎来到" + townTitle() + "。用方向键或者摇杆，我们去找" + childCall() + "的家人吧。";
-    if(S.bag.balloon>0 || S.bag.bubble>0){
-      tip += " 身边的小气球点一下就飞起来，泡泡点一下就吹出来。";
-    }
-    guide(tip);
-  },300);
-  showTip("用方向键或左下摇杆走一走，走到房子门口点一下就能进屋");
+  if(firstGift){
+    /* 第一次来：先把「欢迎你 + 8 颗星」当面给完，再放常规指引 */
+    setTimeout(showWelcomeGift, 760);
+  } else {
+    setTimeout(function(){
+      var tip="欢迎来到" + townTitle() + "。用方向键或者摇杆，我们去找" + childCall() + "的家人吧。";
+      if(S.bag.balloon>0 || S.bag.bubble>0){
+        tip += " 身边的小气球点一下就飞起来，泡泡点一下就吹出来。";
+      }
+      guide(tip);
+    },300);
+    showTip("用方向键或左下摇杆走一走，走到房子门口点一下就能进屋");
+  }
 
   /* 从农场点「去商店」过来的：进门直接把商店开到对应分类 */
   if(ASK_SHOP){

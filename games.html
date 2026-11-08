@@ -42,9 +42,23 @@ body{
 .mapwrap{position:fixed;top:0;right:0;bottom:0;left:0;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch}
 .map{
   position:relative;width:100%;max-width:600px;margin:0 auto;
-  background:linear-gradient(180deg,#e7f6ea 0%,#dcefe1 45%,#d2e9d9 100%);
+  background:
+    /* 草地小点：两层错位的淡绿点阵 */
+    radial-gradient(circle, rgba(110,160,100,.14) 0 2.5px, transparent 3.5px) 0 0/76px 58px repeat,
+    radial-gradient(circle, rgba(110,160,100,.11) 0 2px, transparent 3px) 38px 29px/76px 58px repeat,
+    linear-gradient(180deg,#e7f6ea 0%,#dcefe1 45%,#d2e9d9 100%);
   box-shadow:0 0 0 1px rgba(255,255,255,.5) inset;
 }
+/* ---------- 游戏馆氛围装饰：彩旗、气球、积木、风筝、云 ---------- */
+.deco{position:absolute;inset:0;pointer-events:none}
+.deco .d{position:absolute;transform:translate(-50%,-50%)}
+.deco .d svg{display:block}
+.deco .d.float svg{animation:floaty 3.2s ease-in-out infinite alternate}
+@keyframes floaty{from{transform:translateY(0)}to{transform:translateY(-7px)}}
+.deco .buntbox{position:absolute;top:4px;height:46px;overflow:visible}
+.deco .bunt{display:block;transform-origin:top center;animation:sway 4.5s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-1deg)}to{transform:rotate(1deg)}}
+@media (max-width:560px){ .deco .d{transform:translate(-50%,-50%) scale(.62)} }
 .map svg.path{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 
 .node{
@@ -68,6 +82,16 @@ body{
   background:var(--gold);color:#fff;font-size:13px;font-weight:800;
   display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.16);
 }
+/* 奖杯角标：贴在节点左上，点亮金色、没点亮是灰剪影 */
+.node .cup{
+  position:absolute;left:-9px;top:-9px;width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:#fffdf6;border:1.5px solid #dfe8dd;box-shadow:0 2px 5px rgba(60,70,55,.14);
+}
+.node .cup.on{background:#fff6e0;border-color:#f0d492;animation:cupIn .5s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes cupIn{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+/* 结算面板里的大奖杯，点亮时弹一下 */
+.cupPop{display:inline-block;animation:cupIn .55s .15s cubic-bezier(.2,1.4,.4,1) both}
 .node.done{background:linear-gradient(180deg,#8fd0a4,#5cb37c);box-shadow:0 5px 0 #3f8f5d, 0 8px 16px rgba(63,58,50,.18)}
 .node.done .num,.node.done .cap{color:#fff}
 .node.done .cap{background:rgba(88,150,110,.92)}
@@ -249,6 +273,7 @@ body{
 <div class="mapwrap" id="mapWrap">
   <div class="map" id="map">
     <svg class="path" id="pathSvg" preserveAspectRatio="none"></svg>
+    <div class="deco" id="deco"></div>
     <div id="nodes"></div>
   </div>
 </div>
@@ -278,7 +303,8 @@ body{
    进度存在和小镇共用的那条存档里。
    ===================================================================== */
 var S = Room.load();
-S.games = S.games || { cleared:{}, times:{} };
+S.games = S.games || { cleared:{}, times:{}, trophies:{} };
+S.games.trophies = S.games.trophies || {};   /* 每 5 关一个奖杯：{5:true, 10:true...} */
 
 /* ---------------- 补一些 room.js 里没有的图形 ---------------- */
 var MORE = {
@@ -386,6 +412,139 @@ function paintStar(){
   if (el) el.textContent = (S.stars || 0);
 }
 
+/* ---------------- 每 5 关一个奖杯 ---------------- */
+function CUP_AT(n){ return n % 5 === 0; }
+function cupN(n){ return !!(S.games.trophies && S.games.trophies[n]); }
+function cupsN(){ var c = 0; for (var i = 5; i <= TOTAL; i += 5) if (cupN(i)) c++; return c; }
+/* 一只小奖杯：杯身 + 双耳 + 底座，点亮金色、没点亮是灰剪影（和图书馆同一只） */
+function trophySVG(sz, c){
+  return '<svg width="' + sz + '" height="' + sz + '" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M7 4h10v5a5 5 0 0 1-10 0Z" fill="' + c + '" opacity=".22"/>' +
+    '<path d="M7 4h10v5a5 5 0 0 1-10 0Z"/>' +
+    '<path d="M7 5H4.5a2.5 2.5 0 0 0 2.7 4.4"/>' +
+    '<path d="M17 5h2.5a2.5 2.5 0 0 1-2.7 4.4"/>' +
+    '<path d="M12 14v3"/><path d="M9.6 17h4.8"/><path d="M8.5 20h7"/>' +
+  '</svg>';
+}
+
+/* ---------------- 游戏馆氛围装饰：彩旗 / 气球 / 积木 / 皮球 / 风筝 / 陀螺 / 云 ----------------
+   纯背景，pointer-events 关掉；跟着关卡节点放，不挡点关卡。 */
+function balloonsSVG(){
+  return '<svg width="56" height="94" viewBox="0 0 56 94">' +
+    '<path d="M18 34C15 56 21 74 28 88M38 34C38 56 33 74 28 88" stroke="#a98a5a" stroke-width="1.3" fill="none"/>' +
+    '<ellipse cx="17" cy="18" rx="13" ry="16" fill="#f78fb3"/>' +
+    '<ellipse cx="39" cy="16" rx="12" ry="14" fill="#7fa8c9"/>' +
+    '<ellipse cx="28" cy="30" rx="12" ry="14" fill="#f0a832"/>' +
+    '<path d="M13 12q4-5 8-4M34 9q4-5 8-4M24 24q4-5 8-4" stroke="#fff" stroke-width="1.8" fill="none" opacity=".75"/>' +
+    '<circle cx="28" cy="89" r="2.6" fill="#d97b7b"/>' +
+  '</svg>';
+}
+function blocksSVG(){
+  return '<svg width="66" height="76" viewBox="0 0 66 76">' +
+    '<ellipse cx="33" cy="71" rx="24" ry="3.4" fill="rgba(70,90,60,.15)"/>' +
+    '<rect x="7"  y="49" width="22" height="20" rx="2.5" fill="#f0a832"/>' +
+    '<rect x="31" y="49" width="22" height="20" rx="2.5" fill="#7fa8c9"/>' +
+    '<rect x="19" y="27" width="22" height="20" rx="2.5" fill="#8fbf7f"/>' +
+    '<rect x="25" y="6"  width="15" height="19" rx="2.5" fill="#f78fb3"/>' +
+    '<circle cx="18" cy="54" r="2" fill="#fff" opacity=".55"/><circle cx="42" cy="54" r="2" fill="#fff" opacity=".55"/>' +
+  '</svg>';
+}
+/* 沙滩球：黄底 + 三瓣彩色，中心收在圆心，转起来像个球 */
+function ballSVG(){
+  return '<svg width="40" height="40" viewBox="0 0 40 40">' +
+    '<circle cx="20" cy="20" r="16" fill="#f0a832"/>' +
+    '<path d="M20 4a16 16 0 0 1 13.9 8L20 20Z" fill="#d97b7b"/>' +
+    '<path d="M20 4a16 16 0 0 0-13.9 8L20 20Z" fill="#7fa8c9"/>' +
+    '<path d="M6.1 12a16 16 0 0 0 0 16L20 20Z" fill="#8fbf7f"/>' +
+    '<circle cx="20" cy="20" r="16" fill="none" stroke="#c9a86a" stroke-width="1.4"/>' +
+    '<circle cx="20" cy="20" r="2" fill="#fffdf6" opacity=".8"/>' +
+  '</svg>';
+}
+function kiteSVG(){
+  return '<svg width="54" height="82" viewBox="0 0 54 82">' +
+    '<path d="M27 4 45 26 27 48 9 26Z" fill="#f0a832" stroke="#d99b2b" stroke-width="1.8"/>' +
+    '<path d="M27 4V48M9 26H45" stroke="#fff" stroke-width="1.8" opacity=".85"/>' +
+    '<path d="M27 48q-7 12 2 21t2 13" stroke="#a98a5a" stroke-width="1.3" fill="none"/>' +
+    '<path d="M27 78l5-4 5 4-5 4Z" fill="#f78fb3"/>' +
+  '</svg>';
+}
+/* 陀螺：上锥 + 圆身 + 尖，转起来的感觉靠 float 动画带 */
+function topSVG(){
+  return '<svg width="44" height="58" viewBox="0 0 44 58">' +
+    '<ellipse cx="22" cy="54" rx="12" ry="3" fill="rgba(70,90,60,.15)"/>' +
+    '<path d="M22 5 35 27H9Z" fill="#7fa8c9"/>' +
+    '<path d="M9 27h26l-4 12a9 9 0 0 1-18 0Z" fill="#f0a832"/>' +
+    '<path d="M14 30h16" stroke="#fff" stroke-width="2" opacity=".7"/>' +
+    '<path d="M22 48v5" stroke="#a98a5a" stroke-width="2.4" stroke-linecap="round"/>' +
+  '</svg>';
+}
+function cloudSVG(){
+  return '<svg width="84" height="38" viewBox="0 0 84 38">' +
+    '<ellipse cx="29" cy="23" rx="23" ry="12" fill="#fff" opacity=".82"/>' +
+    '<ellipse cx="52" cy="17" rx="18" ry="11" fill="#fff" opacity=".82"/>' +
+    '<ellipse cx="43" cy="27" rx="25" ry="9" fill="#fff" opacity=".78"/>' +
+  '</svg>';
+}
+/* 一条横贯全宽的三角旗 */
+function buntingSVG(){
+  var cols = ["#f0a832","#8fbf7f","#7fa8c9","#f78fb3","#b48ac9","#d97b7b"];
+  var s = '<svg class="bunt" width="100%" height="46" viewBox="0 0 600 46" preserveAspectRatio="none">' +
+          '<path d="M0,7 Q300,36 600,7" stroke="#c9b58c" stroke-width="2" fill="none"/>';
+  for (var i = 0; i < 12; i++){
+    var t = 0.05 + i * 0.0818, x = t * 600;
+    var by = 7*(1-t)*(1-t) + 72*t*(1-t) + 7*t*t;
+    s += '<path d="M' + (x-9) + ' ' + by + ' L' + (x+9) + ' ' + by + ' L' + x + ' ' + (by+15) + ' Z" fill="' + cols[i % 6] + '"/>';
+  }
+  return s + '</svg>';
+}
+var GAME_DECOS = [
+  { bunt: true },
+  { x: 14, y: "15%", k: "cloud" },
+  { x: 86, y: "27%", k: "cloud" },
+  { x: 12, y: "46%", k: "cloud" },
+  { x: 87, y: "62%", k: "cloud" },
+  { x: 15, y: "82%", k: "cloud" },
+  { i: 1,  x: 9,  k: "balloons" },
+  { i: 2,  x: 91, k: "blocks" },
+  { i: 3,  x: 9,  k: "ball" },
+  { i: 5,  x: 91, k: "kite" },
+  { i: 6,  x: 9,  k: "top" },
+  { i: 8,  x: 91, k: "balloons" },
+  { i: 9,  x: 9,  k: "blocks" },
+  { i: 11, x: 91, k: "ball" },
+  { i: 12, x: 9,  k: "kite" },
+  { i: 14, x: 91, k: "top" },
+  { i: 15, x: 9,  k: "balloons" },
+  { i: 17, x: 91, k: "blocks" },
+  { i: 18, x: 9,  k: "ball" }
+];
+function paintDeco(){
+  var host = document.getElementById("deco");
+  if (!host) return;
+  var html = "";
+  GAME_DECOS.forEach(function(d){
+    if (d.bunt){
+      html += '<div class="buntbox" style="left:0;width:100%">' + buntingSVG() + '</div>';
+      return;
+    }
+    var y;
+    if (d.i !== undefined){
+      var p = NODE_POS[d.i];
+      if (!p) return;
+      y = p.y + "px";
+    } else y = d.y;
+    var cls = "d" + ((d.k === "kite" || d.k === "balloons" || d.k === "cloud" || d.k === "top") ? " float" : "");
+    var art = d.k === "balloons" ? balloonsSVG()
+            : d.k === "blocks"   ? blocksSVG()
+            : d.k === "ball"     ? ballSVG()
+            : d.k === "kite"     ? kiteSVG()
+            : d.k === "top"      ? topSVG()
+            : d.k === "cloud"    ? cloudSVG() : "";
+    html += '<div class="' + cls + '" style="left:' + d.x + '%;top:' + y + '">' + art + '</div>';
+  });
+  host.innerHTML = html;
+}
+
 /* ---------------- 地图 ---------------- */
 var GAP = 128, PAD_TOP = 150, PAD_BOT = 150;
 var NODE_POS = [];
@@ -403,6 +562,7 @@ function buildMap(){
   var map = document.getElementById("map");
   var h = computePos();
   map.style.height = h + "px";
+  paintDeco();
 
   /* 虚线小路 */
   var svg = document.getElementById("pathSvg");
@@ -438,8 +598,13 @@ function buildMap(){
       ? '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 L9.5 18 L20 6.5"/></svg>'
       : (openN(L.n) ? '<span class="num">' + L.n + '</span>'
          : '<span class="num">' + L.n + '</span><svg class="lockico" viewBox="0 0 24 24" fill="none" stroke="#b3ab9b" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2.6"/><path d="M8.4 11 V8.4 a3.6 3.6 0 0 1 7.2 0 V11"/></svg>');
+    var cupTag = "";
+    if (CUP_AT(L.n)){
+      var on = cupN(L.n);
+      cupTag = '<span class="cup' + (on ? ' on' : '') + '">' + trophySVG(17, on ? "#f0a832" : "#b3a894") + '</span>';
+    }
     b.innerHTML = inner + '<span class="cap">' + L.name + '</span>' +
-      (clearedN(L.n) ? '<span class="badge">★</span>' : '');
+      (clearedN(L.n) ? '<span class="badge">★</span>' : '') + cupTag;
     b.addEventListener("click", function(){ tapLevel(L, b); });
     box.appendChild(b);
   });
@@ -451,7 +616,7 @@ function buildMap(){
   peak.style.top = "40px";
   var done = progressN();
   peak.innerHTML = '<div class="flag"><b>' + (done >= TOTAL ? "20 关全过啦" : "已经过了 " + done + " 关") + '</b>' +
-                   '<span>' + (done >= TOTAL ? "整座游戏馆都是你的了" : "接着往上走，下一关在等你") + '</span></div>';
+                   '<span>' + (done >= TOTAL ? "整座游戏馆都是你的了" : "接着往上走，下一关在等你 · 奖杯 " + cupsN() + " / 4") + '</span></div>';
   document.getElementById("nodes").appendChild(peak);
 
   /* 滚到当前关 */
@@ -570,8 +735,18 @@ function hearAgain(){
 var starSVG = CC.starSVG;
 function winLevel(L){
   var first = !clearedN(L.n);
-  var add = first ? 5 : 1;
-  if (first) S.games.cleared[L.n] = true;
+  var add = 2;
+  var cup = false;
+  if (first){
+    S.games.cleared[L.n] = true;
+    /* 每 5 关一个奖杯：只有头一回点亮才有奖，重复玩不给 */
+    if (CUP_AT(L.n) && !cupN(L.n)){
+      S.games.trophies = S.games.trophies || {};
+      S.games.trophies[L.n] = true;
+      cup = true;
+      add += 2;
+    }
+  }
   S.games.times = S.games.times || {};
   S.games.times[L.n] = (S.games.times[L.n] || 0) + 1;
   S.stars = (S.stars || 0) + add;
@@ -580,13 +755,20 @@ function winLevel(L){
   Room.Sound.blip("good");
 
   var all = progressN() >= TOTAL;
+  var pTxt;
+  if (all) pTxt = "整座游戏馆都走完了，你真棒。<br>想玩哪一关，回去再点它就行。";
+  else if (cup) pTxt = "过关得 2 颗，奖杯再得 2 颗，<b>一共 " + add + " 颗</b>。<br>下一关开了，往上走一格吧。";
+  else if (first) pTxt = "得到 " + add + " 颗星星。<br>下一关开了，往上走一格吧。";
+  else pTxt = "再玩一次，一样给 " + add + " 颗。";
   var sheet = document.getElementById("sheet");
   sheet.innerHTML =
     '<div class="donebox">' +
-      '<div class="big">' + (all ? starSVG(56,"#f0a832") : starSVG(52,"#f0a832")) + '</div>' +
-      '<h2>' + (all ? "20 关全过啦" : "过啦！") + '</h2>' +
-      '<p>' + (all ? "整座游戏馆都走完了，你真棒。<br>想玩哪一关，回去再点它就行。"
-                    : "得到 " + add + " 颗星星。" + (first ? "<br>下一关开了，往上走一格吧。" : "<br>再玩一次也有一点点星星。")) + '</p>' +
+      '<div class="big" style="display:flex;justify-content:center;align-items:center;gap:6px">' +
+        (all ? starSVG(56,"#f0a832") : starSVG(52,"#f0a832")) +
+        (cup ? '<span class="cupPop">' + trophySVG(46, "#f0a832") + '</span>' : '') +
+      '</div>' +
+      '<h2>' + (all ? "20 关全过啦" : (cup ? "奖杯亮了！" : "过啦！")) + '</h2>' +
+      '<p>' + pTxt + '</p>' +
       '<div class="row">' +
         '<button class="btn primary" id="dkBack">回地图</button>' +
         (first && L.n < TOTAL ? '<button class="btn gold" id="dkNext">下一关</button>' : '') +
@@ -601,7 +783,9 @@ function winLevel(L){
     buildMap();
     openLevel(L.n + 1);
   };
-  try { Room.Voice.say(all ? "太厉害了，二十关全过了。" : "过啦，得到 " + add + " 颗星星。"); } catch(e){}
+  try { Room.Voice.say(all ? "太厉害了，二十关全过了。"
+        : (cup ? "第" + L.n + "关过啦，奖杯亮了，一共 " + add + " 颗星星。"
+               : "过啦，得到 " + add + " 颗星星。")); } catch(e){}
 
   /* 星星往上飘 */
   for (var i = 0; i < 5; i++){
@@ -823,16 +1007,24 @@ RENDER.petals = function(stage, L, win){
         return;
       }
       var svg = flow.querySelector("svg");
-      var slots = svg.querySelectorAll(".petalSlot");
-      if (!slots.length){ return; }
-      var slot = slots[slots.length - 1];
-      var parent = slot.parentNode;
-      var g = document.createElementNS("http://www.w3.org/2000/svg", "g");
-      g.innerHTML = slot.innerHTML;
-      g.setAttribute("fill", tile.dataset.c);
-      g.removeAttribute("stroke");
-      g.setAttribute("stroke", "none");
-      parent.insertBefore(g, slot);
+      /* 一片花瓣是一个 ellipse，不是整个 <g>。
+         以前这里取的是 <g class="petalSlot">，一次就把三片槽全删了——
+         拖完第一片，那朵花再也没地方放，进度永远停在 1/9，关卡就卡住了。 */
+      var slots = flow.querySelectorAll(".petalSlot ellipse");
+      if (!slots.length){
+        Room.Sound.blip("soft");
+        lvSay("这朵花已经开满了，换一朵吧。");
+        return;
+      }
+      var slot = slots[0];
+      var petal = document.createElementNS("http://www.w3.org/2000/svg", "ellipse");
+      ["cx", "cy", "rx", "ry", "transform"].forEach(function(a){
+        var v = slot.getAttribute(a);
+        if (v !== null) petal.setAttribute(a, v);
+      });
+      petal.setAttribute("fill", tile.dataset.c);
+      petal.setAttribute("stroke", "none");
+      svg.appendChild(petal);
       slot.remove();
       tile.remove();
       Room.Sound.blip("ok");

@@ -20,7 +20,6 @@
      1. 存档
      =================================================================== */
   var KEY = "chengcheng-town-v2";
-  var START_STARS = 88;   /* 第一次进小镇先给 88 颗星星，能直接去商店换东西 */
 
   /* 存档的「完整样子」。老存档缺哪个字段就补哪个，不会因为少一个字段整页白掉 */
   function blank() {
@@ -42,6 +41,7 @@
       games: null,     /* 游戏馆：哪些关卡过了、各玩过几次 */
       books: null,     /* 故事屋：哪几个故事读完了、读过几次 */
       stats: null,     /* 哪天玩了多久，家长面板里给自己看 */
+      gift: false,     /* 进镇的欢迎层给过没有（给过就不再弹） */
       entered: false
     };
   }
@@ -66,6 +66,7 @@
     /* 老存档只有总开关 sound，分项跟着它走 */
     if (typeof S.music !== "boolean") S.music = S.sound;
     if (typeof S.sfx !== "boolean") S.sfx = true;
+    if (typeof S.gift !== "boolean") S.gift = false;   /* 上一版没有这个字段，按「没送过」处理 */
     S.stats = S.stats && typeof S.stats === "object" ? S.stats : { first: Date.now(), days: {} };
     if (!S.stats.first) S.stats.first = Date.now();
     if (!S.stats.days || typeof S.stats.days !== "object") S.stats.days = {};
@@ -97,9 +98,8 @@
       }
     } catch (e) {}
     normalize(S);
-    if (first && !S.stars) S.stars = START_STARS;
     _S = S;
-    if (first) save();          /* 先把 88 颗星落盘，刷新才不会重来 */
+    if (first) save();          /* 先把 8 颗星落盘，刷新才不会重来 */
     startClock();
     return S;
   }
@@ -109,11 +109,10 @@
     _saved();
   }
 
-  /* 清空重来：删掉存档，回到第一次进镇的样子 */
+  /* 清空重来：删掉存档，回到第一次进镇的样子（星星也从 0 开始） */
   function reset() {
     try { localStorage.removeItem(KEY); } catch (e) {}
     _S = normalize(blank());
-    _S.stars = START_STARS;
     save();
     return _S;
   }
@@ -144,7 +143,7 @@
   var CATS = [
     { id: "food", name: "吃的",   ico: "apple",    hint: "买来可以送人" },
     { id: "toy",  name: "玩的",   ico: "balloon",  hint: "拿在手里，点一下就玩" },
-    { id: "seed", name: "农作物", ico: "seedbag",  hint: "种到农场，三步长成，卖掉能得三倍星星" },
+    { id: "seed", name: "农作物", ico: "seedbag",  hint: "种到农场，三步长成，卖掉能得一点五倍星星" },
     { id: "pet",  name: "幼崽",   ico: "chick",    hint: "养大能当宠物，也可以送给小镇上的人" }
   ];
 
@@ -160,7 +159,7 @@
     { id: "teddy",   name: "小熊", cost: 5, cat: "toy", short: "小熊", line: "软软的小熊，可以抱着睡。" },
     { id: "kite",    name: "风筝", cost: 6, cat: "toy", short: "风筝", line: "有风的时候，风筝会飞很高。" },
     { id: "firework",name: "烟花", cost: 4, per: 1, cat: "toy", short: "烟花", line: "带回小镇点一下，天上开出一朵大花。" },
-    /* —— 农作物种子：种到农场，浇水两步就成熟，卖价是买价的三倍 —— */
+    /* —— 农作物种子：种到农场，浇水两步就成熟，卖价是买价的一点五倍 —— */
     { id: "seed_rose",   name: "玫瑰花种子", cost: 3, cat: "seed", grow: "rose",   short: "玫瑰", line: "种在农场里，能开出一朵玫瑰花。" },
     { id: "seed_potato", name: "土豆种子",   cost: 2, cat: "seed", grow: "potato", short: "土豆", line: "土豆最好养，浇浇水就长。" },
     { id: "seed_carrot", name: "萝卜种子",   cost: 2, cat: "seed", grow: "carrot", short: "萝卜", line: "外公最爱种萝卜，长得最快。" },
@@ -183,12 +182,13 @@
     for (var i = 0; i < CATS.length; i++) if (CATS[i].id === id) return CATS[i];
     return null;
   }
-  /* 种子的卖价：买价的三倍 */
-  function sellPrice(it) { return Math.round(((it && it.cost) || 1) * 3); }
-  /* 幼崽送人给的回礼：买入价的两倍。
-     原来给 5 倍，孩子会算成「送东西能赚更多」，分享就变成了套利；
-     压到 2 倍略高于卖作物，让「愿意分享」仍被看见，但不是最划算的买卖。 */
-  function giftPrice(it) { return Math.round(((it && it.cost) || 1) * 2); }
+  /* 农作物的卖价：买价的一点五倍。
+     只赚一半，一包种子来回一次是「小赚」，不是「提款机」，
+     想多攒星星还是得回去玩关卡。 */
+  function sellPrice(it) { return Math.round(((it && it.cost) || 1) * 1.5); }
+  /* 幼崽送人给的回礼：也是买入价的一点五倍，和卖作物一样。
+     分享不再比卖作物更划算，孩子按「想不想送」来选，而不是按赚多少选。 */
+  function giftPrice(it) { return Math.round(((it && it.cost) || 1) * 1.5); }
   /* 种子／幼崽画「长成以后的样子」，孩子一眼就认得出 */
   function itemGrow(it) { return (it && (it.grow || it.id)) || "star"; }
 
@@ -462,11 +462,69 @@
   }
 
   /* ===================================================================
+     6. 跨页跳转：去商店
+     -------------------------------------------------------------------
+     农场点「去商店」，得直接落在商店的货架前，不能回封面重新问名字。
+     以前只靠 URL 里的 ?shop=，可本地打开（file://）或在微信里点开时，
+     这一截参数有可能被吞掉——结果就是又回到「你叫什么名字」。
+     现在写两处：URL 一份，sessionStorage 一份，哪个活着都能接住。
+     =================================================================== */
+  var SHOP_CATS = ["food", "toy", "seed", "pet"];
+
+  function askShop() {
+    var want = null;
+    try {
+      var m = /[?&]shop=([a-z]+)/.exec(location.search || "");
+      if (m) want = m[1];
+      if (!want) {
+        m = /shop=([a-z]+)/.exec(location.hash || "");
+        if (m) want = m[1];
+      }
+    } catch (e) {}
+    /* URL 里没有，就问上次那个页面留下的记号 */
+    try {
+      var kept = sessionStorage.getItem("cc-ask-shop");
+      if (kept) sessionStorage.removeItem("cc-ask-shop");
+      if (!want && kept) want = kept;
+    } catch (e) {}
+    return SHOP_CATS.indexOf(want) >= 0 ? want : null;
+  }
+
+  /* 从哪儿来的。农场来的话，商店里就多一个「回农场」——
+     孩子买完种子应该能直接回去种，不用先绕回小镇再点一次房子。 */
+  function goShop(cat, from) {
+    cat = SHOP_CATS.indexOf(cat) >= 0 ? cat : "toy";
+    try {
+      sessionStorage.setItem("cc-ask-shop", cat);
+      sessionStorage.setItem("cc-shop-from", from || "");
+    } catch (e) {}
+    /* 拼成绝对地址再跳：有的内置浏览器对「index.html?shop=…」这种
+       相对地址会只取文件名，把问号后面整段丢掉，那就又回封面了。 */
+    var base = "";
+    try { base = location.href.replace(/[?#].*$/, "").replace(/[^/]*$/, ""); } catch (e) {}
+    location.href = base + "index.html?shop=" + cat + (from ? "&from=" + from : "");
+  }
+
+  /* 读一次就把记号擦掉：切个分类重绘时用的是页面里存的值，不会串到下一次 */
+  function shopFrom() {
+    var from = "";
+    try {
+      var m = /[?&]from=([a-z]+)/.exec(location.search || "");
+      if (m) from = m[1];
+    } catch (e) {}
+    try {
+      var kept = sessionStorage.getItem("cc-shop-from");
+      sessionStorage.removeItem("cc-shop-from");
+      if (!from && kept) from = kept;
+    } catch (e) {}
+    return from || "";
+  }
+
+  /* ===================================================================
      出口
      =================================================================== */
   global.CC = {
     KEY: KEY,
-    START_STARS: START_STARS,
 
     /* 存档 */
     blank: blank, normalize: normalize,
@@ -483,6 +541,9 @@
     Sound: Sound, Voice: Voice, VOICE_CHAR: VOICE_CHAR, on: on,
 
     /* 小零件 */
-    starSVG: starSVG
+    starSVG: starSVG,
+
+    /* 跨页跳转 */
+    askShop: askShop, goShop: goShop, shopFrom: shopFrom, SHOP_CATS: SHOP_CATS
   };
 })(window);

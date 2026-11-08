@@ -46,9 +46,21 @@ body{
     /* 书页中缝：一条很淡的竖影，像摊开的一本书 */
     linear-gradient(90deg, transparent 0 49.3%, rgba(176,160,128,.10) 50%, transparent 50.7% 100%),
     repeating-linear-gradient(180deg, rgba(180,168,140,.09) 0 1px, transparent 1px 34px),
+    /* 墙板：淡淡的竖条纹 */
+    repeating-linear-gradient(90deg, rgba(190,170,130,.05) 0 2px, transparent 2px 64px),
+    /* 底部一小段木地板 */
+    linear-gradient(180deg, transparent 0 calc(100% - 120px), rgba(186,148,96,.14) calc(100% - 120px)),
     linear-gradient(180deg,#fbf6e8 0%,#f6efdd 55%,#f0e7d1 100%);
   box-shadow:0 0 0 1px rgba(255,255,255,.55) inset, 0 0 26px rgba(150,132,100,.06) inset;
 }
+/* ---------- 图书馆氛围装饰：书架、绿植、台灯、阅读角 ---------- */
+.deco{position:absolute;inset:0;pointer-events:none;z-index:0}
+.deco .d{position:absolute;transform:translate(-50%,-50%)}
+.deco .d svg{display:block}
+.deco .d.float svg{animation:floaty 3.2s ease-in-out infinite alternate}
+@keyframes floaty{from{transform:translateY(0)}to{transform:translateY(-6px)}}
+#nodes{position:relative;z-index:1}
+@media (max-width:560px){ .deco .d{transform:translate(-50%,-50%) scale(.6)} }
 .map svg.path{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 
 /* 节点做成小书签：圆角方块 + 左侧书脊 */
@@ -77,6 +89,16 @@ body{
   background:var(--gold);color:#fff;font-size:13px;font-weight:800;
   display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.16);
 }
+/* 奖杯角标：贴在节点左上，点亮金色、没点亮是灰剪影 */
+.node .cup{
+  position:absolute;left:-9px;top:-9px;width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  background:#fffdf6;border:1.5px solid #e8dfc9;box-shadow:0 2px 5px rgba(80,60,30,.14);
+}
+.node .cup.on{background:#fff6e0;border-color:#f0d492;animation:cupIn .5s cubic-bezier(.2,1.4,.4,1) both}
+@keyframes cupIn{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+/* 结算面板里的大奖杯，点亮时弹一下 */
+.cupPop{display:inline-block;animation:cupIn .55s .15s cubic-bezier(.2,1.4,.4,1) both}
 .node.done{background:linear-gradient(180deg,#8fd0a4,#5cb37c);box-shadow:0 5px 0 #3f8f5d, 0 8px 16px rgba(59,53,44,.16)}
 .node.done::before{background:#3f8f5d}
 .node.done .num,.node.done .cap{color:#fff}
@@ -232,6 +254,69 @@ body{
 .starfly{position:fixed;z-index:90;font-size:22px;pointer-events:none;animation:fly 1s ease-out forwards}
 @keyframes fly{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-90px) scale(1.5)}}
 
+/* ---------- 认字关卡（第 7 关以后） ---------- */
+.hz{
+  font-family:"Songti SC","STSong","Noto Serif SC","SimSun",serif;
+  font-weight:700;color:#3b352c;line-height:1;letter-spacing:3px;
+}
+.qhead{text-align:center;margin:2px 0 4px}
+.qline{font-size:23px;font-weight:800;color:#3b352c;line-height:1.5}
+.qline .blank{
+  display:inline-block;min-width:54px;border-bottom:3px dashed #d5cdb9;
+  color:#c98d26;font-weight:800;
+}
+.qhint{font-size:13px;color:#8a8272;margin-top:8px}
+.qimg{display:flex;justify-content:center;margin:2px 0 4px}
+.opt.qo{
+  height:auto;min-height:74px;flex-direction:column;gap:2px;
+  padding:8px 16px;min-width:94px;font-size:22px;
+}
+.opt.qo .ol{font-size:20px;font-weight:800;line-height:1.25;color:#4a4437}
+.opt.qo .ol.big{font-size:29px}
+.opt.qo .oi{display:block;line-height:0}
+.opt.qo.ok{background:#e6f4e8;border-color:#8fd0a4}
+.opt.qo.ok .ol{color:#3f7a55}
+
+/* 组词／造句：一排空格 + 一排字卡 */
+.wslots{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:10px 0 4px}
+.wslot{
+  width:86px;height:86px;border-radius:18px;border:2px dashed #d5cdb9;background:#fbf8ee;
+  display:flex;align-items:center;justify-content:center;
+}
+/* 它也带 .drop 类，拖放才认得出来；尺寸压回方卡大小，不用 .drop 那套大框 */
+.wslot.drop{min-height:0;padding:4px;gap:0;width:86px;height:86px}
+.wslot.full{border-style:solid;border-color:#8fd0a4;background:#f0faf3}
+.wtile{
+  width:86px;height:86px;border-radius:18px;border:1px solid var(--line);background:#fff;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:0 3px 0 #e6ddca;transition:transform .12s;
+}
+.wtile:active{transform:translateY(2px)}
+.wtile.sel{box-shadow:0 0 0 3px #f5b83d,0 3px 0 #e6ddca;transform:translateY(-3px)}
+.wtile.bad{animation:shake .34s}
+.wtile.ok{opacity:.32;pointer-events:none}
+.wtile .hz{font-size:40px}
+
+/* 方位题的小场景：一个敞口木箱，小猫可能在上面、里面、下面 */
+.scene{position:relative;width:230px;height:186px;margin:6px auto 0}
+.scene .box{position:absolute;left:52px;width:126px}
+/* 箱体后半（含敞开的箱口） */
+.scene .box.back{
+  top:58px;height:68px;background:#efe3c9;
+  border:3px solid #cdb995;border-bottom:none;border-radius:10px 10px 0 0;
+}
+.scene .box.back::before{
+  content:"";position:absolute;left:-6px;top:-13px;width:132px;height:24px;
+  border-radius:50%;background:#ddcaa6;border:3px solid #cdb995;
+}
+/* 箱体前壁：在猫上面盖一层，小猫「在箱子里」时才看得出来 */
+.scene .box.front{
+  top:100px;height:28px;background:#e7d8b6;
+  border:3px solid #cdb995;border-top:none;border-radius:0 0 12px 12px;
+  z-index:3;
+}
+.scene .kit{position:absolute;transform:translate(-50%,-50%);z-index:2}
+
 @media (min-width:820px){
   .mask{align-items:center;padding:22px}
   .sheet{border-radius:26px;max-height:88vh}
@@ -267,6 +352,7 @@ body{
 <div class="mapwrap" id="mapWrap">
   <div class="map" id="map">
     <svg class="path" id="pathSvg" preserveAspectRatio="none"></svg>
+    <div class="deco" id="deco"></div>
     <div id="nodes"></div>
   </div>
 </div>
@@ -289,9 +375,10 @@ body{
 <script src="room.js"></script>
 <script>
 var S = Room.load();
-S.books = S.books || { cleared:{}, times:{} };
+S.books = S.books || { cleared:{}, times:{}, trophies:{} };
 S.books.cleared = S.books.cleared || {};
 S.books.times = S.books.times || {};
+S.books.trophies = S.books.trophies || {};   /* 每 5 关一个奖杯：{5:true, 10:true...} */
 
 /* ------------------------------------------------------------------
    额外的图形：room.js 里没有的，这里补
@@ -346,6 +433,38 @@ var MORE = {
   /* 骨头 */
   bone:'<path d="M-12,-4 a4,4 0 1 0 0,8 L12,4 a4,4 0 1 0 0,-8 Z" fill="#f0e6d2" stroke="#d6c9ad" stroke-width="1.6"/>',
 
+  /* 象形字：火（一团往上升的火苗，旁边溅出两点） */
+  glyphHuo:'<path d="M0,-15 C4,-8 9,-3 9,3 A9,9 0 0 1 -9,3 C-9,-3 -4,-9 0,-15 Z" fill="none" stroke="#4a4437" stroke-width="3" stroke-linejoin="round"/>'
+    + '<path d="M0,-2 C3,1.4 3,5.6 0,7.4 C-3,5.6 -3,1.4 0,-2 Z" fill="#4a4437"/>'
+    + '<path d="M-13,10 L-11,3 M13,10 L11,3" stroke="#4a4437" stroke-width="2.8" stroke-linecap="round"/>',
+  /* 象形字：木 */
+  glyphMu:'<path d="M0,-15 L0,14" stroke="#4a4437" stroke-width="3.2" stroke-linecap="round"/>'
+    + '<path d="M-11,-4 L11,-4" stroke="#4a4437" stroke-width="3.2" stroke-linecap="round"/>'
+    + '<path d="M0,1 L-10,11 M0,1 L10,11" stroke="#4a4437" stroke-width="2.8" stroke-linecap="round"/>',
+  /* 象形字：田 */
+  glyphTian:'<rect x="-12" y="-12" width="24" height="24" rx="2" fill="none" stroke="#4a4437" stroke-width="3.2"/>'
+    + '<path d="M0,-12 L0,12 M-12,0 L12,0" stroke="#4a4437" stroke-width="3"/>',
+  /* 象形字：雨 */
+  glyphYu:'<path d="M-13,-13 L13,-13" stroke="#4a4437" stroke-width="3.2" stroke-linecap="round"/>'
+    + '<path d="M-11,-13 L-11,11 L11,11 L11,-13" fill="none" stroke="#4a4437" stroke-width="3.2" stroke-linejoin="round"/>'
+    + '<path d="M-6,-1 L-6,5 M0,-1 L0,5 M6,-1 L6,5" stroke="#4a4437" stroke-width="2.8" stroke-linecap="round"/>',
+
+  /* 小鱼 */
+  fish:'<ellipse cx="0" cy="0" rx="13" ry="8" fill="#7fb6e0"/>'
+    + '<path d="M11,0 L19,-7 L19,7 Z" fill="#5f9dcd"/>'
+    + '<path d="M-1,-7 C1,-11 5,-11 7,-8" stroke="#5f9dcd" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
+    + '<path d="M-1,7 C1,11 5,11 7,8" stroke="#5f9dcd" stroke-width="1.8" fill="none" stroke-linecap="round"/>'
+    + '<circle cx="-6" cy="-1.4" r="1.7" fill="#3b352c"/>'
+    + '<path d="M-2,2 C1,4 4,4 7,2" stroke="#4a8fbf" stroke-width="1.4" fill="none" stroke-linecap="round"/>',
+  /* 小鸟 */
+  bird:'<ellipse cx="-1" cy="3" rx="10" ry="8" fill="#9fc7e8"/>'
+    + '<circle cx="7" cy="-5" r="6.2" fill="#b6d6f0"/>'
+    + '<path d="M12.4,-5.6 L18,-3.4 L12.4,-1.2 Z" fill="#f0a832"/>'
+    + '<circle cx="8.6" cy="-6.4" r="1.5" fill="#3b352c"/>'
+    + '<path d="M-5,-1 C-10,-6 -15,-1 -10,5 C-7,8 -5,5 -5,2 Z" fill="#7fb0d8"/>'
+    + '<path d="M-4,10 L-4,15 M3,10 L3,15" stroke="#e08a3c" stroke-width="1.8" stroke-linecap="round"/>'
+    + '<path d="M-9,4 C-16,6 -17,0 -12,-2" stroke="#9fc7e8" stroke-width="3" fill="none" stroke-linecap="round"/>',
+
   /* 小老鼠 */
   mouse:'<ellipse cx="0" cy="3" rx="11" ry="8" fill="#b9b3ab"/>'
     + '<circle cx="-7" cy="-5" r="5.5" fill="#cdc7bf"/><circle cx="7" cy="-5" r="5.5" fill="#cdc7bf"/>'
@@ -369,7 +488,116 @@ var LEVELS = [
   { n:3, name:"儿歌接龙",     tip:"念一念，接下来该说哪一句？",         type:"rhyme",      stage:"韵律",     icon:"rabbit" },
   { n:4, name:"找相反",       tip:"大的配小的，高的配矮的。",             type:"opposite",   stage:"词语",     icon:"treeTall" },
   { n:5, name:"字长什么样",   tip:"很久以前的人，把看到的东西画成了字。", type:"glyph",      stage:"前识字",   icon:"glyphShan" },
-  { n:6, name:"听完故事答一答", tip:"听一个小故事，再回答问题。",          type:"listenStory",stage:"听故事",   icon:"grandpa" }
+  { n:6, name:"听完故事答一答", tip:"听一个小故事，再回答问题。",          type:"listenStory",stage:"听故事",   icon:"grandpa" },
+
+  { n:7, name:"看图选字", tip:"看看图上是什么，选出它的名字。", type:"pickImageWord", stage:"认图识字", icon:"apple",
+    data:{ pool:[
+      { img:"apple",  read:"看看图，这是什么？它叫什么名字？",
+        opts:[{t:"苹果",ok:true},{t:"香蕉"},{t:"西瓜"}], done:"对，是苹果。" },
+      { img:"cat",    read:"图上是小猫咪。哪一个词是它？",
+        opts:[{t:"小猫",ok:true},{t:"小狗"},{t:"小鸭"}], done:"对，是小猫。" },
+      { img:"sun",    read:"天上红红的、暖暖的。是什么？",
+        opts:[{t:"太阳",ok:true},{t:"月亮"},{t:"星星"}], done:"对，是太阳。" },
+      { img:"flower", read:"一朵一朵开在土里，香香的。是什么？",
+        opts:[{t:"花",ok:true},{t:"树"},{t:"草"}], done:"对，是花。" }
+    ] } },
+
+  { n:8, name:"看字选图", tip:"这个字说的是哪个东西？点出来。", type:"pickWordImage", stage:"认图识字", icon:"book",
+    data:{ pool:[
+      { word:"鱼", say:"鱼", opts:[{ico:"fish",ok:true},{ico:"cat"},{ico:"flower"}] },
+      { word:"猫", say:"猫", opts:[{ico:"cat",ok:true},{ico:"dog"},{ico:"duck"}] },
+      { word:"月", say:"月", opts:[{ico:"moon",ok:true},{ico:"sun"},{ico:"star"}] },
+      { word:"花", say:"花", opts:[{ico:"flower",ok:true},{ico:"treeTall"},{ico:"carrot"}] }
+    ] } },
+
+  { n:9, name:"象形字找家", tip:"古时候的字像什么？把它拖到对应的字上。", type:"charGlyph", stage:"认图识字", icon:"glyphHuo" },
+
+  { n:10, name:"量词", tip:"数东西的时候，要用对量词。", type:"measure", stage:"认图识字", icon:"fish",
+    data:{ pool:[
+      { noun:"小猫", ans:"只", opts:[{t:"只",ok:true},{t:"朵"},{t:"条"}] },
+      { noun:"花",   ans:"朵", opts:[{t:"朵",ok:true},{t:"只"},{t:"棵"}] },
+      { noun:"小鱼", ans:"条", opts:[{t:"条",ok:true},{t:"朵"},{t:"只"}] },
+      { noun:"树",   ans:"棵", opts:[{t:"棵",ok:true},{t:"条"},{t:"只"}] }
+    ] } },
+
+  { n:11, name:"拼成一个词", tip:"把两个字排好，组成这个词。", type:"makeWord", stage:"认图识字", icon:"apple",
+    data:{ pool:[
+      { pic:"apple",  words:["苹","果"], read:"苹果。把两个字排好。" },
+      { pic:"cat",    words:["小","猫"], read:"小猫。把两个字排好。" },
+      { pic:"flower", words:["红","花"], read:"红花。把两个字排好。" },
+      { pic:"sun",    words:["太","阳"], read:"太阳。把两个字排好。" }
+    ] } },
+
+  { n:12, name:"反义词", tip:"和它意思相反的，是哪一个？", type:"oppWord", stage:"词语句子", icon:"treeTall",
+    data:{ pool:[
+      { a:"大", b:"小", opts:[{t:"小",ok:true},{t:"多"},{t:"高"}] },
+      { a:"上", b:"下", opts:[{t:"下",ok:true},{t:"里"},{t:"左"}] },
+      { a:"多", b:"少", opts:[{t:"少",ok:true},{t:"大"},{t:"快"}] },
+      { a:"快", b:"慢", opts:[{t:"慢",ok:true},{t:"远"},{t:"轻"}] }
+    ] } },
+
+  { n:13, name:"谁在哪里", tip:"看看小猫在盒子的哪里。", type:"whereIs", stage:"词语句子", icon:"cat",
+    data:{ pool:[
+      { where:"up",     ans:"上面", opts:[{t:"上面",ok:true},{t:"下面"},{t:"里面"}] },
+      { where:"inside", ans:"里面", opts:[{t:"上面"},{t:"下面"},{t:"里面",ok:true}] },
+      { where:"down",   ans:"下面", opts:[{t:"上面"},{t:"下面",ok:true},{t:"里面"}] }
+    ] } },
+
+  { n:14, name:"句子排排队", tip:"把词排一排，说成一句完整的话。", type:"makeSentence", stage:"词语句子", icon:"book",
+    data:{ pool:[
+      { words:["小猫","在","睡觉"], ask:"把句子排好", hint:"谁 · 在 · 做什么", read:"小猫在睡觉。把这三个词排好。" },
+      { words:["小鱼","在","水里"], ask:"把句子排好", hint:"谁 · 在 · 哪里",   read:"小鱼在水里。把这三个词排好。" },
+      { words:["我","爱","妈妈"],   ask:"把句子排好", hint:"谁 · 做什么 · 谁", read:"我爱妈妈。把这三个词排好。" }
+    ] } },
+
+  { n:15, name:"听音选词", tip:"听一听，说的是哪个词？", type:"hearWord", stage:"词语句子", icon:"rabbit",
+    data:{ pool:[
+      { word:"太阳", opts:[{t:"太阳",ok:true},{t:"月亮"},{t:"星星"}] },
+      { word:"苹果", opts:[{t:"苹果",ok:true},{t:"香蕉"},{t:"西瓜"}] },
+      { word:"小猫", opts:[{t:"小猫",ok:true},{t:"小狗"},{t:"小鸭"}] }
+    ] } },
+
+  { n:16, name:"找出一样的字", tip:"找出和上面一样的字。", type:"pickAll", stage:"汉字样子", icon:"book",
+    data:{ pool:[
+      { ask:"找出和「山」一样的字", sub:"有两个地方写着同一个字",
+        read:"找出和山一样的字，有两个。",
+        chars:[{t:"山",ok:true},{t:"出"},{t:"日"},{t:"山",ok:true},{t:"水"},{t:"田"}],
+        done:"两个「山」都找到了。" },
+      { ask:"找出和「日」一样的字", sub:"有两个地方写着同一个字",
+        read:"找出和日一样的字，有两个。",
+        chars:[{t:"日",ok:true},{t:"月"},{t:"目"},{t:"日",ok:true},{t:"白"},{t:"口"}],
+        done:"两个「日」都找到了。" },
+      { ask:"找出和「口」一样的字", sub:"有两个地方写着同一个字",
+        read:"找出和口一样的字，有两个。",
+        chars:[{t:"口",ok:true},{t:"田"},{t:"日"},{t:"中"},{t:"口",ok:true},{t:"回"}],
+        done:"两个「口」都找到了。" }
+    ] } },
+
+  { n:17, name:"三点水", tip:"左边有三点的字，都和水有关。", type:"pickAll", stage:"汉字样子", icon:"glyphShui",
+    data:{ pool:[
+      { ask:"点出带三点水的字", sub:"它们左边都有「氵」",
+        read:"点出带三点水的字，一共三个。",
+        chars:[{t:"河",ok:true},{t:"树"},{t:"海",ok:true},{t:"花"},{t:"洗",ok:true},{t:"跑"}],
+        done:"河、海、洗，左边都是三点水。" }
+    ] } },
+
+  { n:18, name:"木字旁", tip:"左边有个「木」的字，都跟树有关。", type:"pickAll", stage:"汉字样子", icon:"treeTall",
+    data:{ pool:[
+      { ask:"点出带木字旁的字", sub:"它们左边都有「木」",
+        read:"点出带木字旁的字，一共三个。",
+        chars:[{t:"树",ok:true},{t:"河"},{t:"林",ok:true},{t:"花"},{t:"桥",ok:true},{t:"跑"}],
+        done:"树、林、桥，左边都是木字旁。" }
+    ] } },
+
+  { n:19, name:"谁会做什么", tip:"想一想，它最会做什么？", type:"whoCanDo", stage:"汉字样子", icon:"bird",
+    data:{ pool:[
+      { img:"bird",   name:"小鸟", ans:"飞",     opts:[{t:"飞",ok:true},{t:"游"},{t:"跳"}] },
+      { img:"fish",   name:"小鱼", ans:"游",     opts:[{t:"游",ok:true},{t:"飞"},{t:"跑"}] },
+      { img:"rabbit", name:"小兔", ans:"跳",     opts:[{t:"跳",ok:true},{t:"游"},{t:"飞"}] },
+      { img:"cat",    name:"小猫", ans:"捉老鼠", opts:[{t:"捉老鼠",ok:true},{t:"游泳"},{t:"飞"}] }
+    ] } },
+
+  { n:20, name:"识字小考场", tip:"四道小题，全答对就通关。", type:"quizFinal", stage:"小考场", icon:"star" }
 ];
 var TOTAL = LEVELS.length;
 
@@ -383,10 +611,139 @@ function paintStar(){
   if (el) el.textContent = (S.stars || 0);
 }
 
+/* ---------------- 每 5 关一个奖杯 ---------------- */
+function CUP_AT(n){ return n % 5 === 0; }
+function cupN(n){ return !!S.books.trophies[n]; }
+function cupsN(){ var c = 0; for (var i = 5; i <= TOTAL; i += 5) if (cupN(i)) c++; return c; }
+/* 一只小奖杯：杯身 + 双耳 + 底座，点亮金色、没点亮是灰剪影 */
+function trophySVG(sz, c){
+  return '<svg width="' + sz + '" height="' + sz + '" viewBox="0 0 24 24" fill="none" stroke="' + c + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M7 4h10v5a5 5 0 0 1-10 0Z" fill="' + c + '" opacity=".22"/>' +
+    '<path d="M7 4h10v5a5 5 0 0 1-10 0Z"/>' +
+    '<path d="M7 5H4.5a2.5 2.5 0 0 0 2.7 4.4"/>' +
+    '<path d="M17 5h2.5a2.5 2.5 0 0 1-2.7 4.4"/>' +
+    '<path d="M12 14v3"/><path d="M9.6 17h4.8"/><path d="M8.5 20h7"/>' +
+  '</svg>';
+}
+
+/* ---------------- 图书馆氛围装饰：书架 / 绿植 / 台灯 / 阅读角 ----------------
+   只做背景，pointer-events 关掉，不挡点关卡；位置跟着关卡节点走。 */
+var DECO_COLS = ["#d98b6c","#e0a234","#7fa8c9","#8fbf7f","#b48ac9","#d97b7b","#c9a86a"];
+/* 四层书架，70×120：一关一个高度，摆起来像两面连续的墙 */
+function shelfSVG(seed){
+  function row(bottom){
+    var s = "", x = 8;
+    for (var k = 0; k < 6; k++){
+      var w = 5 + ((seed + k) % 3);
+      var h = 17 + ((seed * 3 + k * 4) % 6);
+      s += '<rect x="' + x + '" y="' + (bottom - h) + '" width="' + w + '" height="' + h + '" rx="1" fill="' + DECO_COLS[(seed + k) % DECO_COLS.length] + '"/>';
+      x += w + 1.4;
+    }
+    return s;
+  }
+  return '<svg width="70" height="120" viewBox="0 0 70 120">' +
+    '<rect x="2" y="2" width="66" height="116" rx="5" fill="#efe3c8" stroke="#c2a877" stroke-width="2"/>' +
+    row(29)  + '<rect x="5" y="29"  width="60" height="3" fill="#c2a877"/>' +
+    row(57)  + '<rect x="5" y="57"  width="60" height="3" fill="#c2a877"/>' +
+    row(85)  + '<rect x="5" y="85"  width="60" height="3" fill="#c2a877"/>' +
+    row(113) + '<rect x="5" y="113" width="60" height="3" fill="#c2a877"/>' +
+  '</svg>';
+}
+function plantSVG(){
+  return '<svg width="46" height="74" viewBox="0 0 46 74">' +
+    '<ellipse cx="23" cy="70" rx="15" ry="3" fill="rgba(90,70,40,.14)"/>' +
+    '<path d="M12 48h22l-2.6 18a3 3 0 0 1-3 2.6h-10.8a3 3 0 0 1-3-2.6Z" fill="#c96f4f"/>' +
+    '<rect x="10.5" y="44.5" width="25" height="5" rx="2" fill="#b85f42"/>' +
+    '<path d="M23 45V18" stroke="#5f8f56" stroke-width="2.4"/>' +
+    '<path d="M23 28C14 26 10 20 10 13c7 1 11 6 13 15Z" fill="#79ab6b"/>' +
+    '<path d="M23 28c9-2 13-8 13-15-7 1-11 6-13 15Z" fill="#79ab6b"/>' +
+    '<path d="M23 19c-5-6-5-12 0-16 5 4 5 10 0 16Z" fill="#8fbf7f"/>' +
+  '</svg>';
+}
+function lampSVG(){
+  return '<svg width="40" height="86" viewBox="0 0 40 86">' +
+    '<ellipse cx="20" cy="50" rx="15" ry="9" fill="#ffe9ad" opacity=".28"/>' +
+    '<path d="M11 22h18l6 17H5Z" fill="#f2c96a"/>' +
+    '<path d="M11 22h18l6 17H5Z" fill="none" stroke="#d99b2b" stroke-width="1.4"/>' +
+    '<rect x="18.6" y="41" width="2.8" height="32" fill="#a98a5a"/>' +
+    '<ellipse cx="20" cy="76" rx="10" ry="3.4" fill="#a98a5a"/>' +
+  '</svg>';
+}
+function chairSVG(){
+  return '<svg width="64" height="64" viewBox="0 0 64 64">' +
+    '<ellipse cx="30" cy="58" rx="22" ry="3" fill="rgba(90,70,40,.14)"/>' +
+    '<path d="M14 30q0-12 12-12t12 12v12H14Z" fill="#d98b6c"/>' +
+    '<rect x="12" y="38" width="24" height="10" rx="3" fill="#c97b5c"/>' +
+    '<rect x="10" y="48" width="28" height="6" rx="2" fill="#a95f42"/>' +
+    '<rect x="12" y="54" width="4" height="5" fill="#8a4f38"/><rect x="32" y="54" width="4" height="5" fill="#8a4f38"/>' +
+    '<path d="M24 37q8-6 16 0-8 5-16 0Z" fill="#fffdf6" stroke="#c9b58c"/>' +
+  '</svg>';
+}
+/* 摊在地上的几本书，做小点缀 */
+function stackSVG(){
+  return '<svg width="56" height="44" viewBox="0 0 56 44">' +
+    '<ellipse cx="28" cy="40" rx="22" ry="3" fill="rgba(90,70,40,.13)"/>' +
+    '<rect x="8"  y="30" width="40" height="9" rx="2" fill="#7fa8c9"/>' +
+    '<rect x="11" y="22" width="37" height="8" rx="2" fill="#e0a234"/>' +
+    '<rect x="9"  y="14" width="34" height="8" rx="2" fill="#d98b6c"/>' +
+    '<rect x="14" y="7"  width="28" height="7" rx="2" fill="#8fbf7f"/>' +
+  '</svg>';
+}
+function rugSVG(){
+  return '<svg width="96" height="42" viewBox="0 0 96 42">' +
+    '<ellipse cx="48" cy="21" rx="44" ry="18" fill="#dcb894"/>' +
+    '<ellipse cx="48" cy="21" rx="34" ry="13" fill="none" stroke="#b98f66" stroke-width="2.4"/>' +
+    '<ellipse cx="48" cy="21" rx="20" ry="7" fill="#c99f78"/>' +
+    '<path d="M5 21h4M87 21h4M20 9l2 3M76 9l-2 3M20 33l2-3M76 33l-2-3" stroke="#b98f66" stroke-width="2" stroke-linecap="round"/>' +
+  '</svg>';
+}
+/* 左右两列书墙：只在 8% / 92% 两条边线上摆，绝不出现在节点那一层 */
+var BOOK_DECOS = [
+  { i: 0,  x: 8,  k: "shelf", seed: 2 },
+  { i: 1,  x: 92, k: "shelf", seed: 5 },
+  { i: 2,  x: 8,  k: "shelf", seed: 3 },
+  { i: 3,  x: 92, k: "plant" },
+  { i: 4,  x: 8,  k: "lamp" },
+  { i: 5,  x: 92, k: "shelf", seed: 6 },
+  { i: 6,  x: 8,  k: "shelf", seed: 4 },
+  { i: 7,  x: 92, k: "shelf", seed: 1 },
+  { i: 7,  x: 8,  k: "stack" },
+  { i: 8,  x: 8,  k: "shelf", seed: 5 },
+  { i: 9,  x: 92, k: "lamp" },
+  { i: 10, x: 8,  k: "plant" },
+  { i: 11, x: 92, k: "shelf", seed: 2 },
+  { i: 12, x: 8,  k: "shelf", seed: 6 },
+  { i: 13, x: 92, k: "shelf", seed: 3 },
+  { i: 14, x: 8,  k: "chair" },
+  { i: 15, x: 92, k: "plant" },
+  { i: 16, x: 8,  k: "shelf", seed: 1 },
+  { i: 17, x: 92, k: "shelf", seed: 4 },
+  { i: 18, x: 8,  k: "shelf", seed: 5 },
+  { i: 19, x: 92, k: "shelf", seed: 2 }
+];
+function decoArt(d){
+  if (d.k === "shelf") return shelfSVG(d.seed);
+  if (d.k === "plant") return plantSVG();
+  if (d.k === "lamp")  return lampSVG();
+  if (d.k === "chair") return chairSVG();
+  if (d.k === "stack") return stackSVG();
+  if (d.k === "rug")   return rugSVG();
+  return "";
+}
+function paintDeco(){
+  var host = document.getElementById("deco");
+  if (!host) return;
+  host.innerHTML = BOOK_DECOS.map(function(d){
+    var p = NODE_POS[d.i];
+    if (!p) return "";
+    return '<div class="d" style="left:' + d.x + '%;top:' + p.y + 'px">' + decoArt(d) + '</div>';
+  }).join("");
+}
+
 /* ------------------------------------------------------------------
    地图
    ------------------------------------------------------------------ */
-var GAP = 178, PAD_TOP = 176, PAD_BOT = 186;
+var GAP = 136, PAD_TOP = 176, PAD_BOT = 186;
 var NODE_POS = [];
 
 function computePos(){
@@ -404,6 +761,7 @@ function buildMap(){
   var map = document.getElementById("map");
   var h = computePos();
   map.style.height = h + "px";
+  paintDeco();
 
   var svg = document.getElementById("pathSvg");
   svg.setAttribute("viewBox", "0 0 1000 " + h);
@@ -438,8 +796,13 @@ function buildMap(){
       ? '<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5 L9.5 18 L20 6.5"/></svg>'
       : '<span class="num">' + L.n + '</span>' +
         (openN(L.n) ? '' : '<svg class="lockico" viewBox="0 0 24 24" fill="none" stroke="#b3ab9b" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2.6"/><path d="M8.4 11 V8.4 a3.6 3.6 0 0 1 7.2 0 V11"/></svg>');
+    var cupTag = "";
+    if (CUP_AT(L.n)){
+      var on = cupN(L.n);
+      cupTag = '<span class="cup' + (on ? ' on' : '') + '">' + trophySVG(17, on ? "#e9a52e" : "#b3a894") + '</span>';
+    }
     b.innerHTML = inner + '<span class="cap">' + L.name + '</span>' +
-      (clearedN(L.n) ? '<span class="badge">★</span>' : '');
+      (clearedN(L.n) ? '<span class="badge">★</span>' : '') + cupTag;
     b.addEventListener("click", function(){ tapLevel(L, b); });
     box.appendChild(b);
   });
@@ -450,9 +813,9 @@ function buildMap(){
   peak.style.top = "44px";
   var done = progressN();
   peak.innerHTML = '<div class="flag"><b>' +
-    (done >= TOTAL ? "六页都读完啦" : "已经读完 " + done + " 个故事") +
+    (done >= TOTAL ? "二十个故事都读完啦" : "已经读完 " + done + " 个故事") +
     '</b><span>' +
-    (done >= TOTAL ? "这本书合上了，故事还在你心里" : "往下走，还有新的故事") +
+    (done >= TOTAL ? "这本书合上了，字还留在你心里" : "往下走，还有新的故事 · 奖杯 " + cupsN() + " / 4") +
     '</span></div>';
   document.getElementById("nodes").appendChild(peak);
 
@@ -539,8 +902,17 @@ var starSVG = CC.starSVG;
 
 function winLevel(L){
   var first = !clearedN(L.n);
-  var add = first ? 5 : 1;
-  if (first) S.books.cleared[L.n] = true;
+  var add = 2;
+  var cup = false;
+  if (first){
+    S.books.cleared[L.n] = true;
+    /* 每 5 关一个奖杯：只有头一回点亮才有奖，重复读不给 */
+    if (CUP_AT(L.n) && !cupN(L.n)){
+      S.books.trophies[L.n] = true;
+      cup = true;
+      add += 2;
+    }
+  }
   S.books.times[L.n] = (S.books.times[L.n] || 0) + 1;
   S.stars = (S.stars || 0) + add;
   save();
@@ -548,14 +920,20 @@ function winLevel(L){
   Room.Sound.blip("good");
 
   var all = progressN() >= TOTAL;
+  var pTxt;
+  if (all) pTxt = "从故事到认字，二十关你都走完了。<br>想再玩哪一关，回去点它就行。";
+  else if (cup) pTxt = "过关得 2 颗，奖杯再得 2 颗，<b>一共 " + add + " 颗</b>。<br>下一页翻开了，往下走一格。";
+  else if (first) pTxt = "得到 " + add + " 颗星星。<br>下一页翻开了，往下走一格。";
+  else pTxt = "再读一次，一样给 " + add + " 颗。";
   var sheet = document.getElementById("sheet");
   sheet.innerHTML =
     '<div class="donebox">' +
-      '<div>' + starSVG(all ? 56 : 52, "#e9a52e") + '</div>' +
-      '<h2>' + (all ? "六个故事都读完了" : "读完啦") + '</h2>' +
-      '<p>' + (all
-        ? "故事屋里的书你都翻过一遍了。<br>想再听哪个故事，回去点它就行。"
-        : "得到 " + add + " 颗星星。" + (first ? "<br>下一页翻开了，往下走一格。" : "<br>再读一次，也有一点点星星。")) + '</p>' +
+      '<div style="display:flex;justify-content:center;align-items:center;gap:6px">' +
+        starSVG(all ? 56 : 52, "#e9a52e") +
+        (cup ? '<span class="cupPop">' + trophySVG(46, "#e9a52e") + '</span>' : '') +
+      '</div>' +
+      '<h2>' + (all ? "二十关都读完了" : (cup ? "奖杯亮了！" : "读完啦")) + '</h2>' +
+      '<p>' + pTxt + '</p>' +
       '<div class="row">' +
         '<button class="btn primary" id="dkBack">回书架</button>' +
         (first && L.n < TOTAL ? '<button class="btn gold" id="dkNext">下一个故事</button>' : '') +
@@ -570,7 +948,9 @@ function winLevel(L){
     buildMap();
     openLevel(L.n + 1);
   };
-  try { Room.Voice.say(all ? "六个故事，你都读完啦。" : "读完啦，得到 " + add + " 颗星星。"); } catch(e){}
+  try { Room.Voice.say(all ? "二十关，你都读完啦。"
+        : (cup ? "第" + L.n + "关过啦，奖杯亮了，一共 " + add + " 颗星星。"
+               : "读完啦，得到 " + add + " 颗星星。")); } catch(e){}
 
   for (var i = 0; i < 5; i++){
     (function(i){
@@ -1023,6 +1403,437 @@ RENDER.listenStory = function(stage, L, win){
       }
     });
   });
+};
+
+/* =====================================================================
+   7-20：认图识字
+   ---------------------------------------------------------------------
+   3-4 岁的识字路：先认图（这是苹果），再认字（这个字念苹果），
+   然后量词、方位、句子，最后认识偏旁（三点水、木字旁）。
+   每一关都配语音——不识字的孩子也能玩下去。
+   ===================================================================== */
+
+function hz(t, size){
+  return '<span class="hz" style="font-size:' + (size || 40) + 'px">' + t + '</span>';
+}
+function optInner(o){
+  if (o.ico) return '<span class="oi">' + gart(o.ico, 46) + '</span>' +
+                    (o.t ? '<span class="ol">' + o.t + '</span>' : '');
+  if (o.hz)  return '<span class="ol">' + hz(o.hz, 34) + '</span>';
+  return '<span class="ol big">' + (o.t || "") + '</span>';
+}
+
+/* 一道选择题：题干 + 再听一遍 + 若干选项。
+   点错不扣分，只把提示说一遍；点对了交给 done()。 */
+function runQuestion(host, q, done){
+  var html = '<div class="qhead">' + (q.head || "") + '</div>';
+  html += '<div style="display:flex;justify-content:center;margin:10px 0 2px">' +
+            '<button class="replay qagain">' +
+              '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">' +
+                '<path d="M4 9 A8 8 0 1 1 4 15"/><path d="M4 4 L4 9 L9 9"/></svg>' +
+              '再听一遍</button></div>';
+  html += '<div class="opts qopts">';
+  q.opts.forEach(function(o, i){
+    html += '<button class="opt qo" data-i="' + i + '">' + optInner(o) + '</button>';
+  });
+  html += '</div>';
+  host.innerHTML = html;
+
+  function speak(){
+    try { Room.Voice.say(q.read || "", { who: "teacher", force: true }); } catch(e){}
+  }
+  setTimeout(speak, 320);
+  lvSay(q.read || "");
+  host.querySelector(".qagain").onclick = function(){ Room.Sound.blip("tap"); speak(); };
+
+  var solved = false;
+  host.querySelectorAll(".qo").forEach(function(b){
+    b.addEventListener("click", function(){
+      if (solved) return;
+      var o = q.opts[+b.dataset.i];
+      if (o.ok){
+        solved = true;
+        b.classList.add("ok");
+        Room.Sound.blip("ok");
+        try { Room.Voice.say(o.say || o.t || "", { who: "teacher", force: true }); } catch(e){}
+        lvSay(q.done || ("对啦，" + (o.t || "") + "。"));
+        setTimeout(done, 760);
+      } else {
+        b.classList.add("bad");
+        setTimeout(function(){ b.classList.remove("bad"); }, 360);
+        Room.Sound.blip("soft");
+        lvSay(q.hint || "再看看，不是这个。");
+        try { Room.Voice.say(q.hint || "再看看。", { who: "teacher", force: true }); } catch(e){}
+      }
+    });
+  });
+}
+
+function pickFrom(pool){
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
+/* ---- 7. 看图选字 ---- */
+RENDER.pickImageWord = function(stage, L, win){
+  var k = pickFrom(L.data.pool);
+  runQuestion(stage, {
+    head: '<div class="qimg">' + gart(k.img, 88) + '</div>' +
+          '<div class="qline">它叫什么？</div>',
+    read: k.read,
+    hint: "看图再想想，它叫什么名字？",
+    opts: k.opts
+  }, function(){
+    say(k.done || "对啦。", { who: "teacher" });
+    setTimeout(win, 640);
+  });
+};
+
+/* ---- 8. 看字选图 ---- */
+RENDER.pickWordImage = function(stage, L, win){
+  var k = pickFrom(L.data.pool);
+  runQuestion(stage, {
+    head: '<div style="display:flex;justify-content:center;margin:4px 0 8px">' +
+            hz(k.word, 64) + '</div>' +
+          '<div class="qline">这个字说的是哪一个？</div>',
+    read: "这个字念" + k.say + "。哪一个是" + k.say + "？",
+    hint: "再看看，那个字说的是哪个东西？",
+    opts: k.opts
+  }, function(){
+    say("对，" + k.say + "。", { who: "teacher" });
+    setTimeout(win, 640);
+  });
+};
+
+/* ---- 9. 象形字找家 ---- */
+RENDER.charGlyph = function(stage, L, win){
+  /* 第 5 关认过山、日、月、水；这一关换四个新的，不重样 */
+  var all = [
+    { glyph:"glyphHuo",  word:"火" },
+    { glyph:"glyphMu",   word:"木" },
+    { glyph:"glyphTian", word:"田" },
+    { glyph:"glyphYu",   word:"雨" }
+  ];
+  var items = all.slice().sort(function(){ return Math.random() - .5; }).slice(0, 3);
+
+  var html = '<p style="text-align:center;color:#8a8272;font-size:12.5px;margin:0 0 12px">' +
+    '古时候的字，画的就是那个东西</p>' +
+    '<div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-bottom:16px">';
+  items.forEach(function(it, i){
+    html += '<div class="drop cg" data-i="' + i + '" style="width:104px;min-height:118px;background:#fbf8ee">' +
+      hz(it.word, 46) + '<span class="dl">这个字</span></div>';
+  });
+  html += '</div><div class="tray">';
+  items.slice().sort(function(){ return Math.random() - .5; }).forEach(function(it){
+    html += '<div class="tile cg2" data-word="' + it.word + '" style="width:76px;height:76px">' +
+      gart(it.glyph, 54) + '</div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  say("这些是古时候的字。哪一个画的是这个字？把它拖过去。", { who: "teacher" });
+
+  var left = 3;
+  stage.querySelectorAll(".cg2").forEach(function(tile){
+    makeDraggable(tile, function(target){
+      if (!target) return;
+      var i = +target.dataset.i;
+      if (target.classList.contains("full")) return;
+      if (items[i].word === tile.dataset.word){
+        tile.remove();
+        target.classList.add("full");
+        target.innerHTML = gart(items[i].glyph, 50) +
+          '<span class="dl" style="font-size:15px;color:#3f7a55">' + items[i].word + '</span>';
+        Room.Sound.blip("ok");
+        left--;
+        if (left === 0){
+          say(items.map(function(x){ return x.word; }).join("、") + "，古时候的字你都认出来了。", { who: "teacher" });
+          setTimeout(win, 560);
+        } else {
+          say("对，这就是" + items[i].word + "。", { who: "teacher" });
+        }
+      } else {
+        tile.classList.add("bad");
+        setTimeout(function(){ tile.classList.remove("bad"); }, 360);
+        Room.Sound.blip("soft");
+        say("再看看，这个字哪里尖、哪里弯？", { who: "teacher" });
+      }
+    }, function(){
+      tile.classList.add("sel");
+      setTimeout(function(){ tile.classList.remove("sel"); }, 300);
+    });
+  });
+};
+
+/* ---- 10. 量词 ---- */
+RENDER.measure = function(stage, L, win){
+  var k = pickFrom(L.data.pool);
+  runQuestion(stage, {
+    head: '<div class="qline">一 <span class="blank">?</span> ' + k.noun + '</div>' +
+          '<div class="qhint">该说哪一个字？</div>',
+    read: "一什么" + k.noun + "？",
+    hint: "数东西的时候，要用对量词哦。",
+    opts: k.opts
+  }, function(){
+    say("一" + k.ans + k.noun + "。", { who: "teacher" });
+    setTimeout(win, 700);
+  });
+};
+
+/* ---- 11. 组词 ---- */
+RENDER.makeWord = function(stage, L, win){
+  var k = pickFrom(L.data.pool);
+  var words = k.words;
+  var html = '<div class="qimg">' + gart(k.pic, 80) + '</div>' +
+    '<div class="qhead"><div class="qline">把两个字排好，组成这个词</div></div>' +
+    '<div class="wslots">';
+  words.forEach(function(w, i){
+    html += '<div class="wslot drop mw" data-i="' + i + '"></div>';
+  });
+  html += '</div><div class="tray">';
+  words.map(function(w){ return w; }).sort(function(){ return Math.random() - .5; }).forEach(function(w){
+    html += '<div class="wtile mw2" data-w="' + w + '">' + hz(w, 40) + '</div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  /* 答案由语音说一遍就够了，屏幕上只留操作提示 */
+  lvSay("把字卡拖到方格里");
+  try { Room.Voice.say(k.words.join("") + "。把这两个字排好。", { who: "teacher" }); } catch(e){}
+
+  var left = words.length;
+  stage.querySelectorAll(".mw2").forEach(function(tile){
+    makeDraggable(tile, function(target){
+      if (!target || !target.classList.contains("mw")) return;
+      if (target.classList.contains("full")) return;
+      var i = +target.dataset.i;
+      if (words[i] === tile.dataset.w){
+        tile.remove();
+        target.classList.add("full");
+        target.innerHTML = hz(words[i], 40);
+        Room.Sound.blip("ok");
+        left--;
+        if (left === 0){
+          say(k.words.join("") + "，排对啦。", { who: "teacher" });
+          setTimeout(win, 600);
+        } else {
+          say("对，接着排后面的。", { who: "teacher" });
+        }
+      } else {
+        tile.classList.add("bad");
+        setTimeout(function(){ tile.classList.remove("bad"); }, 360);
+        Room.Sound.blip("soft");
+        say("这个字不是这一格的，再看看。", { who: "teacher" });
+      }
+    }, function(){
+      tile.classList.add("sel");
+      setTimeout(function(){ tile.classList.remove("sel"); }, 300);
+    });
+  });
+};
+
+/* ---- 12. 反义词 ---- */
+RENDER.oppWord = function(stage, L, win){
+  var k = pickFrom(L.data.pool);
+  runQuestion(stage, {
+    head: '<div class="qline" style="display:flex;align-items:center;justify-content:center;gap:14px">' +
+            hz(k.a, 56) +
+            '<span style="color:#b0a794;font-size:22px">↔</span>' +
+            '<span class="blank">?</span></div>' +
+          '<div class="qhint">和它意思相反的，是哪一个？</div>',
+    read: k.a + "，和它相反的是什么？",
+    hint: "意思要反过来才对。",
+    opts: k.opts
+  }, function(){
+    say(k.a + "和" + k.b + "，是一对反义词。", { who: "teacher" });
+    setTimeout(win, 700);
+  });
+};
+
+/* ---- 13. 谁在哪里 ---- */
+function sceneWhere(where){
+  /* 猫高 56：上面踩着箱口、里面露出半身、下面蹲在箱子前 */
+  var top = { up: "32px", inside: "88px", down: "156px" }[where];
+  return '<div class="scene">' +
+    '<div class="box back"></div>' +
+    '<div class="kit" style="left:115px;top:' + top + '">' + gart("cat", 56) + '</div>' +
+    '<div class="box front"></div>' +
+  '</div>';
+}
+RENDER.whereIs = function(stage, L, win){
+  var k = pickFrom(L.data.pool);
+  runQuestion(stage, {
+    head: sceneWhere(k.where) + '<div class="qline">小猫在盒子的哪里？</div>',
+    read: "小猫在盒子的哪里？",
+    hint: "看看小猫是在上面、下面，还是里面？",
+    opts: k.opts
+  }, function(){
+    say("小猫在盒子的" + k.ans + "。", { who: "teacher" });
+    setTimeout(win, 700);
+  });
+};
+
+/* ---- 14. 句子排排队 ---- */
+RENDER.makeSentence = function(stage, L, win){
+  var k = pickFrom(L.data.pool);
+  var words = k.words;
+  var html = '<div class="qhead"><div class="qline">' + k.ask + '</div>' +
+    '<div class="qhint">' + k.hint + '</div></div><div class="wslots">';
+  words.forEach(function(w, i){ html += '<div class="wslot drop ms" data-i="' + i + '"></div>'; });
+  html += '</div><div class="tray">';
+  words.slice().sort(function(){ return Math.random() - .5; }).forEach(function(w){
+    html += '<div class="wtile ms2" data-w="' + w + '">' + hz(w, 34) + '</div>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  say(k.read || k.ask, { who: "teacher" });
+
+  var left = words.length;
+  stage.querySelectorAll(".ms2").forEach(function(tile){
+    makeDraggable(tile, function(target){
+      if (!target || !target.classList.contains("ms")) return;
+      if (target.classList.contains("full")) return;
+      var i = +target.dataset.i;
+      if (words[i] === tile.dataset.w){
+        tile.remove();
+        target.classList.add("full");
+        target.innerHTML = hz(words[i], 34);
+        Room.Sound.blip("ok");
+        left--;
+        if (left === 0){
+          say(k.words.join("") + "。这句话说完整啦。", { who: "teacher" });
+          setTimeout(win, 640);
+        }
+      } else {
+        tile.classList.add("bad");
+        setTimeout(function(){ tile.classList.remove("bad"); }, 360);
+        Room.Sound.blip("soft");
+        say("这一格不是它，再想想谁在最前面。", { who: "teacher" });
+      }
+    }, function(){
+      tile.classList.add("sel");
+      setTimeout(function(){ tile.classList.remove("sel"); }, 300);
+    });
+  });
+};
+
+/* ---- 15. 听音选词 ---- */
+RENDER.hearWord = function(stage, L, win){
+  var k = pickFrom(L.data.pool);
+  runQuestion(stage, {
+    head: '<div class="qline">听一听，说的是哪个词？</div>' +
+          '<div class="qhint">没听清就点「再听一遍」</div>',
+    read: k.word,
+    hint: "再听一遍，第一个字是什么？",
+    opts: k.opts
+  }, function(){
+    say(k.word + "。听对啦。", { who: "teacher" });
+    setTimeout(win, 700);
+  });
+};
+
+/* ---- 16-18. 点出一类字 ---- */
+RENDER.pickAll = function(stage, L, win){
+  var k = pickFrom(L.data.pool);
+  var need = k.chars.filter(function(c){ return c.ok; }).length;
+
+  var html = '<div class="qhead"><div class="qline">' + k.ask + '</div>' +
+    '<div class="qhint">' + k.sub + '</div></div><div class="opts qopts">';
+  k.chars.forEach(function(c, i){
+    html += '<button class="opt qo" data-i="' + i + '" style="min-width:86px">' + hz(c.t, 36) + '</button>';
+  });
+  html += '</div>';
+  stage.innerHTML = html;
+  lvSay(k.ask);
+  try { Room.Voice.say(k.read || k.ask, { who: "teacher" }); } catch(e){}
+
+  var got = 0;
+  stage.querySelectorAll(".qo").forEach(function(b){
+    b.addEventListener("click", function(){
+      if (b.classList.contains("ok")) return;
+      var c = k.chars[+b.dataset.i];
+      if (c.ok){
+        b.classList.add("ok");
+        b.innerHTML = hz(c.t, 36) +
+          '<span style="font-size:11.5px;color:#3f7a55;font-weight:800;margin-top:2px">找到了</span>';
+        Room.Sound.blip("ok");
+        got++;
+        try { Room.Voice.say(c.t, { who: "teacher" }); } catch(e){}
+        if (got === need){
+          lvSay(k.done || "都找出来啦。");
+          say(k.done || "都找出来啦。", { who: "teacher" });
+          setTimeout(win, 640);
+        } else {
+          lvSay("对，" + c.t + "。还有 " + (need - got) + " 个。");
+        }
+      } else {
+        b.classList.add("bad");
+        setTimeout(function(){ b.classList.remove("bad"); }, 360);
+        Room.Sound.blip("soft");
+        lvSay("这个字不一样，再看看它的样子。");
+        try { Room.Voice.say("这个字不一样，再看看。", { who: "teacher", force: true }); } catch(e){}
+      }
+    });
+  });
+};
+
+/* ---- 19. 谁会做什么 ---- */
+RENDER.whoCanDo = function(stage, L, win){
+  var k = pickFrom(L.data.pool);
+  runQuestion(stage, {
+    head: '<div class="qimg">' + gart(k.img, 86) + '</div>' +
+          '<div class="qline">' + k.name + '会做什么？</div>',
+    read: k.name + "会做什么？",
+    hint: "想一想，它最会做什么？",
+    opts: k.opts
+  }, function(){
+    say(k.name + "会" + k.ans + "。", { who: "teacher" });
+    setTimeout(win, 700);
+  });
+};
+
+/* ---- 20. 识字小考场 ---- */
+RENDER.quizFinal = function(stage, L, win){
+  var qs = [
+    {
+      head: '<div class="qimg">' + gart("apple", 76) + '</div><div class="qline">它叫什么？</div>',
+      read: "第一题。图上是什么？",
+      opts: [ { t:"苹果", ok:true }, { t:"香蕉" }, { t:"西瓜" } ],
+      done: "对，是苹果。"
+    },
+    {
+      head: '<div class="qline">一 <span class="blank">?</span> 小鱼</div><div class="qhint">该说哪一个字？</div>',
+      read: "第二题。一什么小鱼？",
+      opts: [ { t:"条", ok:true }, { t:"朵" }, { t:"只" } ],
+      done: "对，一条小鱼。"
+    },
+    {
+      head: sceneWhere("up") + '<div class="qline">小猫在盒子的哪里？</div>',
+      read: "第三题。小猫在盒子的哪里？",
+      opts: [ { t:"上面", ok:true }, { t:"下面" }, { t:"里面" } ],
+      done: "对，小猫在盒子的上面。"
+    },
+    {
+      head: '<div class="qline">哪一个字是三点水？</div><div class="qhint">看看字的左边</div>',
+      read: "第四题。哪一个字带三点水？",
+      opts: [ { t:"河", ok:true }, { t:"树" }, { t:"花" } ],
+      done: "对，河字左边有三点水。"
+    }
+  ];
+  var i = 0;
+  function next(){
+    if (i >= qs.length){
+      say("四道题都答对了。这本书你真的读懂了。", { who: "teacher" });
+      setTimeout(win, 720);
+      return;
+    }
+    var q = qs[i];
+    i++;
+    q.head = '<div class="qhint" style="margin-bottom:6px">第 ' + i + ' / ' + qs.length + ' 题</div>' + q.head;
+    runQuestion(stage, q, function(){
+      Room.Sound.blip("good");
+      lvSay(q.done);
+      setTimeout(next, 700);
+    });
+  }
+  next();
 };
 
 /* ------------------------------------------------------------------

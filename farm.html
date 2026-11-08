@@ -455,11 +455,14 @@
           : "背包里还没有种子。到商店的「农作物」里挑一包吧。") + '</p>' +
         '<div class="big-ico">' + Room.art(pen ? "chick" : "seedbag", 82) + '</div>' +
         '<div class="row">' +
-          '<button class="btn warm" onclick="location.href=\'index.html?shop=' + (pen ? 'pet' : 'seed') + '\'">去商店看看</button>' +
+          '<button class="btn warm" data-shop="' + (pen ? 'pet' : 'seed') + '">去商店看看</button>' +
           '<button class="btn" id="pkCancel">等会儿</button>' +
         '</div>'
       );
       document.getElementById("pkCancel").onclick = closeSheet;
+      /* 走公共跳转：商店那边认得出「我是被叫来买东西的」，直接开货架 */
+      var _sb = sheet.querySelector("[data-shop]");
+      if (_sb) _sb.onclick = function(){ CC.goShop(_sb.getAttribute("data-shop"), "farm"); };
       Voice.say(pen ? "背包里还没有幼崽，先去商店挑一只吧。" : "背包里还没有种子，先去商店挑一包吧。");
       return;
     }
@@ -709,7 +712,8 @@
   }
 
   /* ---------------- 顶部按钮 ---------------- */
-  document.getElementById("btnBack").onclick = function(){ location.href = "index.html"; };
+  /* 回小镇带上 back=1：首页靠它分清「从农场回来」和「从农场去买东西」 */
+  document.getElementById("btnBack").onclick = function(){ location.href = "index.html?back=1"; };
   document.getElementById("btnWallet").onclick = function(){
     say("你现在有 " + (S.stars || 0) + " 颗星星。种得越多，卖得越多。");
   };
